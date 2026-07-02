@@ -3,7 +3,7 @@
         <div class="row g-4">
             <div class="col-lg-3 col-md-6">
                 <a class="brand-mark mb-3" href="{{ route('shop.index') }}">
-                    <span class="brand-leaf"><i class="bi bi-leaf-fill"></i></span>
+                    <span class="brand-leaf"><i class="bi bi-flower1"></i></span>
                     <span>VitaNatural <span class="brand-subtitle">Bienestar que se nota</span></span>
                 </a>
                 <div class="d-flex gap-2 fs-4">
