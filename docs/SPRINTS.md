@@ -31,6 +31,10 @@ Entregables:
 
 Objetivo: administrar el catalogo desde el panel.
 
+Estado: completado.
+
+Detalle: `docs/SPRINT_2_ROADMAP.md`.
+
 Entregables:
 - CRUD de categorias.
 - CRUD de marcas.
