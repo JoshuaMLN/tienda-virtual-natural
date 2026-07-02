@@ -47,6 +47,10 @@ Entregables:
 
 Objetivo: controlar disponibilidad antes de vender.
 
+Estado: definido.
+
+Detalle: `docs/SPRINT_3_ROADMAP.md`.
+
 Entregables:
 - Stock real por producto.
 - Stock minimo.

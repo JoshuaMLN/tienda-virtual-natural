@@ -27,6 +27,7 @@ class Product extends Model
         'price',
         'compare_at_price',
         'stock',
+        'low_stock_threshold',
         'rating_average',
         'reviews_count',
         'is_active',
@@ -40,6 +41,7 @@ class Product extends Model
             'price' => 'decimal:2',
             'compare_at_price' => 'decimal:2',
             'stock' => 'integer',
+            'low_stock_threshold' => 'integer',
             'rating_average' => 'decimal:2',
             'reviews_count' => 'integer',
             'is_active' => 'boolean',
@@ -66,6 +68,11 @@ class Product extends Model
     public function primaryImage(): HasOne
     {
         return $this->hasOne(ProductImage::class)->where('is_primary', true)->oldest('sort_order');
+    }
+
+    public function inventoryMovements(): HasMany
+    {
+        return $this->hasMany(InventoryMovement::class)->latest('created_at')->latest('id');
     }
 
     public function scopeActive(Builder $query): Builder
