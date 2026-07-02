@@ -36,6 +36,34 @@ Resultado de tests:
 73 tests, 73 passed, 338 assertions
 ```
 
+## Fase 2: Servicio de dominio de inventario
+
+Estado: Completada
+
+Implementado:
+- Servicio `InventoryService`.
+- Metodo `increase()` para ingresos de inventario.
+- Metodo `decrease()` para salidas de inventario.
+- Metodo `adjust()` para ajustes a un stock final especifico.
+- Metodo `ensureAvailable()` para validar disponibilidad reutilizable en carrito/pedidos.
+- Excepcion `InsufficientStockException` con cantidad solicitada y stock disponible.
+- Transacciones para actualizar `products.stock` y crear el movimiento de inventario de forma atomica.
+- Bloqueo de fila con `lockForUpdate()` al modificar stock.
+- Validacion de cantidades positivas para ingresos y salidas.
+- Validacion de ajuste no negativo.
+- Motivos por defecto para movimientos cuando la capa superior no envia uno.
+- Tests feature para ingresos, salidas, ajustes, stock insuficiente y validaciones.
+
+Validaciones:
+- `php -l` en servicio, excepcion y tests.
+- `php artisan test tests\Feature\InventoryServiceTest.php`
+
+Resultado de tests:
+
+```txt
+7 tests, 7 passed, 27 assertions
+```
+
 ## Siguiente fase
 
-Fase 2: Servicio de dominio de inventario.
+Fase 3: Admin de stock real.
