@@ -1,25 +1,33 @@
 @props(['product' => []])
 
 @php
-    $product = array_merge([
-        'name' => 'Producto natural',
-        'description' => 'Presentacion 120 capsulas',
-        'price' => 'S/ 79.90',
-        'old_price' => null,
-        'rating' => 5,
-        'reviews' => 73,
-        'image' => 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=700&q=80',
-        'url' => route('shop.product'),
-        'badge' => null,
-    ], $product);
+    $slug = data_get($product, 'slug');
+    $compareAtPrice = data_get($product, 'formatted_compare_at_price') ?? data_get($product, 'old_price');
+    $price = data_get($product, 'formatted_price') ?? data_get($product, 'price', 'S/ 79.90');
+
+    if (is_numeric($price)) {
+        $price = 'S/ '.number_format((float) $price, 2);
+    }
+
+    $productView = [
+        'name' => data_get($product, 'name', 'Producto natural'),
+        'description' => data_get($product, 'short_description') ?? data_get($product, 'description', 'Presentacion 120 capsulas'),
+        'price' => $price,
+        'old_price' => $compareAtPrice,
+        'rating' => (int) round((float) (data_get($product, 'rating_average') ?? data_get($product, 'rating', 5))),
+        'reviews' => data_get($product, 'reviews_count') ?? data_get($product, 'reviews', 73),
+        'image' => data_get($product, 'main_image_url') ?? data_get($product, 'image', asset(\App\Models\Product::DEFAULT_IMAGE)),
+        'url' => data_get($product, 'url') ?? ($slug ? route('shop.product', $slug) : route('shop.catalog')),
+        'badge' => data_get($product, 'badge') ?? ($compareAtPrice ? 'Oferta' : null),
+    ];
 @endphp
 
 <article class="card product-card">
-    <a href="{{ $product['url'] }}">
+    <a href="{{ $productView['url'] }}">
         <div class="position-relative">
-            <div class="product-image" style="background-image: url('{{ $product['image'] }}')"></div>
-            @if($product['badge'])
-                <span class="badge text-bg-warning position-absolute top-0 start-0 m-2">{{ $product['badge'] }}</span>
+            <div class="product-image" style="background-image: url('{{ $productView['image'] }}')"></div>
+            @if($productView['badge'])
+                <span class="badge text-bg-warning position-absolute top-0 start-0 m-2">{{ $productView['badge'] }}</span>
             @endif
             <button class="btn btn-light btn-sm position-absolute top-0 end-0 m-2 rounded-circle" type="button" aria-label="Agregar a favoritos">
                 <i class="bi bi-heart"></i>
@@ -27,18 +35,18 @@
         </div>
     </a>
     <div class="card-body d-flex flex-column">
-        <a class="product-title" href="{{ $product['url'] }}">{{ $product['name'] }}</a>
-        <p class="small text-muted mb-2">{{ $product['description'] }}</p>
-        <div class="rating mb-2" aria-label="{{ $product['rating'] }} estrellas">
+        <a class="product-title" href="{{ $productView['url'] }}">{{ $productView['name'] }}</a>
+        <p class="small text-muted mb-2">{{ $productView['description'] }}</p>
+        <div class="rating mb-2" aria-label="{{ $productView['rating'] }} estrellas">
             @for($i = 1; $i <= 5; $i++)
-                <i class="bi {{ $i <= $product['rating'] ? 'bi-star-fill' : 'bi-star' }}"></i>
+                <i class="bi {{ $i <= $productView['rating'] ? 'bi-star-fill' : 'bi-star' }}"></i>
             @endfor
-            <span class="text-muted">({{ $product['reviews'] }})</span>
+            <span class="text-muted">({{ $productView['reviews'] }})</span>
         </div>
         <div class="d-flex align-items-end gap-2 mt-auto">
-            <span class="price">{{ $product['price'] }}</span>
-            @if($product['old_price'])
-                <span class="old-price">{{ $product['old_price'] }}</span>
+            <span class="price">{{ $productView['price'] }}</span>
+            @if($productView['old_price'])
+                <span class="old-price">{{ $productView['old_price'] }}</span>
             @endif
         </div>
     </div>

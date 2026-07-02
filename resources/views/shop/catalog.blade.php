@@ -4,36 +4,39 @@
 
 @section('content')
 @php
-    $products = [
-        ['name' => 'Vitamina D3 2000 UI', 'description' => '90 capsulas', 'price' => 'S/ 49.90', 'rating' => 5, 'reviews' => 42, 'image' => 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Magnesio citrato', 'description' => '120 capsulas', 'price' => 'S/ 49.90', 'old_price' => 'S/ 59.90', 'rating' => 5, 'reviews' => 47, 'image' => 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Zinc 25 mg', 'description' => '100 tabletas', 'price' => 'S/ 26.90', 'rating' => 4, 'reviews' => 31, 'image' => 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Omega 3 Premium', 'description' => '120 capsulas', 'price' => 'S/ 79.90', 'rating' => 5, 'reviews' => 73, 'image' => 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Colageno hidrolizado', 'description' => 'Sobre 200 g', 'price' => 'S/ 69.90', 'rating' => 4, 'reviews' => 55, 'image' => 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Ashwagandha', 'description' => '60 capsulas', 'price' => 'S/ 51.90', 'old_price' => 'S/ 64.90', 'rating' => 5, 'reviews' => 24, 'image' => 'https://images.unsplash.com/photo-1516684669134-de6f7c473a2a?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Vitamina C 1000 mg', 'description' => '60 tabletas', 'price' => 'S/ 59.00', 'rating' => 5, 'reviews' => 120, 'image' => 'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Complejo B', 'description' => '100 tabletas', 'price' => 'S/ 42.90', 'rating' => 4, 'reviews' => 48, 'image' => 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Maca negra en polvo', 'description' => '200 g', 'price' => 'S/ 34.90', 'rating' => 5, 'reviews' => 96, 'image' => 'https://images.unsplash.com/photo-1587049352851-8d4e89133924?auto=format&fit=crop&w=700&q=80'],
-    ];
+    $catalogTitle = $selectedCategories->count() === 1 ? $selectedCategories->first()->name : 'Catalogo';
 @endphp
 
 <section class="container py-4">
     <nav class="small text-muted mb-3">Inicio &gt; Catalogo</nav>
     <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
         <div>
-            <h1 class="section-title mb-1">Suplementos</h1>
-            <p class="text-muted mb-0">Mostrando 1-12 de 126 productos</p>
+            <h1 class="section-title mb-1">{{ $catalogTitle }}</h1>
+            <p class="text-muted mb-0">
+                Mostrando {{ $products->firstItem() ?? 0 }}-{{ $products->lastItem() ?? 0 }} de {{ $products->total() }} productos
+            </p>
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-vn-outline d-lg-none" data-bs-toggle="offcanvas" data-bs-target="#mobileFilters" type="button">
                 <i class="bi bi-sliders"></i> Filtros
             </button>
-            <select class="form-select" aria-label="Ordenar productos">
-                <option>Mas vendidos</option>
-                <option>Menor precio</option>
-                <option>Mayor precio</option>
-                <option>Novedades</option>
-            </select>
+            <form action="{{ route('shop.catalog') }}" method="GET">
+                @foreach(request()->except(['orden', 'page']) as $key => $value)
+                    @if(is_array($value))
+                        @foreach($value as $innerValue)
+                            <input type="hidden" name="{{ $key }}[]" value="{{ $innerValue }}">
+                        @endforeach
+                    @else
+                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                    @endif
+                @endforeach
+                <select class="form-select" name="orden" aria-label="Ordenar productos" onchange="this.form.submit()">
+                    <option value="destacados" @selected(request('orden', 'destacados') === 'destacados')>Destacados</option>
+                    <option value="recientes" @selected(request('orden') === 'recientes')>Mas recientes</option>
+                    <option value="precio_asc" @selected(request('orden') === 'precio_asc')>Menor precio</option>
+                    <option value="precio_desc" @selected(request('orden') === 'precio_desc')>Mayor precio</option>
+                </select>
+            </form>
         </div>
     </div>
 
@@ -42,23 +45,45 @@
             @include('shop.partials.filters')
         </aside>
         <div class="col-lg-9">
+            @if(request()->hasAny(['q', 'categoria', 'marca', 'precio_min', 'precio_max', 'oferta']))
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <span class="small text-muted">Filtros activos</span>
+                    @if(request('q'))
+                        <span class="badge text-bg-light border">Busqueda: {{ request('q') }}</span>
+                    @endif
+                    @foreach($selectedCategories as $selectedCategory)
+                        <span class="badge text-bg-light border">Categoria: {{ $selectedCategory->name }}</span>
+                    @endforeach
+                    @foreach($selectedBrands as $selectedBrand)
+                        <span class="badge text-bg-light border">Marca: {{ $selectedBrand->name }}</span>
+                    @endforeach
+                    @if(request()->boolean('oferta'))
+                        <span class="badge text-bg-light border">Ofertas</span>
+                    @endif
+                    <a class="small fw-bold text-vn-green" href="{{ route('shop.catalog') }}">Limpiar</a>
+                </div>
+            @endif
+
             <div class="row g-3 g-xl-4">
-                @foreach($products as $product)
+                @forelse($products as $product)
                     <div class="col-6 col-md-4">
                         <x-shop.product-card :product="$product" />
                     </div>
-                @endforeach
+                @empty
+                    <div class="col-12">
+                        <div class="checkout-card p-5 text-center">
+                            <i class="bi bi-search fs-1 text-vn-green"></i>
+                            <h2 class="h5 fw-black mt-3">No encontramos productos</h2>
+                            <p class="text-muted mb-3">Prueba con otros filtros o limpia la busqueda.</p>
+                            <a class="btn btn-vn-outline" href="{{ route('shop.catalog') }}">Ver todo el catalogo</a>
+                        </div>
+                    </div>
+                @endforelse
             </div>
-            <nav class="mt-4" aria-label="Paginacion">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                    <li class="page-item"><a class="page-link" href="#">2</a></li>
-                    <li class="page-item"><a class="page-link" href="#">3</a></li>
-                    <li class="page-item"><a class="page-link" href="#">4</a></li>
-                    <li class="page-item"><a class="page-link" href="#">5</a></li>
-                    <li class="page-item"><a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a></li>
-                </ul>
-            </nav>
+
+            <div class="mt-4">
+                {{ $products->links() }}
+            </div>
         </div>
     </div>
 </section>

@@ -1,70 +1,98 @@
 @extends('layouts.shop')
 
-@section('title', 'Omega 3 Premium | VitaNatural')
+@section('title', $product->name.' | VitaNatural')
 
 @section('content')
 @php
-    $productImages = [
-        'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=900&q=80',
-        'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=900&q=80',
-        'https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=900&q=80',
-    ];
-    $related = [
-        ['name' => 'Vitamina D3 5000 UI', 'description' => '120 capsulas', 'price' => 'S/ 54.90', 'rating' => 5, 'reviews' => 54, 'image' => 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Magnesio citrato', 'description' => '120 capsulas', 'price' => 'S/ 49.90', 'rating' => 5, 'reviews' => 49, 'image' => 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Aceite de krill', 'description' => '60 capsulas', 'price' => 'S/ 69.90', 'rating' => 4, 'reviews' => 18, 'image' => 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Coenzima Q10', 'description' => '60 capsulas', 'price' => 'S/ 69.90', 'rating' => 4, 'reviews' => 29, 'image' => 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=700&q=80'],
-    ];
+    $galleryImages = $product->images->where('is_primary', false);
+    $productImages = collect([(object) [
+        'url' => $product->main_image_url,
+        'alt_text' => $product->primaryImage?->alt_text ?: $product->name,
+    ]])->merge($galleryImages);
+    $firstImage = $productImages->first();
 @endphp
 
 <section class="container py-4">
-    <nav class="small text-muted mb-3">Inicio &gt; Suplementos &gt; Omega 3 Premium</nav>
+    <nav class="small text-muted mb-3">
+        Inicio &gt;
+        <a href="{{ route('shop.catalog', ['categoria' => $product->category->slug]) }}">{{ $product->category->name }}</a> &gt;
+        {{ $product->name }}
+    </nav>
     <div class="row g-4">
         <div class="col-lg-6">
-            <div class="row g-3">
+            <div class="row g-3" data-product-gallery>
                 <div class="col-2">
                     <div class="d-grid gap-2">
-                        @foreach($productImages as $image)
-                            <button class="border rounded-2 bg-white p-1" type="button">
-                                <div class="thumb-sm w-100" style="height: 76px; background-image: url('{{ $image }}')"></div>
+                        @foreach($productImages as $imageIndex => $image)
+                            <button
+                                class="product-gallery-thumb border rounded-2 bg-white p-1 {{ $imageIndex === 0 ? 'is-active' : '' }}"
+                                type="button"
+                                data-product-gallery-thumb
+                                data-image-url="{{ $image->url }}"
+                                data-image-alt="{{ $image->alt_text ?: $product->name }}"
+                                aria-label="Ver imagen {{ $imageIndex + 1 }} de {{ $product->name }}"
+                                aria-pressed="{{ $imageIndex === 0 ? 'true' : 'false' }}"
+                            >
+                                <div class="thumb-sm w-100" style="height: 76px; background-image: url('{{ $image->url }}')"></div>
                             </button>
                         @endforeach
-                        <button class="btn btn-light border" type="button" aria-label="Ver video"><i class="bi bi-play-circle-fill text-warning fs-3"></i></button>
                     </div>
                 </div>
                 <div class="col-10">
-                    <div class="product-image rounded-2 border" style="aspect-ratio: 1 / 1; background-image: url('{{ $productImages[0] }}')"></div>
+                    <button
+                        class="product-detail-image-button"
+                        type="button"
+                        data-product-gallery-open
+                        data-image-url="{{ $firstImage->url }}"
+                        data-image-alt="{{ $firstImage->alt_text ?: $product->name }}"
+                        aria-label="Ampliar imagen de {{ $product->name }}"
+                    >
+                        <span
+                            class="product-image rounded-2 border"
+                            data-product-gallery-main
+                            style="aspect-ratio: 1 / 1; background-image: url('{{ $firstImage->url }}')"
+                        ></span>
+                    </button>
                 </div>
             </div>
         </div>
         <div class="col-lg-6">
-            <h1 class="section-title mb-1">Omega 3 Premium</h1>
-            <p class="text-muted">120 capsulas</p>
+            <h1 class="section-title mb-1">{{ $product->name }}</h1>
+            <p class="text-muted">{{ $product->short_description }} @if($product->brand) - {{ $product->brand->name }} @endif</p>
             <div class="rating mb-2">
-                <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-half"></i>
-                <span class="text-muted">(73 opiniones)</span>
+                @for($i = 1; $i <= 5; $i++)
+                    <i class="bi {{ $i <= round((float) $product->rating_average) ? 'bi-star-fill' : 'bi-star' }}"></i>
+                @endfor
+                <span class="text-muted">({{ $product->reviews_count }} opiniones)</span>
             </div>
             <div class="d-flex align-items-end gap-2 mb-2">
-                <span class="display-6 fw-black text-vn-green">S/ 79.90</span>
-                <span class="old-price">S/ 89.90</span>
+                <span class="display-6 fw-black text-vn-green">{{ $product->formatted_price }}</span>
+                @if($product->formatted_compare_at_price)
+                    <span class="old-price">{{ $product->formatted_compare_at_price }}</span>
+                @endif
             </div>
-            <p class="small text-success fw-bold"><i class="bi bi-check-circle"></i> En stock</p>
-            <p>Aceite de pescado de alta pureza. Apoya la salud del corazon, cerebro y articulaciones.</p>
+            <p class="small {{ $product->is_in_stock ? 'text-success' : 'text-danger' }} fw-bold">
+                <i class="bi {{ $product->is_in_stock ? 'bi-check-circle' : 'bi-x-circle' }}"></i>
+                {{ $product->is_in_stock ? 'En stock' : 'Sin stock' }}
+            </p>
+            <p>{{ $product->description }}</p>
 
             <div class="row g-3 text-center my-4">
-                <div class="col-4"><i class="bi bi-heart-pulse text-vn-green fs-3"></i><br><span class="small">Apoya tu salud cardiovascular</span></div>
-                <div class="col-4"><i class="bi bi-brightness-high text-vn-green fs-3"></i><br><span class="small">Mejora el bienestar</span></div>
-                <div class="col-4"><i class="bi bi-bicycle text-vn-green fs-3"></i><br><span class="small">Apoyo articular</span></div>
+                <div class="col-4"><i class="bi bi-heart-pulse text-vn-green fs-3"></i><br><span class="small">Bienestar diario</span></div>
+                <div class="col-4"><i class="bi bi-brightness-high text-vn-green fs-3"></i><br><span class="small">Calidad seleccionada</span></div>
+                <div class="col-4"><i class="bi bi-bicycle text-vn-green fs-3"></i><br><span class="small">Rutina saludable</span></div>
             </div>
 
             <label class="form-label fw-bold">Cantidad</label>
             <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
                 <div class="quantity-control">
                     <button data-quantity="minus" type="button">-</button>
-                    <input type="number" value="1" min="1">
+                    <input type="number" value="1" min="1" max="{{ max(1, $product->stock) }}">
                     <button data-quantity="plus" type="button">+</button>
                 </div>
-                <button class="btn btn-vn btn-lg flex-grow-1" type="button"><i class="bi bi-cart-plus me-2"></i>Anadir al carrito</button>
+                <button class="btn btn-vn btn-lg flex-grow-1" type="button" @disabled(! $product->is_in_stock)>
+                    <i class="bi bi-cart-plus me-2"></i>Anadir al carrito
+                </button>
             </div>
             <button class="btn btn-vn-outline w-100" type="button"><i class="bi bi-heart me-2"></i>Anadir a favoritos</button>
 
@@ -82,29 +110,37 @@
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#usage" type="button">Modo de uso</button></li>
         </ul>
         <div class="tab-content p-4">
-            <div class="tab-pane fade show active" id="description">
-                <p>Omega 3 Premium contiene EPA y DHA de alta concentracion que contribuyen al funcionamiento normal del corazon y cerebro.</p>
-                <ul>
-                    <li>Ayuda al equilibrio cardiovascular.</li>
-                    <li>Contribuye al bienestar cerebral.</li>
-                    <li>Formula de buena absorcion.</li>
-                </ul>
-            </div>
-            <div class="tab-pane fade" id="benefits">Apoya una rutina diaria de bienestar, especialmente en personas con baja ingesta de pescado.</div>
-            <div class="tab-pane fade" id="ingredients">Aceite de pescado purificado, gelatina, glicerina y agua purificada.</div>
-            <div class="tab-pane fade" id="usage">Tomar 1 capsula al dia con alimentos, salvo indicacion profesional.</div>
+            <div class="tab-pane fade show active" id="description">{{ $product->description }}</div>
+            <div class="tab-pane fade" id="benefits">{{ $product->benefits ?: 'Pronto agregaremos beneficios detallados.' }}</div>
+            <div class="tab-pane fade" id="ingredients">{{ $product->ingredients ?: 'Pronto agregaremos ingredientes detallados.' }}</div>
+            <div class="tab-pane fade" id="usage">{{ $product->usage_instructions ?: 'Sigue las indicaciones del empaque.' }}</div>
         </div>
     </div>
 
     <section class="mt-5">
         <h2 class="section-title mb-3">Productos relacionados</h2>
         <div class="row g-3 g-lg-4">
-            @foreach($related as $product)
+            @forelse($relatedProducts as $relatedProduct)
                 <div class="col-6 col-md-3">
-                    <x-shop.product-card :product="$product" />
+                    <x-shop.product-card :product="$relatedProduct" />
                 </div>
-            @endforeach
+            @empty
+                <div class="col-12">
+                    <div class="alert alert-light border mb-0">No hay productos relacionados por ahora.</div>
+                </div>
+            @endforelse
         </div>
     </section>
 </section>
+
+<div class="modal fade" id="productImageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content bg-transparent border-0">
+            <button class="btn btn-light align-self-end mb-2" type="button" data-bs-dismiss="modal" aria-label="Cerrar">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <img class="img-fluid rounded-2 bg-white" src="{{ $firstImage->url }}" alt="{{ $firstImage->alt_text ?: $product->name }}" data-product-gallery-modal-image>
+        </div>
+    </div>
+</div>
 @endsection

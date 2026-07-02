@@ -3,28 +3,6 @@
 @section('title', 'Inicio | VitaNatural')
 
 @section('content')
-@php
-    $categories = [
-        ['title' => 'Vitaminas', 'icon' => 'bi-capsule-pill'],
-        ['title' => 'Suplementos', 'icon' => 'bi-prescription2'],
-        ['title' => 'Snacks saludables', 'icon' => 'bi-basket2'],
-        ['title' => 'Superfoods', 'icon' => 'bi-flower1'],
-        ['title' => 'Proteinas', 'icon' => 'bi-egg-fried'],
-        ['title' => 'Belleza natural', 'icon' => 'bi-droplet'],
-        ['title' => 'Infusiones', 'icon' => 'bi-cup-hot'],
-        ['title' => 'Para ninos', 'icon' => 'bi-emoji-smile'],
-    ];
-
-    $products = [
-        ['name' => 'Vitamina C 1000 mg', 'description' => '60 tabletas', 'price' => 'S/ 59.00', 'old_price' => 'S/ 69.90', 'rating' => 5, 'reviews' => 120, 'badge' => '-15%', 'image' => 'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Maca negra en polvo', 'description' => '200 g', 'price' => 'S/ 34.90', 'rating' => 5, 'reviews' => 96, 'image' => 'https://images.unsplash.com/photo-1587049352851-8d4e89133924?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Omega 3 Premium', 'description' => '120 capsulas', 'price' => 'S/ 79.90', 'old_price' => 'S/ 89.90', 'rating' => 5, 'reviews' => 73, 'image' => 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Mix de frutos secos', 'description' => '250 g', 'price' => 'S/ 26.90', 'rating' => 4, 'reviews' => 88, 'image' => 'https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Proteina vegetal vainilla', 'description' => '500 g', 'price' => 'S/ 89.90', 'rating' => 5, 'reviews' => 61, 'image' => 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?auto=format&fit=crop&w=700&q=80'],
-        ['name' => 'Aguaymanto deshidratado', 'description' => '200 g', 'price' => 'S/ 18.90', 'rating' => 4, 'reviews' => 37, 'image' => 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=700&q=80'],
-    ];
-@endphp
-
 <section class="hero-panel d-flex align-items-center">
     <div class="container py-5">
         <div class="hero-copy">
@@ -41,11 +19,19 @@
         <a class="small fw-bold text-vn-green" href="{{ route('shop.catalog') }}">Ver todas</a>
     </div>
     <div class="row g-3">
-        @foreach($categories as $category)
+        @forelse($categories as $category)
             <div class="col-6 col-md-3 col-lg-2">
-                <x-shop.category-card :title="$category['title']" :icon="$category['icon']" />
+                <x-shop.category-card
+                    :title="$category->name"
+                    :icon="$category->icon_class ?? 'bi-grid'"
+                    :url="route('shop.catalog', ['categoria' => $category->slug])"
+                />
             </div>
-        @endforeach
+        @empty
+            <div class="col-12">
+                <div class="alert alert-light border mb-0">Aun no hay categorias destacadas.</div>
+            </div>
+        @endforelse
     </div>
 </section>
 
@@ -55,11 +41,15 @@
         <a class="small fw-bold text-vn-green" href="{{ route('shop.catalog') }}">Ver todos</a>
     </div>
     <div class="row g-3 g-lg-4">
-        @foreach($products as $product)
+        @forelse($featuredProducts as $product)
             <div class="col-6 col-md-4 col-lg-2">
                 <x-shop.product-card :product="$product" />
             </div>
-        @endforeach
+        @empty
+            <div class="col-12">
+                <div class="alert alert-light border mb-0">Aun no hay productos destacados.</div>
+            </div>
+        @endforelse
     </div>
 </section>
 
@@ -80,7 +70,7 @@
         <div class="col-md-4">
             <div class="promo-tile p-4 d-flex align-items-center justify-content-between">
                 <div><strong>Acumula puntos</strong><span class="small text-muted">Con cada compra y obten beneficios</span></div>
-                <i class="bi bi-leaf fs-1 text-vn-green"></i>
+                <i class="bi bi-flower1 fs-1 text-vn-green"></i>
             </div>
         </div>
     </div>
@@ -107,9 +97,17 @@
 <section class="container pb-5">
     <h2 class="section-title text-center mb-4">Marcas que confian en nosotros</h2>
     <div class="row g-3 align-items-center text-center text-muted fw-black">
-        @foreach(['NUTREX PERU', 'AMAZONIA', 'GOOD NATURE', 'NATIVA ORGANICS', 'ANDEAN NATURALS', 'BIO ENERGY'] as $brand)
-            <div class="col-6 col-md-2">{{ $brand }}</div>
-        @endforeach
+        @forelse($brands as $brand)
+            <div class="col-6 col-md-2">
+                @if($brand->logo_source)
+                    <img class="img-fluid" src="{{ $brand->logo_source }}" alt="{{ $brand->name }}" style="max-height: 42px;">
+                @else
+                    {{ $brand->name }}
+                @endif
+            </div>
+        @empty
+            <div class="col-12">Pronto tendremos marcas disponibles.</div>
+        @endforelse
     </div>
     <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
         <span class="payment-logo">VISA</span>
