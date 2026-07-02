@@ -4,55 +4,105 @@
 @section('adminActive', 'categories')
 
 @section('content')
-@php
-    $categories = [
-        ['name' => 'Suplementos', 'slug' => 'suplementos', 'products' => 78, 'status' => 'Activo'],
-        ['name' => 'Superfoods', 'slug' => 'superfoods', 'products' => 54, 'status' => 'Activo'],
-        ['name' => 'Snacks saludables', 'slug' => 'snacks-saludables', 'products' => 46, 'status' => 'Activo'],
-        ['name' => 'Proteinas', 'slug' => 'proteinas', 'products' => 32, 'status' => 'Activo'],
-        ['name' => 'Vitaminas', 'slug' => 'vitaminas', 'products' => 28, 'status' => 'Activo'],
-    ];
-@endphp
-
-<div class="d-flex justify-content-between align-items-end mb-4">
-    <div><h1 class="h3 fw-black mb-1">Categorias</h1><p class="text-muted mb-0">Organiza las categorias de tu tienda.</p></div>
-    <button class="btn btn-green" type="button"><i class="bi bi-plus-lg me-1"></i>Nueva categoria</button>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+    <div>
+        <h1 class="h3 fw-black mb-1">Categorias</h1>
+        <p class="text-muted mb-0">Organiza las categorias visibles en la tienda.</p>
+    </div>
+    <a class="btn btn-green" href="{{ route('admin.categories.create') }}"><i class="bi bi-plus-lg me-1"></i>Nueva categoria</a>
 </div>
 
-<div class="row g-4">
-    <div class="col-xl-8">
-        <div class="admin-card p-3">
-            <table class="table mb-0">
-                <thead><tr><th>Categoria</th><th>Slug</th><th>Productos</th><th>Estado</th><th></th></tr></thead>
-                <tbody>
-                    @foreach($categories as $category)
-                        <tr>
-                            <td><strong>{{ $category['name'] }}</strong></td>
-                            <td>{{ $category['slug'] }}</td>
-                            <td>{{ $category['products'] }}</td>
-                            <td><x-admin.status-badge :status="$category['status']" /></td>
-                            <td><button class="btn btn-sm btn-light" type="button" aria-label="Editar"><i class="bi bi-pencil"></i></button></td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="col-xl-4">
-        <div class="admin-card p-4">
-            <h2 class="h5 fw-black">Nueva categoria</h2>
-            <div class="d-grid gap-3">
-                <input class="form-control" type="text" placeholder="Nombre de categoria">
-                <input class="form-control" type="text" placeholder="Slug automatico">
-                <textarea class="form-control" rows="4" placeholder="Descripcion"></textarea>
-                <div class="border rounded-2 p-4 text-center">
-                    <i class="bi bi-image fs-2 text-vn-green"></i>
-                    <p class="small text-muted mb-0">Subir imagen</p>
-                </div>
-                <select class="form-select"><option>Activo</option><option>Inactivo</option></select>
-                <button class="btn btn-vn" type="button">Guardar categoria</button>
+<div class="admin-card p-3">
+    <form class="row g-2 mb-3" method="GET" action="{{ route('admin.categories.index') }}">
+        <div class="col-md">
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input class="form-control" name="q" type="search" value="{{ request('q') }}" placeholder="Buscar categoria...">
             </div>
         </div>
+        <div class="col-md-auto">
+            <select class="form-select" name="estado">
+                <option value="">Todos los estados</option>
+                <option value="activo" @selected(request('estado') === 'activo')>Activas</option>
+                <option value="inactivo" @selected(request('estado') === 'inactivo')>Inactivas</option>
+            </select>
+        </div>
+        <div class="col-md-auto d-flex gap-2">
+            <button class="btn btn-vn" type="submit"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+            <a class="btn btn-outline-secondary" href="{{ route('admin.categories.index') }}" aria-label="Limpiar filtros"><i class="bi bi-x-lg"></i></a>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Categoria</th>
+                    <th>Imagen</th>
+                    <th>Slug</th>
+                    <th>Productos</th>
+                    <th>Orden</th>
+                    <th>Destacada</th>
+                    <th>Estado</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($categories as $category)
+                    <tr>
+                        <td>
+                            <strong>{{ $category->name }}</strong>
+                            @if($category->description)
+                                <div class="small text-muted text-truncate" style="max-width: 280px;">{{ $category->description }}</div>
+                            @endif
+                        </td>
+                        <td>
+                            @if($category->image_source)
+                                <span class="thumb-sm d-inline-block" style="background-image: url('{{ $category->image_source }}')"></span>
+                            @else
+                                <span class="category-icon" style="height: 44px; width: 44px; font-size: 1.15rem;"><i class="bi {{ $category->icon_class ?? 'bi-grid' }}"></i></span>
+                            @endif
+                        </td>
+                        <td>{{ $category->slug }}</td>
+                        <td>{{ $category->products_count }}</td>
+                        <td>{{ $category->sort_order }}</td>
+                        <td>
+                            @if($category->is_featured)
+                                <span class="badge text-bg-success">Si</span>
+                            @else
+                                <span class="badge text-bg-secondary">No</span>
+                            @endif
+                        </td>
+                        <td><x-admin.status-badge :status="$category->is_active ? 'Activo' : 'Inactivo'" /></td>
+                        <td>
+                            <div class="d-flex justify-content-end gap-1">
+                                <a class="btn btn-sm btn-light" href="{{ route('admin.categories.edit', $category) }}" aria-label="Editar"><i class="bi bi-pencil"></i></a>
+                                <form method="POST" action="{{ route('admin.categories.toggle-status', $category) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button class="btn btn-sm btn-light" type="submit" aria-label="{{ $category->is_active ? 'Desactivar' : 'Activar' }}">
+                                        <i class="bi {{ $category->is_active ? 'bi-toggle-on' : 'bi-toggle-off' }}"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.categories.destroy', $category) }}" onsubmit="return confirm('Deseas eliminar esta categoria?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="btn btn-sm btn-light text-danger" type="submit" aria-label="Eliminar"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td class="text-center text-muted py-4" colspan="8">No hay categorias para mostrar.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-3">
+        {{ $categories->links() }}
     </div>
 </div>
 @endsection
