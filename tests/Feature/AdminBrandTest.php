@@ -52,6 +52,58 @@ class AdminBrandTest extends TestCase
             ->assertDontSee('Bio Energy');
     }
 
+    public function test_admin_brand_list_shows_responsive_filtered_summary(): void
+    {
+        $brand = Brand::query()->create([
+            'name' => 'Good Nature',
+            'slug' => 'good-nature',
+            'is_active' => true,
+        ]);
+
+        Brand::query()->create([
+            'name' => 'Bio Energy',
+            'slug' => 'bio-energy',
+            'is_active' => false,
+        ]);
+
+        $category = Category::query()->create([
+            'name' => 'Suplementos',
+            'slug' => 'suplementos',
+            'is_active' => true,
+        ]);
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id' => $brand->id,
+            'name' => 'Omega 3 Premium',
+            'slug' => 'omega-3-premium',
+            'sku' => 'VN-OMEGA-120',
+            'price' => 79.90,
+            'stock' => 12,
+            'is_active' => true,
+            'published_at' => now(),
+        ]);
+
+        $this->get(route('admin.brands.index'))
+            ->assertOk()
+            ->assertSee('2 marcas registradas')
+            ->assertSee('Resumen segun los filtros actuales.')
+            ->assertSee('admin-summary-chips', false)
+            ->assertSee('data-bs-target="#brandSummaryMobile"', false)
+            ->assertSee('data-summary-stat="active"', false)
+            ->assertSee('data-summary-stat="inactive"', false)
+            ->assertSee('data-summary-stat="with-products"', false)
+            ->assertSee('data-summary-stat="without-products"', false);
+
+        $this->get(route('admin.brands.index', ['q' => 'good']))
+            ->assertOk()
+            ->assertSee('Mostrando 1 de 2 marcas')
+            ->assertSee('data-summary-stat="active"', false)
+            ->assertSee('data-summary-stat="with-products"', false)
+            ->assertDontSee('data-summary-stat="inactive"', false)
+            ->assertDontSee('data-summary-stat="without-products"', false);
+    }
+
     public function test_admin_brand_form_places_logo_cropper_in_right_column(): void
     {
         $this->get(route('admin.brands.create'))

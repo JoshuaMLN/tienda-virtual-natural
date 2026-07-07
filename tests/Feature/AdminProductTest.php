@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -83,6 +84,340 @@ class AdminProductTest extends TestCase
             ->assertDontSee('Maca Negra');
     }
 
+    public function test_admin_product_list_shows_responsive_filtered_summary(): void
+    {
+        [$category, $brand] = $this->catalogRelations();
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id' => $brand->id,
+            'name' => 'Omega 3 Premium',
+            'slug' => 'omega-3-premium',
+            'sku' => 'VN-OMEGA-120',
+            'price' => 79.90,
+            'stock' => 12,
+            'is_active' => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id' => $brand->id,
+            'name' => 'Maca Negra',
+            'slug' => 'maca-negra',
+            'sku' => 'VN-MACA-200',
+            'price' => 34.90,
+            'stock' => 0,
+            'is_active' => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id' => $brand->id,
+            'name' => 'Producto Pausado',
+            'slug' => 'producto-pausado',
+            'sku' => 'VN-PAUS-001',
+            'price' => 19.90,
+            'stock' => 4,
+            'is_active' => false,
+            'published_at' => now()->subDay(),
+        ]);
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id' => $brand->id,
+            'name' => 'Producto Borrador',
+            'slug' => 'producto-borrador',
+            'sku' => 'VN-BORR-001',
+            'price' => 22.90,
+            'stock' => 8,
+            'is_active' => true,
+            'published_at' => null,
+        ]);
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('4 productos en catalogo')
+            ->assertSee('Resumen segun los filtros actuales.')
+            ->assertSee('product-summary-chips', false)
+            ->assertSee('data-bs-target="#productSummaryMobile"', false)
+            ->assertSee('data-summary-stat="active"', false)
+            ->assertSee('data-summary-stat="published"', false)
+            ->assertSee('data-summary-stat="hidden"', false)
+            ->assertSee('data-summary-stat="out-of-stock"', false)
+            ->assertSee('data-summary-stat="unpublished"', false);
+
+        $this->get(route('admin.products.index', ['q' => 'omega']))
+            ->assertOk()
+            ->assertSee('Mostrando 1 de 4 productos')
+            ->assertSee('data-summary-stat="active"', false)
+            ->assertSee('data-summary-stat="published"', false)
+            ->assertDontSee('data-summary-stat="hidden"', false)
+            ->assertDontSee('data-summary-stat="out-of-stock"', false)
+            ->assertDontSee('data-summary-stat="unpublished"', false);
+    }
+
+    public function test_filter_publicado_excludes_hidden_products(): void
+    {
+        [$category, $brand] = $this->catalogRelations();
+
+        $inactiveCategory = Category::query()->create([
+            'name' => 'Descontinuada',
+            'slug' => 'descontinuada',
+            'is_active' => false,
+        ]);
+
+        // Publicado real (categoría y marca activas)
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id'    => $brand->id,
+            'name'        => 'Vitamina C',
+            'slug'        => 'vitamina-c',
+            'sku'         => 'VN-VITC-001',
+            'price'       => 29.90,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        // Oculto (publicado pero categoría inactiva)
+        Product::query()->create([
+            'category_id' => $inactiveCategory->id,
+            'brand_id'    => $brand->id,
+            'name'        => 'Producto Inactivo',
+            'slug'        => 'producto-inactivo',
+            'sku'         => 'VN-IACT-001',
+            'price'       => 9.90,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id'    => $brand->id,
+            'name'        => 'Producto Apagado',
+            'slug'        => 'producto-apagado',
+            'sku'         => 'VN-APAG-001',
+            'price'       => 11.90,
+            'is_active'   => false,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('admin.products.index', ['publicacion' => 'publicado']))
+            ->assertOk()
+            ->assertSee('Vitamina C')
+            ->assertDontSee('Producto Inactivo')
+            ->assertDontSee('Producto Apagado');
+    }
+
+    public function test_filter_oculto_only_shows_hidden_products(): void
+    {
+        [$category, $brand] = $this->catalogRelations();
+
+        $inactiveCategory = Category::query()->create([
+            'name' => 'Descontinuada',
+            'slug' => 'descontinuada',
+            'is_active' => false,
+        ]);
+
+        $inactiveBrand = Brand::query()->create([
+            'name'      => 'Marca Baja',
+            'slug'      => 'marca-baja',
+            'is_active' => false,
+        ]);
+
+        // Publicado real — no debe aparecer en filtro oculto
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id'    => $brand->id,
+            'name'        => 'Zinc Premium',
+            'slug'        => 'zinc-premium',
+            'sku'         => 'VN-ZINC-001',
+            'price'       => 19.90,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        // Oculto por categoría inactiva
+        Product::query()->create([
+            'category_id' => $inactiveCategory->id,
+            'brand_id'    => $brand->id,
+            'name'        => 'Spirulina Oculta',
+            'slug'        => 'spirulina-oculta',
+            'sku'         => 'VN-SPIR-001',
+            'price'       => 24.90,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        // Oculto por marca inactiva
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id'    => $inactiveBrand->id,
+            'name'        => 'Maca Oculta',
+            'slug'        => 'maca-oculta',
+            'sku'         => 'VN-MACA-001',
+            'price'       => 34.90,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        // Oculto por producto inactivo
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id'    => $brand->id,
+            'name'        => 'Activo Apagado',
+            'slug'        => 'activo-apagado',
+            'sku'         => 'VN-ACT-APAG',
+            'price'       => 44.90,
+            'is_active'   => false,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('admin.products.index', ['publicacion' => 'oculto']))
+            ->assertOk()
+            ->assertSee('Spirulina Oculta')
+            ->assertSee('Maca Oculta')
+            ->assertSee('Activo Apagado')
+            ->assertDontSee('Zinc Premium');
+    }
+
+    public function test_filter_programado_only_shows_future_published_products(): void
+    {
+        [$category] = $this->catalogRelations();
+
+        // Publicado en el pasado
+        Product::query()->create([
+            'category_id' => $category->id,
+            'name'        => 'Omega Activo',
+            'slug'        => 'omega-activo',
+            'sku'         => 'VN-OM-ACT',
+            'price'       => 49.90,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        // Programado (publicación futura)
+        Product::query()->create([
+            'category_id' => $category->id,
+            'name'        => 'Nuevo Lanzamiento',
+            'slug'        => 'nuevo-lanzamiento',
+            'sku'         => 'VN-NEW-001',
+            'price'       => 89.90,
+            'is_active'   => true,
+            'published_at' => now()->addDays(5),
+        ]);
+
+        // Sin publicar
+        Product::query()->create([
+            'category_id' => $category->id,
+            'name'        => 'Borrador',
+            'slug'        => 'borrador',
+            'sku'         => 'VN-BORD-001',
+            'price'       => 14.90,
+            'is_active'   => false,
+        ]);
+
+        $this->get(route('admin.products.index', ['publicacion' => 'programado']))
+            ->assertOk()
+            ->assertSee('Nuevo Lanzamiento')
+            ->assertDontSee('Omega Activo')
+            ->assertDontSee('Borrador');
+    }
+
+    public function test_filter_sin_publicar_excludes_programados(): void
+    {
+        [$category] = $this->catalogRelations();
+
+        // Sin publicar (null)
+        Product::query()->create([
+            'category_id' => $category->id,
+            'name'        => 'Borrador Puro',
+            'slug'        => 'borrador-puro',
+            'sku'         => 'VN-BORD-PUR',
+            'price'       => 14.90,
+            'is_active'   => false,
+        ]);
+
+        // Programado (no debe aparecer en sin-publicar)
+        Product::query()->create([
+            'category_id' => $category->id,
+            'name'        => 'Producto Futuro',
+            'slug'        => 'producto-futuro',
+            'sku'         => 'VN-FUT-001',
+            'price'       => 59.90,
+            'is_active'   => true,
+            'published_at' => now()->addWeek(),
+        ]);
+
+        $this->get(route('admin.products.index', ['publicacion' => 'sin-publicar']))
+            ->assertOk()
+            ->assertSee('Borrador Puro')
+            ->assertDontSee('Producto Futuro');
+    }
+
+
+
+    public function test_admin_product_list_is_ordered_by_product_name(): void
+    {
+        [$category] = $this->catalogRelations();
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'name' => 'Zinc 25 mg',
+            'slug' => 'zinc-25-mg',
+            'sku' => 'VN-ZINC-25',
+            'price' => 28,
+        ]);
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'name' => 'Ashwagandha',
+            'slug' => 'ashwagandha',
+            'sku' => 'VN-ASH-60',
+            'price' => 54,
+        ]);
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'name' => 'Omega 3 Premium',
+            'slug' => 'omega-3-premium',
+            'sku' => 'VN-OMEGA-120',
+            'price' => 79.90,
+        ]);
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'Ashwagandha',
+                'Omega 3 Premium',
+                'Zinc 25 mg',
+            ]);
+    }
+
+    public function test_admin_can_update_public_stock_display_threshold(): void
+    {
+        $this->get(route('admin.products.settings.edit'))
+            ->assertOk()
+            ->assertSee('Configuracion de productos')
+            ->assertSee('Umbral publico de disponibilidad')
+            ->assertSee('Con 0 se mostrara solo')
+            ->assertSee('En stock');
+
+        $this->from(route('admin.products.settings.edit'))
+            ->patch(route('admin.products.settings.update'), [
+            'public_stock_display_threshold' => '0',
+            ])
+            ->assertRedirect(route('admin.products.settings.edit'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('settings', [
+            'key' => Setting::PUBLIC_STOCK_DISPLAY_THRESHOLD,
+            'value' => '0',
+        ]);
+    }
+
     public function test_admin_product_edit_gallery_images_can_be_previewed(): void
     {
         [$category] = $this->catalogRelations();
@@ -141,7 +476,35 @@ class AdminProductTest extends TestCase
             ->assertSee('SKU <span class="required-mark"', false)
             ->assertSee('Categoria <span class="required-mark"', false)
             ->assertSee('Precio <span class="required-mark"', false)
+            ->assertSee('name="stock"', false)
+            ->assertDontSee('Stock minimo de alerta')
             ->assertSee('Podras agregar imagenes adicionales despues de guardar');
+    }
+
+    public function test_admin_product_edit_shows_stock_as_read_only(): void
+    {
+        [$category] = $this->catalogRelations();
+
+        $product = Product::query()->create([
+            'category_id' => $category->id,
+            'name' => 'Omega 3 Premium',
+            'slug' => 'omega-3-premium',
+            'sku' => 'VN-OMEGA-120',
+            'price' => 79.90,
+            'stock' => 45,
+        ]);
+
+        $this->get(route('admin.products.edit', $product))
+            ->assertOk()
+            ->assertSee('Stock actual')
+            ->assertSee('id="stock_readonly"', false)
+            ->assertSee('bg-body-secondary', false)
+            ->assertSee('readonly', false)
+            ->assertSee('data-bs-toggle="tooltip"', false)
+            ->assertSee('data-bs-title="Para modificar el stock registra un movimiento desde la pantalla de stock."', false)
+            ->assertSee('Para modificar el stock registra un movimiento desde la pantalla de stock.')
+            ->assertSee('bi-question-circle', false)
+            ->assertDontSee('name="stock"', false);
     }
 
     public function test_product_form_opens_only_section_with_validation_error(): void
@@ -307,7 +670,7 @@ class AdminProductTest extends TestCase
             'sku' => 'VN-OMEGA-121',
             'price' => 89.90,
             'compare_at_price' => null,
-            'stock' => 30,
+            'stock' => 45,
             'is_active' => false,
             'is_featured' => true,
         ]);
@@ -776,6 +1139,191 @@ class AdminProductTest extends TestCase
 
         $this->delete(route('admin.products.images.destroy', [$product, $image]))
             ->assertNotFound();
+    }
+
+    public function test_product_list_shows_oculto_badge_when_category_is_inactive(): void
+    {
+        $inactiveCategory = Category::query()->create([
+            'name' => 'Superfoods',
+            'slug' => 'superfoods',
+            'is_active' => false,
+        ]);
+
+        [$brand] = [Brand::query()->firstOrCreate(
+            ['slug' => 'good-nature'],
+            ['name' => 'Good Nature', 'is_active' => true]
+        )];
+
+        Product::query()->create([
+            'category_id' => $inactiveCategory->id,
+            'brand_id'    => $brand->id,
+            'name'        => 'Spirulina Extra',
+            'slug'        => 'spirulina-extra',
+            'sku'         => 'VN-SPIR-001',
+            'price'       => 29.90,
+            'stock'       => 10,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('Oculto')
+            ->assertSee('Oculto porque su categoria esta inactiva.');
+    }
+
+    public function test_product_list_shows_oculto_badge_when_brand_is_inactive(): void
+    {
+        $category = Category::query()->firstOrCreate(
+            ['slug' => 'suplementos'],
+            ['name' => 'Suplementos', 'is_active' => true]
+        );
+
+        $inactiveBrand = Brand::query()->create([
+            'name'      => 'Vieja Marca',
+            'slug'      => 'vieja-marca',
+            'is_active' => false,
+        ]);
+
+        Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id'    => $inactiveBrand->id,
+            'name'        => 'Omega 9 Plus',
+            'slug'        => 'omega-9-plus',
+            'sku'         => 'VN-OM9-001',
+            'price'       => 49.90,
+            'stock'       => 5,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('Oculto')
+            ->assertSee('Oculto porque su marca esta inactiva.');
+    }
+
+    public function test_product_list_shows_oculto_badge_and_disables_store_link_when_product_is_inactive(): void
+    {
+        [$category, $brand] = $this->catalogRelations();
+
+        $product = Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id'    => $brand->id,
+            'name'        => 'Omega Apagado',
+            'slug'        => 'omega-apagado',
+            'sku'         => 'VN-OM-APAG',
+            'price'       => 49.90,
+            'stock'       => 5,
+            'is_active'   => false,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('Omega Apagado')
+            ->assertSee('Oculto')
+            ->assertSee('Oculto porque el producto esta inactivo.')
+            ->assertSee('bi-eye-slash', false)
+            ->assertDontSee('href="'.route('shop.product', $product->slug).'"', false);
+    }
+
+    public function test_product_list_shows_oculto_badge_when_both_category_and_brand_are_inactive(): void
+    {
+        $inactiveCategory = Category::query()->create([
+            'name'      => 'Descontinuados',
+            'slug'      => 'descontinuados',
+            'is_active' => false,
+        ]);
+
+        $inactiveBrand = Brand::query()->create([
+            'name'      => 'Marca Antigua',
+            'slug'      => 'marca-antigua',
+            'is_active' => false,
+        ]);
+
+        Product::query()->create([
+            'category_id' => $inactiveCategory->id,
+            'brand_id'    => $inactiveBrand->id,
+            'name'        => 'Producto Huerfano',
+            'slug'        => 'producto-huerfano',
+            'sku'         => 'VN-HUER-001',
+            'price'       => 9.90,
+            'stock'       => 1,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('Oculto')
+            ->assertSee('Oculto porque su categoria esta inactiva y su marca esta inactiva.');
+    }
+
+    public function test_product_edit_shows_warning_alert_when_hidden_by_inactive_category(): void
+    {
+        $inactiveCategory = Category::query()->create([
+            'name'      => 'Inactivos',
+            'slug'      => 'inactivos',
+            'is_active' => false,
+        ]);
+
+        $product = Product::query()->create([
+            'category_id' => $inactiveCategory->id,
+            'name'        => 'Producto Bloqueado',
+            'slug'        => 'producto-bloqueado',
+            'sku'         => 'VN-BLOQ-001',
+            'price'       => 19.90,
+            'stock'       => 3,
+            'is_active'   => true,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('admin.products.edit', $product))
+            ->assertOk()
+            ->assertSee('Producto no visible en tienda')
+            ->assertSee('Oculto porque su categoria esta inactiva.');
+    }
+
+    public function test_product_edit_warning_disappears_after_activating_product(): void
+    {
+        [$category, $brand] = $this->catalogRelations();
+
+        $product = Product::query()->create([
+            'category_id' => $category->id,
+            'brand_id' => $brand->id,
+            'name' => 'Producto Pausado',
+            'slug' => 'producto-pausado',
+            'sku' => 'VN-PAUS-001',
+            'price' => 29.90,
+            'stock' => 4,
+            'is_active' => false,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('admin.products.edit', $product))
+            ->assertOk()
+            ->assertSee('Producto no visible en tienda')
+            ->assertSee('Oculto porque el producto esta inactivo.');
+
+        $this->put(route('admin.products.update', $product), [
+            'category_id' => $category->id,
+            'brand_id' => $brand->id,
+            'name' => 'Producto Pausado',
+            'slug' => 'producto-pausado',
+            'sku' => 'VN-PAUS-001',
+            'price' => '29.90',
+            'is_active' => '1',
+            'is_featured' => '0',
+            'published_at' => now()->subDay()->format('Y-m-d H:i:s'),
+        ])
+            ->assertRedirect(route('admin.products.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->get(route('admin.products.edit', $product->refresh()))
+            ->assertOk()
+            ->assertDontSee('Producto no visible en tienda')
+            ->assertDontSee('Oculto porque el producto esta inactivo.');
     }
 
     private function catalogRelations(): array

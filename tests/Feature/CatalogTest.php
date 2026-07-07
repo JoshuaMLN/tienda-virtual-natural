@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\Setting;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -128,6 +129,58 @@ class CatalogTest extends TestCase
             ->assertOk()
             ->assertSee('Omega 3 Premium')
             ->assertSee('Productos relacionados');
+    }
+
+    public function test_public_stock_label_uses_global_threshold(): void
+    {
+        Setting::setValue(Setting::PUBLIC_STOCK_DISPLAY_THRESHOLD, 10);
+        $product = Product::query()->where('slug', 'omega-3-premium')->firstOrFail();
+
+        $product->update(['stock' => 15]);
+        $this->get(route('shop.catalog'))
+            ->assertOk()
+            ->assertSee('En stock')
+            ->assertDontSee('Mas de 10 disponibles');
+
+        $this->get(route('shop.product', $product->slug))
+            ->assertOk()
+            ->assertSee('Mas de 10 disponibles');
+
+        $product->update(['stock' => 7]);
+        $this->get(route('shop.catalog'))
+            ->assertOk()
+            ->assertSee('Quedan pocas unidades')
+            ->assertDontSee('Quedan 7 unidades');
+
+        $this->get(route('shop.product', $product->slug))
+            ->assertOk()
+            ->assertSee('Quedan 7 unidades')
+            ->assertSee('text-warning', false);
+
+        Setting::setValue(Setting::PUBLIC_STOCK_DISPLAY_THRESHOLD, 0);
+        $this->get(route('shop.product', $product->slug))
+            ->assertOk()
+            ->assertSee('En stock')
+            ->assertDontSee('Quedan 7 unidades')
+            ->assertDontSee('Mas de 10 disponibles');
+    }
+
+    public function test_public_views_mark_out_of_stock_products(): void
+    {
+        $product = Product::query()->where('slug', 'omega-3-premium')->firstOrFail();
+        $product->update(['stock' => 0]);
+
+        $this->get(route('shop.catalog'))
+            ->assertOk()
+            ->assertSee('Sin stock')
+            ->assertSee('is-out-of-stock', false)
+            ->assertSee('text-bg-danger', false);
+
+        $this->get(route('shop.product', $product->slug))
+            ->assertOk()
+            ->assertSee('Sin stock')
+            ->assertSee('No disponible')
+            ->assertSee('disabled', false);
     }
 
     public function test_product_detail_gallery_shows_primary_image_first_and_no_video_button(): void

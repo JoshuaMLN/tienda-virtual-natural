@@ -140,6 +140,10 @@ class CatalogController extends Controller
                 ->whereColumn('compare_at_price', '>', 'price');
         }
 
+        if ($request->boolean('en_stock')) {
+            $query->where('stock', '>', 0);
+        }
+
         return $query;
     }
 }

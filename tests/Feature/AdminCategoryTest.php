@@ -100,6 +100,55 @@ class AdminCategoryTest extends TestCase
             ->assertDontSee('Belleza Natural');
     }
 
+    public function test_admin_category_list_shows_responsive_filtered_summary(): void
+    {
+        $activeCategory = Category::query()->create([
+            'name' => 'Suplementos',
+            'slug' => 'suplementos',
+            'is_active' => true,
+            'is_featured' => true,
+        ]);
+
+        Category::query()->create([
+            'name' => 'Belleza Natural',
+            'slug' => 'belleza-natural',
+            'is_active' => false,
+            'is_featured' => false,
+        ]);
+
+        Product::query()->create([
+            'category_id' => $activeCategory->id,
+            'name' => 'Omega 3 Premium',
+            'slug' => 'omega-3-premium',
+            'sku' => 'VN-OMEGA-120',
+            'price' => 79.90,
+            'stock' => 12,
+            'is_active' => true,
+            'published_at' => now(),
+        ]);
+
+        $this->get(route('admin.categories.index'))
+            ->assertOk()
+            ->assertSee('2 categorias registradas')
+            ->assertSee('Resumen segun los filtros actuales.')
+            ->assertSee('admin-summary-chips', false)
+            ->assertSee('data-bs-target="#categorySummaryMobile"', false)
+            ->assertSee('data-summary-stat="active"', false)
+            ->assertSee('data-summary-stat="inactive"', false)
+            ->assertSee('data-summary-stat="featured"', false)
+            ->assertSee('data-summary-stat="with-products"', false)
+            ->assertSee('data-summary-stat="without-products"', false);
+
+        $this->get(route('admin.categories.index', ['q' => 'suplementos']))
+            ->assertOk()
+            ->assertSee('Mostrando 1 de 2 categorias')
+            ->assertSee('data-summary-stat="active"', false)
+            ->assertSee('data-summary-stat="featured"', false)
+            ->assertSee('data-summary-stat="with-products"', false)
+            ->assertDontSee('data-summary-stat="inactive"', false)
+            ->assertDontSee('data-summary-stat="without-products"', false);
+    }
+
     public function test_admin_can_create_category_with_generated_slug(): void
     {
         $this->post(route('admin.categories.store'), [

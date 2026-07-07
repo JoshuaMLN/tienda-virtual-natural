@@ -9,6 +9,8 @@
         'Pendiente' => 'text-bg-warning',
         'Pendiente de envio' => 'text-bg-warning',
         'Bajo' => 'text-bg-warning',
+        'Bajo stock' => 'text-bg-warning',
+        'Sin stock' => 'text-bg-danger',
         'Fallido' => 'text-bg-danger',
         'Cancelado' => 'text-bg-danger',
         'Inactivo' => 'text-bg-secondary',

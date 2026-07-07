@@ -71,9 +71,9 @@
                     <span class="old-price">{{ $product->formatted_compare_at_price }}</span>
                 @endif
             </div>
-            <p class="small {{ $product->is_in_stock ? 'text-success' : 'text-danger' }} fw-bold">
-                <i class="bi {{ $product->is_in_stock ? 'bi-check-circle' : 'bi-x-circle' }}"></i>
-                {{ $product->is_in_stock ? 'En stock' : 'Sin stock' }}
+            <p class="small {{ $product->public_stock_text_class }} fw-bold">
+                <i class="bi {{ $product->public_stock_icon }}"></i>
+                {{ $product->public_stock_label }}
             </p>
             <p>{{ $product->description }}</p>
 
@@ -86,12 +86,12 @@
             <label class="form-label fw-bold">Cantidad</label>
             <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
                 <div class="quantity-control">
-                    <button data-quantity="minus" type="button">-</button>
-                    <input type="number" value="1" min="1" max="{{ max(1, $product->stock) }}">
-                    <button data-quantity="plus" type="button">+</button>
+                    <button data-quantity="minus" type="button" @disabled(! $product->is_in_stock)>-</button>
+                    <input type="number" value="1" min="1" max="{{ max(1, $product->stock) }}" @disabled(! $product->is_in_stock)>
+                    <button data-quantity="plus" type="button" @disabled(! $product->is_in_stock)>+</button>
                 </div>
                 <button class="btn btn-vn btn-lg flex-grow-1" type="button" @disabled(! $product->is_in_stock)>
-                    <i class="bi bi-cart-plus me-2"></i>Anadir al carrito
+                    <i class="bi bi-cart-plus me-2"></i>{{ $product->is_in_stock ? 'Anadir al carrito' : 'No disponible' }}
                 </button>
             </div>
             <button class="btn btn-vn-outline w-100" type="button"><i class="bi bi-heart me-2"></i>Anadir a favoritos</button>

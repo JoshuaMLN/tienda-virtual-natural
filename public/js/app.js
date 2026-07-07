@@ -85,6 +85,33 @@ document.querySelectorAll('[data-admin-section]').forEach(function (section) {
     sectionBody.hidden = !isOpen;
 });
 
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (tooltipTrigger) {
+    if (window.bootstrap) {
+        window.bootstrap.Tooltip.getOrCreateInstance(tooltipTrigger);
+    }
+});
+
+document.querySelectorAll('[data-inventory-movement-form]').forEach(function (form) {
+    const type = form.querySelector('[data-movement-type]');
+    const quantityField = form.querySelector('[data-movement-quantity-field]');
+    const adjustmentField = form.querySelector('[data-movement-adjustment-field]');
+    const quantityInput = form.querySelector('[data-movement-quantity]');
+    const newStockInput = form.querySelector('[data-movement-new-stock]');
+    if (!type || !quantityField || !adjustmentField) return;
+
+    function syncMovementFields() {
+        const isAdjustment = type.value === 'adjustment';
+
+        quantityField.classList.toggle('d-none', isAdjustment);
+        adjustmentField.classList.toggle('d-none', !isAdjustment);
+        quantityInput?.toggleAttribute('required', !isAdjustment);
+        newStockInput?.toggleAttribute('required', isAdjustment);
+    }
+
+    type.addEventListener('change', syncMovementFields);
+    syncMovementFields();
+});
+
 document.querySelectorAll('[data-checkout-option]').forEach(function (option) {
     option.addEventListener('change', function () {
         document.querySelectorAll('[data-checkout-panel]').forEach(function (panel) {

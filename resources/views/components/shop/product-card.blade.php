@@ -19,14 +19,20 @@
         'image' => data_get($product, 'main_image_url') ?? data_get($product, 'image', asset(\App\Models\Product::DEFAULT_IMAGE)),
         'url' => data_get($product, 'url') ?? ($slug ? route('shop.product', $slug) : route('shop.catalog')),
         'badge' => data_get($product, 'badge') ?? ($compareAtPrice ? 'Oferta' : null),
+        'is_in_stock' => data_get($product, 'is_in_stock', true),
+        'stock_label' => data_get($product, 'public_stock_summary_label', 'En stock'),
+        'stock_class' => data_get($product, 'public_stock_text_class', 'text-success'),
+        'stock_icon' => data_get($product, 'public_stock_icon', 'bi-check-circle'),
     ];
 @endphp
 
 <article class="card product-card">
     <a href="{{ $productView['url'] }}">
         <div class="position-relative">
-            <div class="product-image" style="background-image: url('{{ $productView['image'] }}')"></div>
-            @if($productView['badge'])
+            <div class="product-image {{ $productView['is_in_stock'] ? '' : 'is-out-of-stock' }}" style="background-image: url('{{ $productView['image'] }}')"></div>
+            @if(! $productView['is_in_stock'])
+                <span class="badge text-bg-danger position-absolute top-0 start-0 m-2">Sin stock</span>
+            @elseif($productView['badge'])
                 <span class="badge text-bg-warning position-absolute top-0 start-0 m-2">{{ $productView['badge'] }}</span>
             @endif
             <button class="btn btn-light btn-sm position-absolute top-0 end-0 m-2 rounded-circle" type="button" aria-label="Agregar a favoritos">
@@ -48,6 +54,10 @@
             @if($productView['old_price'])
                 <span class="old-price">{{ $productView['old_price'] }}</span>
             @endif
+        </div>
+        <div class="small {{ $productView['stock_class'] }} fw-bold mt-2">
+            <i class="bi {{ $productView['stock_icon'] }}"></i>
+            {{ $productView['stock_label'] }}
         </div>
     </div>
 </article>

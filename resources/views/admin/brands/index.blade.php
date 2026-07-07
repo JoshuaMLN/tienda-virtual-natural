@@ -13,6 +13,57 @@
 </div>
 
 <div class="admin-card p-3">
+    <div class="admin-list-summary mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <div class="admin-list-summary-count">
+                    @if($brandSummary['filtered'] === $brandSummary['total'])
+                        {{ number_format($brandSummary['filtered']) }} {{ $brandSummary['filtered'] === 1 ? 'marca registrada' : 'marcas registradas' }}
+                    @else
+                        Mostrando {{ number_format($brandSummary['filtered']) }} de {{ number_format($brandSummary['total']) }} marcas
+                    @endif
+                </div>
+                <div class="small text-muted">Resumen segun los filtros actuales.</div>
+            </div>
+
+            @if(count($brandSummary['visible_stats']) > 0)
+                <div class="admin-summary-chips d-none d-md-flex">
+                    @foreach($brandSummary['visible_stats'] as $stat)
+                        <span class="admin-summary-chip admin-summary-chip-{{ $stat['tone'] }}" data-summary-stat="{{ $stat['key'] }}">
+                            <i class="bi {{ $stat['icon'] }}" aria-hidden="true"></i>
+                            <span>{{ $stat['label'] }}</span>
+                            <strong>{{ number_format($stat['value']) }}</strong>
+                        </span>
+                    @endforeach
+                </div>
+
+                <button
+                    class="btn btn-sm btn-outline-secondary d-md-none"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#brandSummaryMobile"
+                    aria-expanded="false"
+                    aria-controls="brandSummaryMobile"
+                >
+                    Resumen <i class="bi bi-chevron-down ms-1" aria-hidden="true"></i>
+                </button>
+            @endif
+        </div>
+
+        @if(count($brandSummary['stats']) > 0)
+            <div class="collapse d-md-none mt-3" id="brandSummaryMobile">
+                <div class="admin-summary-mobile-list">
+                    @foreach($brandSummary['stats'] as $stat)
+                        <div class="admin-summary-mobile-row" data-summary-stat="{{ $stat['key'] }}">
+                            <span><i class="bi {{ $stat['icon'] }} me-2" aria-hidden="true"></i>{{ $stat['label'] }}</span>
+                            <strong>{{ number_format($stat['value']) }}</strong>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    </div>
+
     <form class="row g-2 mb-3" method="GET" action="{{ route('admin.brands.index') }}">
         <div class="col-md">
             <div class="input-group">
@@ -63,18 +114,39 @@
                         <td><x-admin.status-badge :status="$brand->is_active ? 'Activo' : 'Inactivo'" /></td>
                         <td>
                             <div class="d-flex justify-content-end gap-1">
-                                <a class="btn btn-sm btn-light" href="{{ route('admin.brands.edit', $brand) }}" aria-label="Editar"><i class="bi bi-pencil"></i></a>
+                                <a
+                                    class="btn btn-sm btn-light"
+                                    href="{{ route('admin.brands.edit', $brand) }}"
+                                    aria-label="Editar"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top"
+                                    data-bs-title="Editar"
+                                ><i class="bi bi-pencil"></i></a>
                                 <form method="POST" action="{{ route('admin.brands.toggle-status', $brand) }}">
                                     @csrf
                                     @method('PATCH')
-                                    <button class="btn btn-sm btn-light" type="submit" aria-label="{{ $brand->is_active ? 'Desactivar' : 'Activar' }}">
+                                    <button
+                                        class="btn btn-sm btn-light"
+                                        type="submit"
+                                        aria-label="{{ $brand->is_active ? 'Desactivar' : 'Activar' }}"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        data-bs-title="{{ $brand->is_active ? 'Desactivar' : 'Activar' }}"
+                                    >
                                         <i class="bi {{ $brand->is_active ? 'bi-toggle-on' : 'bi-toggle-off' }}"></i>
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ route('admin.brands.destroy', $brand) }}" onsubmit="return confirm('Deseas eliminar esta marca?');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-light text-danger" type="submit" aria-label="Eliminar"><i class="bi bi-trash"></i></button>
+                                    <button
+                                        class="btn btn-sm btn-light text-danger"
+                                        type="submit"
+                                        aria-label="Eliminar"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        data-bs-title="Eliminar"
+                                    ><i class="bi bi-trash"></i></button>
                                 </form>
                             </div>
                         </td>

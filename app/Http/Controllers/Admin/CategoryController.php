@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\StoreCategoryRequest;
 use App\Http\Requests\Admin\UpdateCategoryRequest;
 use App\Models\Category;
 use App\Support\Catalog\CategoryIcon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,8 +20,22 @@ class CategoryController extends Controller
 {
     public function index(Request $request): View
     {
-        $categories = Category::query()
+        $filteredCategories = $this->applyIndexFilters(Category::query(), $request);
+        $categorySummary = $this->categorySummary($filteredCategories);
+
+        $categories = (clone $filteredCategories)
             ->withCount('products')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('admin.categories.index', compact('categories', 'categorySummary'));
+    }
+
+    private function applyIndexFilters(Builder $query, Request $request): Builder
+    {
+        return $query
             ->when($request->filled('q'), function ($query) use ($request) {
                 $term = trim($request->string('q')->toString());
 
@@ -32,13 +47,59 @@ class CategoryController extends Controller
             })
             ->when($request->filled('estado'), function ($query) use ($request) {
                 $query->where('is_active', $request->string('estado')->toString() === 'activo');
-            })
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString();
+            });
+    }
 
-        return view('admin.categories.index', compact('categories'));
+    private function categorySummary(Builder $query): array
+    {
+        $stats = [
+            [
+                'key' => 'active',
+                'label' => 'Activas',
+                'value' => (clone $query)->where('is_active', true)->count(),
+                'icon' => 'bi-toggle-on',
+                'tone' => 'success',
+            ],
+            [
+                'key' => 'inactive',
+                'label' => 'Inactivas',
+                'value' => (clone $query)->where('is_active', false)->count(),
+                'icon' => 'bi-toggle-off',
+                'tone' => 'warning',
+            ],
+            [
+                'key' => 'featured',
+                'label' => 'Destacadas',
+                'value' => (clone $query)->where('is_featured', true)->count(),
+                'icon' => 'bi-stars',
+                'tone' => 'success',
+            ],
+            [
+                'key' => 'with-products',
+                'label' => 'Con productos',
+                'value' => (clone $query)->has('products')->count(),
+                'icon' => 'bi-box-seam',
+                'tone' => 'info',
+            ],
+            [
+                'key' => 'without-products',
+                'label' => 'Sin productos',
+                'value' => (clone $query)->doesntHave('products')->count(),
+                'icon' => 'bi-inbox',
+                'tone' => 'muted',
+            ],
+        ];
+
+        $nonZeroStats = collect($stats)
+            ->filter(fn (array $stat) => $stat['value'] > 0)
+            ->values();
+
+        return [
+            'total' => Category::query()->count(),
+            'filtered' => (clone $query)->count(),
+            'stats' => $nonZeroStats->all(),
+            'visible_stats' => $nonZeroStats->take(4)->all(),
+        ];
     }
 
     public function create(): View

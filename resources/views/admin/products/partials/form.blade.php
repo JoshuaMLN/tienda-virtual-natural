@@ -128,16 +128,31 @@
             </div>
 
             <div class="col-lg-3 col-md-6">
-                <label class="form-label" for="stock">Stock base</label>
-                <input class="form-control @error('stock') is-invalid @enderror" id="stock" name="stock" type="number" min="0" value="{{ old('stock', $product->stock ?? 0) }}">
-                @error('stock')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @if($product->exists)
+                    <label class="form-label d-flex align-items-center gap-1" for="stock_readonly">
+                        Stock actual
+                        <i
+                            class="bi bi-question-circle text-muted"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            data-bs-title="Para modificar el stock registra un movimiento desde la pantalla de stock."
+                            aria-label="Para modificar el stock registra un movimiento desde la pantalla de stock."
+                        ></i>
+                    </label>
+                    <input class="form-control bg-body-secondary text-muted" id="stock_readonly" type="number" value="{{ $product->stock ?? 0 }}" readonly>
+                @else
+                    <label class="form-label" for="stock">Stock base</label>
+                    <input class="form-control @error('stock') is-invalid @enderror" id="stock" name="stock" type="number" min="0" value="{{ old('stock', $product->stock ?? 0) }}">
+                    @error('stock')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @endif
             </div>
 
             <div class="col-lg-3 col-md-6">
-                <label class="form-label" for="published_at">Publicado desde</label>
+                <label class="form-label" for="published_at">Fecha de Publicación</label>
                 <input class="form-control @error('published_at') is-invalid @enderror" id="published_at" name="published_at" type="datetime-local" value="{{ $publishedAt }}">
                 @error('published_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
+
 
             <div class="col-lg-6">
                 <div class="form-check form-switch">
@@ -156,6 +171,18 @@
                     <div class="form-text">Usalo para productos que deben tener mayor exposicion en tienda.</div>
                 </div>
             </div>
+
+            @if($product->exists && $product->visibility_status === 'oculto')
+                <div class="col-12">
+                    <div class="alert alert-warning d-flex align-items-start gap-2 mb-0 py-2 px-3 small" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
+                        <span>
+                            <strong>Producto no visible en tienda.</strong><br>
+                            {{ $product->visibility_tooltip }}
+                        </span>
+                    </div>
+                </div>
+            @endif
         </div>
         </div>
     </section>

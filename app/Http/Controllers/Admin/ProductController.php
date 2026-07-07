@@ -9,6 +9,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,8 +22,32 @@ class ProductController extends Controller
 {
     public function index(Request $request): View
     {
-        $products = Product::query()
+        $filteredProducts = $this->applyIndexFilters(Product::query(), $request);
+        $productSummary = $this->productSummary($filteredProducts);
+
+        $products = (clone $filteredProducts)
             ->with(['brand', 'category', 'primaryImage'])
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        $categories = Category::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $brands = Brand::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.products.index', compact('brands', 'categories', 'productSummary', 'products'));
+    }
+
+    private function applyIndexFilters(Builder $query, Request $request): Builder
+    {
+        return $query
             ->when($request->filled('q'), function ($query) use ($request) {
                 $term = trim($request->string('q')->toString());
 
@@ -43,31 +68,104 @@ class ProductController extends Controller
                 $query->where('is_active', $request->string('estado')->toString() === 'activo');
             })
             ->when($request->filled('publicacion'), function ($query) use ($request) {
-                if ($request->string('publicacion')->toString() === 'publicado') {
-                    $query->whereNotNull('published_at')->where('published_at', '<=', now());
+                $pub = $request->string('publicacion')->toString();
+
+                // Publicado: producto activo + published_at pasado + categoria activa + marca activa (o sin marca).
+                // Es la misma regla que scopeActive() en Product.
+                if ($pub === 'publicado') {
+                    $query->active();
                 }
 
-                if ($request->string('publicacion')->toString() === 'sin-publicar') {
-                    $query->where(function ($query) {
-                        $query->whereNull('published_at')->orWhere('published_at', '>', now());
+                // Oculto: published_at pasado pero el producto, categoria o marca esta inactivo.
+                if ($pub === 'oculto') {
+                    $this->applyHiddenVisibilityFilter($query);
+                }
+
+                // Programado: published_at en el futuro.
+                if ($pub === 'programado') {
+                    $query->whereNotNull('published_at')
+                        ->where('published_at', '>', now());
+                }
+
+                // Sin publicar: sin fecha (solo NULL, ya no mezcla con programados).
+                if ($pub === 'sin-publicar') {
+                    $query->whereNull('published_at');
+                }
+            });
+    }
+
+    private function productSummary(Builder $query): array
+    {
+        $stats = [
+            [
+                'key' => 'active',
+                'label' => 'Activos',
+                'value' => (clone $query)->where('is_active', true)->count(),
+                'icon' => 'bi-toggle-on',
+                'tone' => 'success',
+            ],
+            [
+                'key' => 'published',
+                'label' => 'Publicados',
+                'value' => (clone $query)->active()->count(),
+                'icon' => 'bi-shop',
+                'tone' => 'success',
+            ],
+            [
+                'key' => 'hidden',
+                'label' => 'Ocultos',
+                'value' => $this->applyHiddenVisibilityFilter(clone $query)->count(),
+                'icon' => 'bi-eye-slash',
+                'tone' => 'warning',
+            ],
+            [
+                'key' => 'out-of-stock',
+                'label' => 'Sin stock',
+                'value' => (clone $query)->where('stock', '<=', 0)->count(),
+                'icon' => 'bi-x-octagon',
+                'tone' => 'danger',
+            ],
+            [
+                'key' => 'scheduled',
+                'label' => 'Programados',
+                'value' => (clone $query)->whereNotNull('published_at')->where('published_at', '>', now())->count(),
+                'icon' => 'bi-calendar-event',
+                'tone' => 'info',
+            ],
+            [
+                'key' => 'unpublished',
+                'label' => 'Sin publicar',
+                'value' => (clone $query)->whereNull('published_at')->count(),
+                'icon' => 'bi-cloud-slash',
+                'tone' => 'muted',
+            ],
+        ];
+
+        $nonZeroStats = collect($stats)
+            ->filter(fn (array $stat) => $stat['value'] > 0)
+            ->values();
+
+        return [
+            'total' => Product::query()->count(),
+            'filtered' => (clone $query)->count(),
+            'stats' => $nonZeroStats->all(),
+            'visible_stats' => $nonZeroStats->take(4)->all(),
+        ];
+    }
+
+    private function applyHiddenVisibilityFilter(Builder $query): Builder
+    {
+        return $query
+            ->whereNotNull('published_at')
+            ->where('published_at', '<=', now())
+            ->where(function (Builder $query) {
+                $query->where('is_active', false)
+                    ->orWhereHas('category', fn (Builder $query) => $query->where('is_active', false))
+                    ->orWhere(function (Builder $query) {
+                        $query->whereNotNull('brand_id')
+                            ->whereHas('brand', fn (Builder $query) => $query->where('is_active', false));
                     });
-                }
-            })
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
-
-        $categories = Category::query()
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        $brands = Brand::query()
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return view('admin.products.index', compact('brands', 'categories', 'products'));
+            });
     }
 
     public function create(): View

@@ -146,9 +146,9 @@ a {
     background: var(--vn-orange);
     border-radius: 999px;
     color: #fff;
-    font-size: .65rem;
+    font-size: .75rem;
     font-weight: 800;
-    min-width: 18px;
+    min-width: 19.5px;
     padding: .05rem .35rem;
     position: absolute;
     right: -.7rem;
@@ -335,6 +335,10 @@ a {
     border-bottom: 1px solid var(--vn-line);
 }
 
+.product-card .product-image.is-out-of-stock {
+    filter: grayscale(1);
+}
+
 .product-detail-image-button {
     background: transparent;
     border: 0;
@@ -467,6 +471,101 @@ a {
     background: #fff;
     border: 1px solid var(--vn-line);
     border-radius: 8px;
+}
+
+.admin-list-summary,
+.product-list-summary {
+    background: #fbfcf8;
+    border: 1px solid var(--vn-line);
+    border-radius: 8px;
+    padding: .85rem 1rem;
+}
+
+.admin-list-summary-count,
+.product-list-summary-count {
+    color: var(--vn-green-900);
+    font-size: .98rem;
+    font-weight: 900;
+}
+
+.admin-summary-chips,
+.product-summary-chips {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .5rem;
+    justify-content: flex-end;
+}
+
+.admin-summary-chip,
+.product-summary-chip {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--vn-line);
+    border-radius: 999px;
+    color: #4a4f45;
+    display: inline-flex;
+    font-size: .82rem;
+    font-weight: 800;
+    gap: .35rem;
+    min-height: 32px;
+    padding: .35rem .65rem;
+    white-space: nowrap;
+}
+
+.admin-summary-chip i,
+.admin-summary-chip strong,
+.product-summary-chip i,
+.product-summary-chip strong {
+    color: var(--vn-green-700);
+}
+
+.admin-summary-chip-warning i,
+.admin-summary-chip-warning strong,
+.product-summary-chip-warning i,
+.product-summary-chip-warning strong {
+    color: #b7791f;
+}
+
+.admin-summary-chip-danger i,
+.admin-summary-chip-danger strong,
+.product-summary-chip-danger i,
+.product-summary-chip-danger strong {
+    color: #c2410c;
+}
+
+.admin-summary-chip-info i,
+.admin-summary-chip-info strong,
+.product-summary-chip-info i,
+.product-summary-chip-info strong {
+    color: #2563eb;
+}
+
+.admin-summary-chip-muted i,
+.admin-summary-chip-muted strong,
+.product-summary-chip-muted i,
+.product-summary-chip-muted strong {
+    color: #6b7280;
+}
+
+.admin-summary-mobile-list,
+.product-summary-mobile-list {
+    border-top: 1px solid var(--vn-line);
+    padding-top: .5rem;
+}
+
+.admin-summary-mobile-row,
+.product-summary-mobile-row {
+    align-items: center;
+    color: #4a4f45;
+    display: flex;
+    font-size: .88rem;
+    justify-content: space-between;
+    padding: .45rem 0;
+}
+
+.admin-summary-mobile-row strong,
+.product-summary-mobile-row strong {
+    color: var(--vn-green-800);
 }
 
 .quantity-control {

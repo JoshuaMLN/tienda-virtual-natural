@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreBrandRequest;
 use App\Http\Requests\Admin\UpdateBrandRequest;
 use App\Models\Brand;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,8 +19,22 @@ class BrandController extends Controller
 {
     public function index(Request $request): View
     {
-        $brands = Brand::query()
+        $filteredBrands = $this->applyIndexFilters(Brand::query(), $request);
+        $brandSummary = $this->brandSummary($filteredBrands);
+
+        $brands = (clone $filteredBrands)
             ->withCount('products')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('admin.brands.index', compact('brands', 'brandSummary'));
+    }
+
+    private function applyIndexFilters(Builder $query, Request $request): Builder
+    {
+        return $query
             ->when($request->filled('q'), function ($query) use ($request) {
                 $term = trim($request->string('q')->toString());
 
@@ -30,13 +45,52 @@ class BrandController extends Controller
             })
             ->when($request->filled('estado'), function ($query) use ($request) {
                 $query->where('is_active', $request->string('estado')->toString() === 'activo');
-            })
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->paginate(15)
-            ->withQueryString();
+            });
+    }
 
-        return view('admin.brands.index', compact('brands'));
+    private function brandSummary(Builder $query): array
+    {
+        $stats = [
+            [
+                'key' => 'active',
+                'label' => 'Activas',
+                'value' => (clone $query)->where('is_active', true)->count(),
+                'icon' => 'bi-toggle-on',
+                'tone' => 'success',
+            ],
+            [
+                'key' => 'inactive',
+                'label' => 'Inactivas',
+                'value' => (clone $query)->where('is_active', false)->count(),
+                'icon' => 'bi-toggle-off',
+                'tone' => 'warning',
+            ],
+            [
+                'key' => 'with-products',
+                'label' => 'Con productos',
+                'value' => (clone $query)->has('products')->count(),
+                'icon' => 'bi-box-seam',
+                'tone' => 'info',
+            ],
+            [
+                'key' => 'without-products',
+                'label' => 'Sin productos',
+                'value' => (clone $query)->doesntHave('products')->count(),
+                'icon' => 'bi-inbox',
+                'tone' => 'muted',
+            ],
+        ];
+
+        $nonZeroStats = collect($stats)
+            ->filter(fn (array $stat) => $stat['value'] > 0)
+            ->values();
+
+        return [
+            'total' => Brand::query()->count(),
+            'filtered' => (clone $query)->count(),
+            'stats' => $nonZeroStats->all(),
+            'visible_stats' => $nonZeroStats->take(4)->all(),
+        ];
     }
 
     public function create(): View

@@ -3,7 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\ProductSettingsController as AdminProductSettingsController;
+use App\Http\Controllers\Admin\StockController as AdminStockController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProductController;
@@ -33,7 +36,7 @@ Route::prefix('mi-cuenta')->name('account.')->group(function () {
 });
 
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::view('/', 'admin.dashboard')->name('dashboard');
+    Route::get('/', AdminDashboardController::class)->name('dashboard');
 
     Route::get('/categorias/slug-sugerido', [AdminCategoryController::class, 'suggestSlug'])->name('categories.suggest-slug');
     Route::patch('/categorias/{category}/estado', [AdminCategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
@@ -66,6 +69,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::patch('/productos/{product}/estado', [AdminProductController::class, 'toggleStatus'])->name('products.toggle-status');
     Route::patch('/productos/{product}/publicacion', [AdminProductController::class, 'togglePublication'])->name('products.toggle-publication');
     Route::get('/productos/slug-sugerido', [AdminProductController::class, 'suggestSlug'])->name('products.suggest-slug');
+    Route::get('/productos/configuracion', [AdminProductSettingsController::class, 'edit'])->name('products.settings.edit');
+    Route::patch('/productos/configuracion', [AdminProductSettingsController::class, 'update'])->name('products.settings.update');
     Route::patch('/productos/{product}/imagen-principal', [AdminProductController::class, 'updateMainImage'])->name('products.main-image.update');
     Route::post('/productos/{product}/imagenes', [AdminProductController::class, 'storeImage'])->name('products.images.store');
     Route::delete('/productos/{product}/imagenes/{image}', [AdminProductController::class, 'destroyImage'])->name('products.images.destroy');
@@ -85,6 +90,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::view('/pedidos', 'admin.orders.index')->name('orders.index');
     Route::view('/pedidos/vn-2024-000123', 'admin.orders.show')->name('orders.show');
     Route::view('/pagos', 'admin.payments.index')->name('payments.index');
-    Route::view('/stock', 'admin.stock.index')->name('stock.index');
+    Route::get('/stock', [AdminStockController::class, 'index'])->name('stock.index');
+    Route::patch('/stock/{product}/alerta', [AdminStockController::class, 'updateThreshold'])->name('stock.threshold.update');
+    Route::post('/stock/{product}/movimientos', [AdminStockController::class, 'storeMovement'])->name('stock.movements.store');
+    Route::get('/stock/{product}/movimientos', [AdminStockController::class, 'movements'])->name('stock.movements.index');
     Route::view('/banners', 'admin.banners.index')->name('banners.index');
 });

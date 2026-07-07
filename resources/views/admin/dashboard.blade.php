@@ -9,7 +9,7 @@
 <div class="row g-3 mb-4">
     <div class="col-md-6 col-xl-3"><x-admin.stat-card icon="bi-cash-coin" label="Venta del dia" value="S/ 16,160.00" trend="+18.4% vs ayer" /></div>
     <div class="col-md-6 col-xl-3"><x-admin.stat-card icon="bi-receipt" label="Pedidos del dia" value="48" trend="+20.6% vs ayer" /></div>
-    <div class="col-md-6 col-xl-3"><x-admin.stat-card icon="bi-box-seam" label="Productos activos" value="312" trend="+5 nuevos" /></div>
+    <div class="col-md-6 col-xl-3"><x-admin.stat-card icon="bi-box-seam" label="Productos activos" :value="number_format($activeProductsCount)" :trend="number_format($publishedProductsCount).' visibles en tienda'" /></div>
     <div class="col-md-6 col-xl-3"><x-admin.stat-card icon="bi-people" label="Clientes" value="2,845" trend="+32 nuevos" /></div>
 </div>
 
@@ -48,12 +48,19 @@
     </div>
     <div class="col-xl-4">
         <div class="admin-card p-3">
-            <h2 class="h5 fw-black">Productos con bajo stock</h2>
-            @foreach(['Omega 3 Premium', 'Maca negra en polvo', 'Proteina vegana vainilla', 'Mix de frutos secos'] as $product)
+            <h2 class="h5 fw-black">Productos con alerta de stock</h2>
+            @forelse($lowStockProducts as $product)
                 <div class="d-flex justify-content-between border-bottom py-2 small">
-                    <span>{{ $product }}</span><strong class="text-warning">Stock bajo</strong>
+                    <span>{{ $product->name }}</span>
+                    @if($product->stock <= 0)
+                        <strong class="text-danger">Sin stock</strong>
+                    @else
+                        <strong class="text-warning">{{ number_format($product->stock) }} und.</strong>
+                    @endif
                 </div>
-            @endforeach
+            @empty
+                <div class="text-muted small py-3">No hay productos con alerta de stock.</div>
+            @endforelse
             <a class="btn btn-sm btn-vn-outline w-100 mt-3" href="{{ route('admin.stock.index') }}">Ver stock</a>
         </div>
     </div>

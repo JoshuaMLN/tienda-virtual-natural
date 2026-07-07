@@ -2,6 +2,14 @@
     <h6 class="fw-black mb-3">Filtrar por</h6>
 
     <form action="{{ route('shop.catalog') }}" method="GET" class="d-grid gap-3">
+        <div class="border-bottom pb-3">
+            <strong class="small d-block mb-2">Disponibilidad</strong>
+            <label class="form-check small mb-0">
+                <input class="form-check-input" name="en_stock" type="checkbox" value="1" @checked(request()->boolean('en_stock'))>
+                Solo en stock
+            </label>
+        </div>
+
         <div>
             <label class="form-label small fw-bold">Buscar</label>
             <input class="form-control form-control-sm" name="q" type="search" value="{{ request('q') }}" placeholder="Producto, marca o SKU">
