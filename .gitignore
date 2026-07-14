@@ -1,10 +1,12 @@
 *.log
 .DS_Store
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
 .phpactor.json
 .phpunit.result.cache
+/.fleet
+/.pint.cache
 /.codex
 /.cursor/
 /.idea
@@ -13,7 +15,10 @@
 /.vscode
 /.zed
 /auth.json
+/coverage
 /node_modules
+/npm-debug.log*
+/pnpm-debug.log*
 /public/build
 /public/fonts-manifest.dev.json
 /public/hot
@@ -21,6 +26,8 @@
 /storage/*.key
 /storage/pail
 /vendor
+/yarn-debug.log*
+/yarn-error.log*
 /graphify-out
 _ide_helper.php
 Homestead.json
