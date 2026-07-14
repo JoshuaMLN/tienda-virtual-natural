@@ -126,24 +126,48 @@ Suite completa: 173 passed, 886 assertions
 
 ## Fase 3: Inicio de sesion y vinculacion con Google
 
-Estado: Pendiente
+Estado: Completada
 
-Por implementar:
-- Dependencia y configuracion de Laravel Socialite.
-- Variables Google sin secretos en `.env.example`.
-- Tabla y modelo `social_accounts`.
-- Redireccion, callback, vinculacion y desvinculacion Google.
-- Confirmacion de contrasena para vincular un correo local existente.
-- Soporte para cuentas Google sin contrasena inicial.
-- Manejo de errores y pruebas fake del proveedor.
-- Prueba manual con callback local autorizado.
+Implementado:
+- Laravel Socialite `^5.28` instalado y proveedor Google configurado en `config/services.php`.
+- Variables Google documentadas en `.env.example` sin valores sensibles.
+- Migracion y modelo `SocialAccount` con relacion a `User`.
+- Restricciones unicas por proveedor/identidad y usuario/proveedor.
+- Perfil Google normalizado y validado con identidad, correo valido y correo verificado obligatorios.
+- Redireccion y callback OAuth conservando el estado en sesion, sin modo `stateless`.
+- Creacion de clientes Google con correo verificado, contrasena nullable y aceptacion de terminos.
+- Inicio de sesion sobre la misma cuenta cuando la identidad ya esta vinculada.
+- Confirmacion mediante contrasena cuando ya existe una cuenta local con el mismo correo.
+- Vinculacion desde `Mi cuenta > Seguridad`, exigiendo el mismo correo Google.
+- Desvinculacion protegida para conservar siempre al menos un metodo de acceso.
+- Manejo legible de cancelacion, callback invalido, correo ausente/no verificado y conflictos.
+- Tokens OAuth excluidos del modelo y de la persistencia.
+- Botones Google en login y registro con tema neutral y recurso multicolor oficial almacenado localmente.
+- Pantalla de confirmacion y administracion visual de la vinculacion en Seguridad.
+- Rate limiting para redireccion, callback, confirmacion, vinculacion y desvinculacion.
+- Migracion aplicada en la base local.
+- Pruebas feature con `Socialite::fake()` en `GoogleAuthenticationTest`.
 
-Validaciones esperadas:
-- Google crea una cuenta solo cuando no existe una identidad compatible.
-- Una identidad vinculada inicia la misma cuenta.
-- No se vincula por coincidencia de correo sin prueba de control.
-- No se persisten tokens OAuth innecesarios.
-- No se puede eliminar el ultimo metodo disponible para iniciar sesion.
+Validaciones:
+- `php artisan config:clear`
+- Verificacion segura de presencia de variables Google sin imprimir sus valores.
+- `php artisan migrate --force`
+- `php artisan migrate:status`
+- `php artisan route:list --name=google -v`
+- Verificacion HTTP local: login `200` y redireccion OAuth con Client ID, callback y `state` presentes.
+- Recorrido manual real aprobado con el callback local autorizado de Google.
+- `php artisan test tests/Feature/GoogleAuthenticationTest.php`
+- `php artisan test tests/Feature/GoogleAuthenticationTest.php tests/Feature/CustomerAuthenticationTest.php tests/Feature/AccountSecurityTest.php`
+- `php artisan test`
+- `php artisan view:cache`
+
+Resultado de pruebas:
+
+```txt
+Flujos Google: 12 passed, 87 assertions
+Google, autenticacion y seguridad: 30 passed, 181 assertions
+Suite completa: 185 passed, 973 assertions
+```
 
 ## Fase 4: Perfil y direcciones guardadas
 
@@ -208,8 +232,7 @@ Validaciones esperadas:
 
 ## Pendientes generales
 
-- Iniciar Fase 1.
-- Configurar un entorno local de correo para verificacion y recuperacion.
-- Crear credenciales OAuth Google separadas para desarrollo y produccion durante la Fase 3.
+- Crear credenciales OAuth Google separadas para produccion antes del despliegue.
+- Implementar las Fases 4, 5 y 6.
 - Actualizar cada fase al completarla con comandos y conteo real de pruebas.
 - Cerrar el sprint solo cuando no queden datos ficticios dentro del alcance de cuenta.

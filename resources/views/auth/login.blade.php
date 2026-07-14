@@ -6,6 +6,7 @@
 @php
     $loginErrors = $errors->getBag('login');
     $showLoginOldInput = $loginErrors->any();
+    $googleErrors = $errors->getBag('google');
     $rememberDays = max(1, (int) config('auth.remember.days', 30));
 @endphp
 
@@ -18,6 +19,10 @@
 
                 @if(session('status'))
                     <div class="alert alert-success" role="status">{{ session('status') }}</div>
+                @endif
+
+                @if($googleErrors->any())
+                    <div class="alert alert-danger" role="alert">{{ $googleErrors->first('google') }}</div>
                 @endif
 
                 <form class="d-grid gap-3" method="POST" action="{{ route('login.store') }}" novalidate>
@@ -89,12 +94,15 @@
 
                     <button class="btn btn-green" type="submit">Iniciar sesion</button>
                 </form>
+
+                @include('auth.partials.google-access')
             </div>
 
             <div class="col-lg-6 ps-lg-5">
                 <h2 class="h3 fw-black">Crea tu cuenta</h2>
                 <p class="text-muted">Guarda tus direcciones y conserva tu carrito entre sesiones.</p>
                 @include('auth.partials.register-form', ['fieldPrefix' => 'login-register'])
+                @include('auth.partials.google-access', ['googleLabel' => 'Registrarme con Google'])
             </div>
         </div>
     </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\UpdatePasswordRequest;
+use App\Models\SocialAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,8 +14,12 @@ class SecurityController extends Controller
 {
     public function edit(Request $request): View
     {
+        $user = $request->user()->load('socialAccounts');
+
         return view('account.security', [
-            'user' => $request->user(),
+            'user' => $user,
+            'googleAccount' => $user->socialAccounts
+                ->firstWhere('provider', SocialAccount::PROVIDER_GOOGLE),
         ]);
     }
 

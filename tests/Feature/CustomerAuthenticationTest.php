@@ -18,7 +18,8 @@ class CustomerAuthenticationTest extends TestCase
             ->assertSee(route('login.store'), false)
             ->assertSee(route('register.store'), false)
             ->assertSee('name="remember"', false)
-            ->assertDontSee('Continuar con Google')
+            ->assertSee('Continuar con Google')
+            ->assertSee(asset('images/brands/google-g-neutral@4x.png'), false)
             ->assertDontSee('Continuar con Facebook')
             ->assertDontSee('Continuar con Apple');
 

@@ -1,16 +1,16 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Account\SecurityController;
 use App\Http\Controllers\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductSettingsController as AdminProductSettingsController;
 use App\Http\Controllers\Admin\StockController as AdminStockController;
-use App\Http\Controllers\Account\SecurityController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -19,6 +19,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProductController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('shop.index');
 Route::get('/catalogo', CatalogController::class)->name('shop.catalog');
@@ -40,6 +41,10 @@ Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'verified'])->
     Route::view('/pendiente', 'checkout.pending')->name('pending');
 });
 
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
+    ->middleware('throttle:10,1')
+    ->name('auth.google.callback');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
@@ -55,6 +60,14 @@ Route::middleware('guest')->group(function () {
     Route::post('/restablecer-contrasena', [NewPasswordController::class, 'store'])
         ->middleware('throttle:6,1')
         ->name('password.update');
+    Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])
+        ->middleware('throttle:10,1')
+        ->name('auth.google.redirect');
+    Route::get('/auth/google/confirmar', [GoogleAuthController::class, 'confirm'])
+        ->name('auth.google.confirm');
+    Route::post('/auth/google/confirmar', [GoogleAuthController::class, 'confirmLink'])
+        ->middleware('throttle:5,1')
+        ->name('auth.google.confirm.store');
 });
 
 Route::middleware('auth')->group(function () {
@@ -74,6 +87,12 @@ Route::prefix('mi-cuenta')->name('account.')->middleware('auth')->group(function
     Route::patch('/seguridad/contrasena', [SecurityController::class, 'updatePassword'])
         ->middleware('throttle:6,1')
         ->name('password.update');
+    Route::post('/seguridad/google', [GoogleAuthController::class, 'link'])
+        ->middleware('throttle:6,1')
+        ->name('google.link');
+    Route::delete('/seguridad/google', [GoogleAuthController::class, 'unlink'])
+        ->middleware('throttle:6,1')
+        ->name('google.unlink');
     Route::view('/pedidos', 'account.orders')->name('orders');
     Route::view('/direcciones', 'account.addresses')->name('addresses');
 });

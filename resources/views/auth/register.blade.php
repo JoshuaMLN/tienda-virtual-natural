@@ -9,6 +9,7 @@
         <p class="text-muted text-center">Guarda tus direcciones y conserva tu carrito entre sesiones.</p>
 
         @include('auth.partials.register-form', ['fieldPrefix' => 'register'])
+        @include('auth.partials.google-access', ['googleLabel' => 'Registrarme con Google'])
 
         <p class="text-center small text-muted mb-0 mt-4">
             Ya tienes una cuenta?
