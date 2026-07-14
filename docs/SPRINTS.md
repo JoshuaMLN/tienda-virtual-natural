@@ -70,28 +70,37 @@ Entregables:
 - Validar stock al modificar cantidades.
 - Preparar estructura para cupones.
 
-## Sprint 5: Checkout y pedidos
+## Sprint 5: Autenticacion, clientes y cuenta
 
-Objetivo: crear ordenes reales desde el carrito.
+Objetivo: implementar identidad real de clientes y convertir el carrito de sesion en un carrito persistente por usuario.
+
+Estado: definido.
+
+Detalle: `docs/SPRINT_5_ROADMAP.md`.
 
 Entregables:
-- Modelos `Order`, `OrderItem`, `CustomerAddress`.
-- Checkout conectado al carrito.
-- Crear pedido en estado `pending`.
-- Resumen real del pedido.
-- Estados: pendiente, pagado, fallido y cancelado.
+- Registro, login y logout con correo y contrasena.
+- Verificacion de correo y recuperacion de contrasena.
+- Inicio de sesion con Google mediante Socialite.
+- Vinculacion segura de Google con cuentas existentes sin duplicar usuarios.
+- Perfil y seguridad de la cuenta.
+- CRUD de direcciones guardadas.
+- Carrito persistente por usuario y fusion segura con el carrito invitado.
+- Cuenta autenticada y verificada como requisito para acceder al checkout.
+
+## Sprint 6: Checkout y pedidos
+
+Objetivo: crear pedidos reales desde el carrito de un cliente autenticado.
+
+Entregables:
+- Modelos `Order` y `OrderItem` con snapshots historicos.
+- Checkout protegido y conectado al carrito persistente.
+- Uso de direcciones guardadas y configuracion de entrega para Lima y Callao.
+- Recojo habilitado solo cuando exista una direccion configurada.
+- Creacion transaccional e idempotente de pedidos en estado `pending`.
+- Reserva y liberacion auditable de inventario.
+- Resumen real, historial y detalle de pedidos para el cliente.
 - Panel admin de pedidos conectado a DB.
-
-## Sprint 6: Clientes y cuenta
-
-Objetivo: que el cliente gestione informacion y pedidos.
-
-Entregables:
-- Registro/login real.
-- Perfil del cliente.
-- Direcciones guardadas.
-- Historial de pedidos.
-- Detalle del pedido para cliente.
 
 ## Sprint 7: Pagos con Culqi
 
