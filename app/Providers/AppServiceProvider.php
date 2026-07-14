@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use App\Models\Category;
+use App\Support\Cart\CartStorageInterface;
+use App\Support\Cart\CartService;
+use App\Support\Cart\SessionCartStorage;
 use App\Support\Notifications\AdminNotificationService;
 use App\Support\Notifications\Providers\StockAlertNotificationProvider;
 use Illuminate\Pagination\Paginator;
@@ -16,6 +19,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(CartStorageInterface::class, SessionCartStorage::class);
+
         $this->app->singleton(AdminNotificationService::class, function ($app) {
             $service = new AdminNotificationService();
             $service->registerProvider(StockAlertNotificationProvider::class);
@@ -37,6 +42,11 @@ class AppServiceProvider extends ServiceProvider
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get());
+            $view->with('cartCount', app(CartService::class)->count());
+        });
+
+        View::composer('components.shop.cart-drawer', function ($view) {
+            $view->with('cartCount', app(CartService::class)->count());
         });
 
         View::composer('components.admin.topbar', function ($view) {
