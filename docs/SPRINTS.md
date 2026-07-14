@@ -74,7 +74,7 @@ Entregables:
 
 Objetivo: implementar identidad real de clientes y convertir el carrito de sesion en un carrito persistente por usuario.
 
-Estado: definido.
+Estado: en progreso.
 
 Detalle: `docs/SPRINT_5_ROADMAP.md`.
 

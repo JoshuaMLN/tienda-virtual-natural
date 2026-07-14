@@ -2,7 +2,7 @@
 
 Fecha: 2026-07-14
 
-Estado: No iniciado
+Estado: En progreso
 
 ## Objetivo
 
@@ -36,42 +36,93 @@ Implementar autenticacion y cuenta real de clientes, incluyendo Google, perfil, 
 
 ## Fase 1: Autenticacion local
 
-Estado: Pendiente
+Estado: Completada
 
-Por implementar:
-- Ajustes del modelo y tabla `users`.
-- Registro real con aceptacion de terminos.
-- Login y logout reales.
-- Normalizacion de correo y validaciones con Form Requests.
-- Sesiones regeneradas de forma segura.
-- Middleware `guest` y `auth`.
-- Redireccion a la URL originalmente solicitada.
-- Formularios conectados a backend y retiro de proveedores sociales no implementados.
+Implementado:
+- Migracion incremental de `users` con telefono opcional, contrasena nullable y fecha de aceptacion de terminos.
+- Modelo `User` y factory actualizados con casts y datos de cliente.
+- `RegisterRequest` con normalizacion de nombre, correo y celular, validaciones y mensajes legibles.
+- `LoginRequest` con normalizacion de correo y error bag independiente.
+- `RegisteredUserController` para registro, evento `Registered`, autenticacion y regeneracion de sesion.
+- `AuthenticatedSessionController` para login, credenciales invalidas y logout seguro.
+- Rutas GET/POST de login y registro protegidas con `guest`.
+- Ruta POST de logout y zona `mi-cuenta` protegidas con `auth`.
+- Redireccion de invitados a login y de usuarios autenticados fuera de paginas guest.
+- Soporte de URL `intended` despues de registro o login.
+- Formularios reales de login y registro con CSRF, valores anteriores, errores por campo y asteriscos obligatorios.
+- Registro disponible tanto en la pagina combinada como en `/registro` mediante un partial reutilizable.
+- Celular opcional validado como numero peruano de 9 digitos cuando se proporciona.
+- Aceptacion obligatoria de terminos y condiciones.
+- Opcion Recordarme y controles funcionales para mostrar/ocultar contrasenas.
+- Duracion de Recordarme configurable con `AUTH_REMEMBER_DAYS` y valor inicial de 30 dias.
+- Etiqueta de Recordarme sincronizada con la duracion configurada.
+- Proveedores sociales no funcionales retirados hasta la Fase 3.
+- Cierre de sesion real desde el sidebar de cuenta.
+- Migracion aplicada en la base local.
+- Pruebas feature en `CustomerAuthenticationTest`.
 
-Validaciones esperadas:
-- Un registro valido crea una sola cuenta.
-- Correos duplicados y datos invalidos se rechazan.
-- Login correcto regenera la sesion.
-- Logout invalida la sesion y el token CSRF.
-- Invitados no acceden a rutas de cuenta.
+Validaciones:
+- `php artisan migrate`
+- `php artisan migrate:status`
+- `php artisan test tests/Feature/CustomerAuthenticationTest.php`
+- `php artisan test`
+- `php artisan route:list --path=login`
+- `php artisan route:list --path=mi-cuenta`
+- `php artisan view:cache`
+- `node --check public/js/app.js`
+- `npm.cmd run build`
+- `git diff --check`
+
+Resultado de pruebas:
+
+```txt
+Pruebas de autenticacion: 12 passed, 64 assertions
+Suite completa: 154 passed, 813 assertions
+```
 
 ## Fase 2: Verificacion, recuperacion y seguridad
 
-Estado: Pendiente
+Estado: Completada
 
-Por implementar:
-- Verificacion y reenvio de correo.
-- Recuperacion y restablecimiento de contrasena.
-- Cambio o definicion de contrasena desde Seguridad.
-- Revalidacion al cambiar el correo.
-- Rate limiting y respuestas que eviten enumeracion de cuentas.
-- Restriccion `verified` para checkout.
+Implementado:
+- `User` implementa el contrato nativo `MustVerifyEmail`.
+- Notificacion de verificacion de correo personalizada en espanol.
+- Enlace de verificacion temporal, firmado y asociado al usuario/correo correctos.
+- Pantalla de aviso y reenvio de verificacion.
+- Registro nuevo redirige a verificacion cuando no existe otro destino `intended`.
+- Evento `Verified` emitido al confirmar el correo.
+- Cambiar el correo de un usuario existente invalida automaticamente su verificacion.
+- Checkout protegido con middleware `auth` y `verified`.
+- Formulario real para solicitar recuperacion de contrasena.
+- Respuesta neutra para correos existentes y desconocidos, evitando enumeracion de cuentas.
+- Notificacion de restablecimiento de contrasena personalizada en espanol.
+- Pantalla y flujo real de restablecimiento mediante token temporal.
+- Tokens de recuerdo rotados al restablecer o cambiar la contrasena.
+- Nueva seccion `Mi cuenta > Seguridad`.
+- Cambio de contrasena exige la contrasena actual cuando la cuenta ya tiene una.
+- Cuentas sin contrasena pueden definir su primera credencial local, preparadas para Google.
+- Estado visual del correo verificado o pendiente dentro de Seguridad.
+- Rate limiting por correo/IP para login despues de 5 intentos fallidos.
+- Limites HTTP para registro, recuperacion, restablecimiento, reenvio y cambio de contrasena.
+- Pruebas separadas para verificacion, recuperacion y seguridad de cuenta.
 
-Validaciones esperadas:
-- Los enlaces de verificacion y recuperacion respetan firma/token y vencimiento.
-- Un correo modificado vuelve a estado no verificado.
-- Una cuenta no verificada no puede entrar al checkout.
-- Los limites de intentos se aplican a rutas sensibles.
+Validaciones:
+- `php artisan test tests/Feature/CustomerAuthenticationTest.php tests/Feature/EmailVerificationTest.php tests/Feature/PasswordResetTest.php tests/Feature/AccountSecurityTest.php`
+- `php artisan test`
+- `php artisan route:list --path=verificar-correo`
+- `php artisan route:list --path=contrasena`
+- `php artisan route:list --path=mi-cuenta/seguridad`
+- `php artisan view:cache`
+- `node --check public/js/app.js`
+- `npm.cmd run build`
+- `git diff --check`
+
+Resultado de pruebas:
+
+```txt
+Autenticacion, verificacion y seguridad: 31 passed, 137 assertions
+Suite completa: 173 passed, 886 assertions
+```
 
 ## Fase 3: Inicio de sesion y vinculacion con Google
 

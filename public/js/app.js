@@ -44,6 +44,21 @@ document.addEventListener('click', function (event) {
         input.value = nextValue;
     }
 
+    const passwordToggle = event.target.closest('[data-password-toggle]');
+    if (passwordToggle) {
+        const input = document.getElementById(passwordToggle.dataset.passwordToggle);
+        if (!input) return;
+
+        const showPassword = input.type === 'password';
+        input.type = showPassword ? 'text' : 'password';
+        passwordToggle.setAttribute('aria-label', showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena');
+        passwordToggle.setAttribute('aria-pressed', showPassword ? 'true' : 'false');
+
+        const icon = passwordToggle.querySelector('i');
+        icon?.classList.toggle('bi-eye', !showPassword);
+        icon?.classList.toggle('bi-eye-slash', showPassword);
+    }
+
     const sidebarToggle = event.target.closest('[data-admin-sidebar]');
     if (sidebarToggle) {
         setAdminSidebarOpen(!adminSidebar?.classList.contains('show'));

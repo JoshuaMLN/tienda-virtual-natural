@@ -2,7 +2,7 @@
 
 Fecha: 2026-07-14
 
-Estado: Definido
+Estado: En progreso
 
 ## Objetivo
 

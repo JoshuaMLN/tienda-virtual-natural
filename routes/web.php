@@ -7,6 +7,14 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductSettingsController as AdminProductSettingsController;
 use App\Http\Controllers\Admin\StockController as AdminStockController;
+use App\Http\Controllers\Account\SecurityController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\EmailVerificationNotificationController;
+use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\HomeController;
@@ -25,19 +33,47 @@ Route::delete('/carrito', [CartController::class, 'clear'])->name('shop.cart.cle
 Route::view('/contacto', 'shop.contact')->name('shop.contact');
 Route::view('/terminos-y-condiciones', 'shop.terms')->name('shop.terms');
 
-Route::prefix('checkout')->name('checkout.')->group(function () {
+Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'verified'])->group(function () {
     Route::view('/', 'checkout.index')->name('index');
     Route::view('/exitoso', 'checkout.success')->name('success');
     Route::view('/fallido', 'checkout.failed')->name('failed');
     Route::view('/pendiente', 'checkout.pending')->name('pending');
 });
 
-Route::view('/login', 'auth.login')->name('login');
-Route::view('/registro', 'auth.register')->name('register');
-Route::view('/recuperar-contrasena', 'auth.forgot-password')->name('password.request');
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+    Route::get('/registro', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('/registro', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('register.store');
+    Route::get('/recuperar-contrasena', [PasswordResetLinkController::class, 'create'])->name('password.request');
+    Route::post('/recuperar-contrasena', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:3,1')
+        ->name('password.email');
+    Route::get('/restablecer-contrasena/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
+    Route::post('/restablecer-contrasena', [NewPasswordController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('password.update');
+});
 
-Route::prefix('mi-cuenta')->name('account.')->group(function () {
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    Route::get('/verificar-correo', EmailVerificationPromptController::class)->name('verification.notice');
+    Route::get('/verificar-correo/{id}/{hash}', VerifyEmailController::class)
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+    Route::post('/verificar-correo/reenviar', [EmailVerificationNotificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+});
+
+Route::prefix('mi-cuenta')->name('account.')->middleware('auth')->group(function () {
     Route::view('/perfil', 'account.profile')->name('profile');
+    Route::get('/seguridad', [SecurityController::class, 'edit'])->name('security');
+    Route::patch('/seguridad/contrasena', [SecurityController::class, 'updatePassword'])
+        ->middleware('throttle:6,1')
+        ->name('password.update');
     Route::view('/pedidos', 'account.orders')->name('orders');
     Route::view('/direcciones', 'account.addresses')->name('addresses');
 });

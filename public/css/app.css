@@ -712,6 +712,7 @@ a {
 }
 
 .account-sidebar a,
+.account-sidebar-action,
 .admin-sidebar a {
     align-items: center;
     border-radius: 6px;
@@ -719,6 +720,18 @@ a {
     display: flex;
     gap: .65rem;
     padding: .75rem .85rem;
+}
+
+.account-sidebar-action {
+    background: transparent;
+    border: 0;
+    text-align: left;
+    width: 100%;
+}
+
+.account-sidebar-action:hover {
+    background: var(--vn-green-100);
+    color: var(--vn-green-900);
 }
 
 .account-sidebar a.active {

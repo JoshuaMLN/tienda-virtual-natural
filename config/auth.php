@@ -20,6 +20,10 @@ return [
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
+    'remember' => [
+        'days' => (int) env('AUTH_REMEMBER_DAYS', 30),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards

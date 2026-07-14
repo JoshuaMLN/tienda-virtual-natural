@@ -8,9 +8,12 @@ use App\Support\Cart\CartService;
 use App\Support\Cart\SessionCartStorage;
 use App\Support\Notifications\AdminNotificationService;
 use App\Support\Notifications\Providers\StockAlertNotificationProvider;
+use Illuminate\Auth\AuthManager;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Pagination\Paginator;
-use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,6 +38,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+
+        Auth::resolved(function (AuthManager $auth): void {
+            $guard = $auth->guard('web');
+
+            if ($guard instanceof SessionGuard) {
+                $rememberDays = max(1, (int) config('auth.remember.days', 30));
+                $guard->setRememberDuration($rememberDays * 24 * 60);
+            }
+        });
 
         View::composer('components.shop.navbar', function ($view) {
             $view->with('navigationCategories', Category::query()
