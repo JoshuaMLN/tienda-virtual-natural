@@ -137,6 +137,12 @@ a {
     position: relative;
 }
 
+.header-action-button {
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+
 .header-action i {
     color: var(--vn-green-700);
     font-size: 1.15rem;
@@ -145,7 +151,7 @@ a {
 .cart-count {
     background: var(--vn-orange);
     border-radius: 999px;
-    color: #fff;
+    color: #ffffff;
     font-size: .75rem;
     font-weight: 800;
     min-width: 19.5px;
@@ -587,6 +593,76 @@ a {
 .quantity-control button {
     background: #f8f8f5;
     color: var(--vn-green-800);
+}
+
+.cart-drawer {
+    width: min(100vw, 430px);
+}
+
+.cart-drawer-items {
+    overflow-y: auto;
+    padding-right: .25rem;
+}
+
+.cart-drawer-item {
+    border-bottom: 1px solid var(--vn-line);
+    padding-bottom: .85rem;
+}
+
+.cart-drawer-item:last-child {
+    border-bottom: 0;
+}
+
+.cart-drawer-item-title {
+    color: var(--vn-ink);
+    font-size: .92rem;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.cart-drawer-quantity button,
+.cart-drawer-quantity input {
+    height: 30px;
+    width: 32px;
+}
+
+.cart-drawer-quantity input {
+    font-size: .86rem;
+}
+
+.cart-table td,
+.cart-table th {
+    vertical-align: middle;
+}
+
+.cart-toast-container {
+    top: 1.25rem;
+    width: min(92vw, 440px);
+}
+
+.cart-toast {
+    background: #fff;
+    border: 1px solid transparent;
+    border-radius: 18px;
+    box-shadow: 0 18px 42px rgba(24, 57, 34, .16);
+    color: var(--vn-ink);
+    overflow: hidden;
+    width: 100%;
+}
+
+.cart-toast-success {
+    background: #f1faed;
+    border-color: #cfe9c5;
+}
+
+.cart-toast-error {
+    background: #fff1f1;
+    border-color: #f2c7c7;
+}
+
+.cart-toast-icon {
+    font-size: 1.2rem;
+    line-height: 1;
 }
 
 .payment-logo {

@@ -29,9 +29,16 @@
                 <a class="header-action d-none d-md-inline-flex" href="#" aria-label="Favoritos">
                     <i class="bi bi-heart"></i><span>Favoritos</span>
                 </a>
-                <a class="header-action" href="{{ route('shop.cart') }}" aria-label="Carrito">
-                    <i class="bi bi-cart3"></i><span class="d-none d-md-inline">Carrito</span><span class="cart-count">3</span>
-                </a>
+                <button
+                    class="header-action header-action-button"
+                    type="button"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#cartDrawer"
+                    aria-controls="cartDrawer"
+                    aria-label="Abrir carrito"
+                >
+                    <i class="bi bi-cart3"></i><span class="d-none d-md-inline">Carrito</span><span class="cart-count" data-cart-count data-cart-info-url="{{ route('shop.cart.info') }}">{{ $cartCount }}</span>
+                </button>
             </div>
         </div>
     </div>

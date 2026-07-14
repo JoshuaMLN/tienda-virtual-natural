@@ -84,13 +84,20 @@
             </div>
 
             <label class="form-label fw-bold">Cantidad</label>
-            <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+            <div class="d-flex flex-wrap gap-3 align-items-center mb-3" data-cart-form>
                 <div class="quantity-control">
                     <button data-quantity="minus" type="button" @disabled(! $product->is_in_stock)>-</button>
-                    <input type="number" value="1" min="1" max="{{ max(1, $product->stock) }}" @disabled(! $product->is_in_stock)>
+                    <input type="number" value="1" min="1" max="{{ max(1, $product->stock) }}" data-cart-quantity @disabled(! $product->is_in_stock)>
                     <button data-quantity="plus" type="button" @disabled(! $product->is_in_stock)>+</button>
                 </div>
-                <button class="btn btn-vn btn-lg flex-grow-1" type="button" @disabled(! $product->is_in_stock)>
+                <button
+                    class="btn btn-vn btn-lg flex-grow-1"
+                    type="button"
+                    data-cart-add
+                    data-cart-product-id="{{ $product->id }}"
+                    data-cart-url="{{ route('shop.cart.items.store') }}"
+                    @disabled(! $product->is_in_stock)
+                >
                     <i class="bi bi-cart-plus me-2"></i>{{ $product->is_in_stock ? 'Anadir al carrito' : 'No disponible' }}
                 </button>
             </div>

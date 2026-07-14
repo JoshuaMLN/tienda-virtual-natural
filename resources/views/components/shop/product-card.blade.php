@@ -10,6 +10,7 @@
     }
 
     $productView = [
+        'id' => data_get($product, 'id'),
         'name' => data_get($product, 'name', 'Producto natural'),
         'description' => data_get($product, 'short_description') ?? data_get($product, 'description', 'Presentacion 120 capsulas'),
         'price' => $price,
@@ -23,6 +24,7 @@
         'stock_label' => data_get($product, 'public_stock_summary_label', 'En stock'),
         'stock_class' => data_get($product, 'public_stock_text_class', 'text-success'),
         'stock_icon' => data_get($product, 'public_stock_icon', 'bi-check-circle'),
+        'stock' => (int) data_get($product, 'stock', 0),
     ];
 @endphp
 
@@ -59,5 +61,22 @@
             <i class="bi {{ $productView['stock_icon'] }}"></i>
             {{ $productView['stock_label'] }}
         </div>
+        @if($productView['id'])
+            <button
+                class="btn btn-vn-outline btn-sm w-100 mt-3"
+                type="button"
+                data-cart-add
+                data-cart-product-id="{{ $productView['id'] }}"
+                data-cart-url="{{ route('shop.cart.items.store') }}"
+                data-cart-modal-trigger
+                data-cart-modal-name="{{ $productView['name'] }}"
+                data-cart-modal-price="{{ $productView['price'] }}"
+                data-cart-modal-image="{{ $productView['image'] }}"
+                data-cart-modal-stock="{{ max(1, $productView['stock']) }}"
+                @disabled(! $productView['is_in_stock'])
+            >
+                <i class="bi bi-cart-plus me-1"></i>{{ $productView['is_in_stock'] ? 'Anadir al carrito' : 'No disponible' }}
+            </button>
+        @endif
     </div>
 </article>
