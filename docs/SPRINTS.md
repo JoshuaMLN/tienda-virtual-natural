@@ -74,7 +74,7 @@ Entregables:
 
 Objetivo: implementar identidad real de clientes y convertir el carrito de sesion en un carrito persistente por usuario.
 
-Estado: en progreso.
+Estado: completado.
 
 Detalle: `docs/SPRINT_5_ROADMAP.md`.
 
@@ -96,6 +96,9 @@ Entregables:
 - Modelos `Order` y `OrderItem` con snapshots historicos.
 - Checkout protegido y conectado al carrito persistente.
 - Uso de direcciones guardadas y configuracion de entrega para Lima y Callao.
+- Monto global configurable para envio gratis; `0` lo deshabilita y los mensajes publicos deben usar el valor vigente.
+- Configuracion operativa centralizada de WhatsApp, correo de contacto y horario de atencion.
+- Navbar, footer, contacto y avisos de envio deben consumir los datos operativos configurados, sin valores duplicados en las vistas.
 - Recojo habilitado solo cuando exista una direccion configurada.
 - Creacion transaccional e idempotente de pedidos en estado `pending`.
 - Reserva y liberacion auditable de inventario.
@@ -124,6 +127,10 @@ Entregables:
 - Promociones simples.
 - Cupones basicos.
 - Home dinamico con banners y promociones.
+- Directorio publico de marcas activas conectado al catalogo filtrado.
+- Productos nuevos calculados desde `published_at` con una ventana de dias configurable; `0` deshabilita la seccion.
+- Configuracion comercial de Instagram, Facebook, TikTok y otras redes sociales.
+- Ocultar en la tienda cualquier red social que no tenga una URL configurada.
 
 ## Sprint 9: Pulido y seguridad
 
@@ -136,3 +143,13 @@ Entregables:
 - Validaciones finales.
 - Optimizacion de consultas.
 - Limpieza visual y responsive.
+
+## Sprint 10: Fidelizacion y experiencia del cliente
+
+Objetivo: incorporar funciones de retencion sin bloquear el flujo principal de compra.
+
+Entregables:
+- Favoritos persistentes por cliente.
+- Acceso a favoritos desde navbar y cuenta.
+- Base para puntos o beneficios por compras.
+- Preferencias y notificaciones del cliente.

@@ -2,7 +2,7 @@
 
 Fecha: 2026-07-15
 
-Estado: En progreso
+Estado: Completado
 
 ## Objetivo
 
@@ -375,27 +375,48 @@ Validacion local:
 
 ## Fase 8: Integracion, pruebas y cierre
 
-Estado: Pendiente
+Estado: Completada
 
-Por implementar:
-- Navbar, footer y sidebar conscientes de autenticacion.
-- Proteccion completa de rutas de cuenta.
-- Proteccion temporal de checkout con `auth` y `verified`.
-- Cobertura feature de todos los flujos locales y Google.
-- Cobertura de autorizacion de perfil/direcciones.
-- Cobertura de carrito persistente y fusion.
-- Validaciones de rutas, vistas, JavaScript, build y suite completa.
-- Actualizacion de Graphify y de este documento con resultados reales.
+Implementado:
+- Navbar y footer diferencian invitado y cliente autenticado.
+- Menu global de cuenta con perfil, pedidos, direcciones, seguridad, verificacion pendiente y logout con confirmacion.
+- Modal de logout reutilizado una sola vez desde el layout publico.
+- Favoritos, marcas, novedades y redes sin implementar se retiraron de la navegacion activa.
+- Ofertas del footer aplica el filtro real del catalogo.
+- Todas las rutas de cuenta permanecen protegidas con `auth`.
+- Las cuatro rutas de checkout permanecen protegidas con `auth` y `verified`.
+- Checkout se conserva como destino durante login, registro y verificacion de correo en la misma sesion.
+- Feedback global visible despues de cerrar sesion o verificar el correo.
+- Cobertura nueva de navegacion, continuidad de checkout y ciclo de sesion.
 
-Validaciones esperadas:
-- Los recorridos completos funcionan en desktop y mobile.
-- La redireccion al login conserva el destino de checkout.
-- La suite completa no introduce regresiones en catalogo, inventario o carrito.
-- Sprint 6 puede consumir usuario, direccion y carrito sin cambiar sus contratos.
+Resultado de pruebas:
 
-## Pendientes generales
+```txt
+Integracion de navegacion y checkout: 10 passed, 54 assertions
+Pruebas relacionadas de autenticacion, cuenta y carrito: 66 passed, 438 assertions
+Suite completa: 267 passed, 1464 assertions
+```
+
+Validacion tecnica:
+- `php artisan migrate --force`: sin migraciones pendientes.
+- `php artisan route:list --path=checkout -v`: cuatro rutas con `auth` y `verified`.
+- `php artisan view:cache`: correcto.
+- `node --check public/js/app.js`: correcto.
+- `npm.cmd run build`: correcto.
+- Pint sobre PHP modificado: correcto.
+
+Validacion manual aprobada:
+- Navbar y menu de cuenta verificados como invitado y autenticado en desktop y mobile.
+- Logout global, modal de confirmacion y mensajes visuales verificados.
+- Recorrido carrito -> checkout -> login -> verificacion -> checkout aprobado.
+- Footer y navegacion confirmados sin enlaces activos hacia funcionalidades pendientes.
+
+## Pendientes de despliegue
 
 - Crear credenciales OAuth Google separadas para produccion antes del despliegue.
-- Implementar la Fase 8.
-- Actualizar cada fase al completarla con comandos y conteo real de pruebas.
-- Cerrar el sprint solo cuando no queden datos ficticios dentro del alcance de cuenta.
+
+## Resultado final
+
+- Las ocho fases del Sprint 5 estan completadas.
+- Los criterios de cierre funcionales, tecnicos y manuales fueron aprobados.
+- Sprint 6 puede consumir usuario verificado, direcciones y carrito persistente sin cambiar sus contratos actuales.

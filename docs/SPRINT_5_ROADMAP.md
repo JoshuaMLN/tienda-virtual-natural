@@ -272,9 +272,14 @@ Objetivo: validar los recorridos completos y dejar una base estable para checkou
 
 Tareas:
 - Hacer que navbar, footer y sidebar de cuenta reflejen invitado o cliente autenticado.
+- Mostrar un menu global de cuenta para clientes y confirmacion de cierre de sesion sin duplicar modales.
+- Ocultar favoritos, marcas, novedades y redes sociales mientras sus modulos no esten implementados.
+- Hacer que el enlace Ofertas del footer aplique el filtro real del catalogo.
 - Proteger todas las rutas de cuenta con `auth`.
 - Proteger el acceso a checkout con `auth` y `verified`, aunque su logica real se implemente en Sprint 6.
 - Verificar redireccion `intended` desde carrito/checkout hacia login y de vuelta al destino.
+- Conservar de forma segura checkout como destino mientras un cliente completa la verificacion de correo.
+- Mostrar feedback global despues de cerrar sesion o verificar el correo.
 - Crear pruebas de autenticacion local:
   - registro valido e invalido
   - login correcto e incorrecto
