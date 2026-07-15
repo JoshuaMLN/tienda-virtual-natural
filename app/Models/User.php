@@ -50,6 +50,14 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(SocialAccount::class);
     }
 
+    /**
+     * @return HasMany<CustomerAddress, $this>
+     */
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(CustomerAddress::class);
+    }
+
     public function getAvatarUrlAttribute(): ?string
     {
         return $this->avatar_path

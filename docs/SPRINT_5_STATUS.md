@@ -220,54 +220,98 @@ Validacion local y manual:
 
 ## Fase 5: Dominio de direcciones y UBIGEO
 
-Estado: Pendiente
+Estado: Completada
 
-Por implementar:
-- Modelo, migracion, factory y relaciones de `CustomerAddress`.
-- Campos de direccion: etiqueta, destinatario, telefono, departamento/region, provincia, distrito, UBIGEO, direccion, referencia y predeterminada.
-- Catalogo local confiable de Lima Metropolitana y Callao.
-- Departamento/region y UBIGEO derivados y validados en backend.
-- Servicio transaccional de reglas de direcciones.
-- Limite de 10 direcciones por usuario.
-- Destinatario y telefono independientes del perfil.
-- Primera direccion predeterminada automaticamente.
-- Una sola direccion predeterminada mientras existan direcciones.
-- Cambio de predeterminada dentro de una transaccion.
-- Promocion de la direccion restante mas antigua al eliminar la predeterminada.
-- Eliminacion fisica de direcciones; pedidos futuros conservaran snapshots.
-- Pruebas unitarias y de base de datos del dominio.
+Implementado:
+- Migracion `customer_addresses` con propietario, datos de entrega estructurados, UBIGEO, referencia nullable y estado predeterminado.
+- Modelo `CustomerAddress`, factory, casts, scope de predeterminada y relaciones bidireccionales con `User`.
+- Eliminacion fisica de direcciones y eliminacion en cascada cuando se elimina al usuario.
+- Catalogo local versionado con 43 distritos de Lima y 7 del Callao.
+- Fuente documentada: dataset oficial `UBIGEO 2022 - 1891 distritos` de INEI en la Plataforma Nacional de Datos Abiertos.
+- Codigos UBIGEO normalizados como strings para conservar ceros iniciales.
+- Resolucion tipada de departamento/region, provincia, distrito y UBIGEO canonicos.
+- Rechazo de provincias fuera de cobertura y combinaciones provincia-distrito manipuladas.
+- `CustomerAddressService` como puerta transaccional para crear, actualizar, elegir predeterminada y eliminar.
+- Bloqueo pesimista por usuario para serializar cambios concurrentes sobre sus direcciones.
+- Limite independiente de 10 direcciones por usuario.
+- Destinatario y telefono independientes de los datos del perfil.
+- Primera direccion predeterminada automaticamente y exactamente una predeterminada mientras existan direcciones.
+- Cambio de predeterminada desmarcando la anterior dentro de la misma transaccion.
+- Proteccion que evita desmarcar la unica predeterminada sin seleccionar otra.
+- Promocion determinista de la direccion restante mas antigua mediante `created_at` e `id`.
+- Aislamiento de propietario en editar, seleccionar predeterminada y eliminar.
+- Normalizacion de textos, celular peruano y referencia nullable dentro del dominio.
+- Pruebas separadas para catalogo, modelo y servicio de direcciones.
 
-Validaciones esperadas:
-- Provincia, distrito, departamento/region y UBIGEO siempre son coherentes con el catalogo permitido.
-- El usuario no puede guardar mas de 10 direcciones.
-- La primera direccion queda predeterminada sin accion adicional.
-- Establecer una direccion predeterminada desmarca la anterior.
-- Eliminar la predeterminada promueve la direccion restante mas antigua.
-- El dominio mantiene aisladas las direcciones de usuarios diferentes.
+Validaciones:
+- Verificacion del XLSX oficial de INEI y extraccion de los 50 distritos habilitados.
+- `php artisan migrate`
+- `php artisan migrate:status --pending`
+- `php artisan test tests/Feature/LimaCallaoUbigeoCatalogTest.php tests/Feature/CustomerAddressModelTest.php tests/Feature/CustomerAddressServiceTest.php`
+- `php artisan test`
+- `php vendor/bin/pint --test ...`
+- `php artisan config:cache`
+- `php artisan config:clear`
+
+Resultado de pruebas:
+
+```txt
+Catalogo, modelo y dominio de direcciones: 23 passed, 134 assertions
+Suite completa: 222 passed, 1210 assertions
+```
+
+Validacion local:
+- Migracion `2026_07_15_000200_create_customer_addresses_table` aplicada correctamente en el lote 11.
+- No existe validacion manual de frontend en esta fase; el CRUD y la UX corresponden a la Fase 6.
 
 ## Fase 6: CRUD y UX de direcciones
 
-Estado: Pendiente
+Estado: Completada
 
-Por implementar:
-- Controladores, Form Requests y rutas de direcciones.
-- Listado, creacion, edicion, eliminacion y seleccion de predeterminada.
-- Autorizacion por propietario sin exponer direcciones ajenas.
-- Area de entrega readonly para Lima Metropolitana y Callao.
-- Selects dependientes de provincia y distrito.
-- Departamento/region y UBIGEO completados automaticamente.
-- Radio buttons para predeterminada en el listado y checkbox al crear o editar.
-- Limite de 10 direcciones reflejado en la interfaz.
-- Confirmacion de eliminacion y aviso de promocion de predeterminada.
-- Estados vacios, validaciones legibles y experiencia responsive.
-- Pruebas feature completas del CRUD.
+Implementado:
+- `CustomerAddressController`, Form Requests y siete rutas autenticadas para el CRUD completo.
+- Listado exclusivo del usuario autenticado con la direccion predeterminada primero.
+- Resolucion por propietario que responde `404` al consultar, editar, eliminar o seleccionar direcciones ajenas.
+- Formulario compartido de creacion y edicion con valores reales de destinatario y celular editables por direccion.
+- Area `Lima Metropolitana y Callao` readonly.
+- Selects dependientes de provincia y distrito alimentados por el catalogo local versionado.
+- Departamento/region y UBIGEO derivados automaticamente y excluidos como campos editables del request.
+- Validacion backend de celular, campos requeridos y coherencia provincia-distrito con mensajes legibles.
+- Tarjetas compactas y responsive, sin anidar cards, con contador de direcciones.
+- Radio buttons para cambiar la predeterminada directamente desde el listado.
+- Checkbox de predeterminada en creacion y edicion, preservando siempre la invariante del dominio.
+- Primera direccion marcada automaticamente y explicada en el formulario.
+- Creacion deshabilitada al alcanzar 10 direcciones, con explicacion visible.
+- Modal reutilizable antes de eliminar y advertencia adicional para la direccion predeterminada.
+- Mensaje posterior al borrado indicando cual direccion fue promovida como predeterminada.
+- Estado vacio real y acciones adaptadas para desktop y mobile.
+- Pruebas feature en `CustomerAddressHttpTest` para autenticacion, CRUD, autorizacion, UBIGEO, limite y estados HTTP.
 
-Validaciones esperadas:
-- Un usuario solo consulta y modifica sus propias direcciones.
-- El navegador nunca solicita al usuario escribir un UBIGEO.
-- Formularios manipulados no pueden guardar combinaciones geograficas invalidas.
-- La interfaz refleja correctamente limite y direccion predeterminada.
-- Eliminar una direccion no afecta las de otras cuentas.
+Validaciones:
+- `php artisan route:list --name=account.addresses --except-vendor`
+- `php artisan test tests/Feature/CustomerAddressHttpTest.php`
+- `php artisan test tests/Feature/CustomerAddressModelTest.php tests/Feature/CustomerAddressServiceTest.php tests/Feature/LimaCallaoUbigeoCatalogTest.php tests/Feature/CustomerAddressHttpTest.php`
+- `php artisan test`
+- `php vendor/bin/pint --test ...` sobre todos los PHP modificados en las Fases 5 y 6.
+- `php artisan migrate:status --pending`
+- `php artisan view:cache`
+- `node --check public/js/app.js`
+- `npm.cmd run build`
+- `git diff --check`
+
+Resultado de pruebas:
+
+```txt
+CRUD HTTP de direcciones: 12 passed, 92 assertions
+Catalogo, modelo, dominio y CRUD: 35 passed, 226 assertions
+Suite completa: 234 passed, 1302 assertions
+```
+
+Validacion local:
+- Las siete rutas de direcciones estan registradas bajo `mi-cuenta` y protegidas por `auth`.
+- No existen migraciones pendientes.
+- Plantillas Blade, JavaScript y build de produccion validados correctamente.
+- Recorrido visual manual pendiente de confirmacion antes del commit conjunto de las Fases 5 y 6.
 
 ## Fase 7: Carrito persistente y fusion de sesion
 
@@ -314,6 +358,6 @@ Validaciones esperadas:
 ## Pendientes generales
 
 - Crear credenciales OAuth Google separadas para produccion antes del despliegue.
-- Implementar las Fases 5 a 8.
+- Implementar las Fases 7 y 8.
 - Actualizar cada fase al completarla con comandos y conteo real de pruebas.
 - Cerrar el sprint solo cuando no queden datos ficticios dentro del alcance de cuenta.

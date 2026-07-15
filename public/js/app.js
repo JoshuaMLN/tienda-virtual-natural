@@ -116,6 +116,89 @@ document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (toolti
     }
 });
 
+document.querySelectorAll('[data-address-form]').forEach(function (form) {
+    const catalogElement = form.querySelector('[data-address-location-catalog]');
+    const provinceInput = form.querySelector('[data-address-province]');
+    const districtInput = form.querySelector('[data-address-district]');
+    const departmentInput = form.querySelector('[data-address-department]');
+    const ubigeoInput = form.querySelector('[data-address-ubigeo]');
+    if (!catalogElement || !provinceInput || !districtInput || !departmentInput || !ubigeoInput) return;
+
+    let catalog = {};
+
+    try {
+        catalog = JSON.parse(catalogElement.textContent || '{}');
+    } catch (error) {
+        return;
+    }
+
+    function populateDistricts(selectedDistrict = '') {
+        const province = catalog[provinceInput.value];
+        const placeholder = document.createElement('option');
+
+        districtInput.replaceChildren();
+        placeholder.value = '';
+        placeholder.textContent = province ? 'Selecciona un distrito' : 'Selecciona primero una provincia';
+        districtInput.appendChild(placeholder);
+        districtInput.disabled = !province;
+        departmentInput.value = province?.department || '';
+
+        (province?.districts || []).forEach(function (district) {
+            const option = document.createElement('option');
+            option.value = district.code;
+            option.textContent = district.name;
+            option.selected = district.code === selectedDistrict;
+            districtInput.appendChild(option);
+        });
+
+        ubigeoInput.value = districtInput.value;
+    }
+
+    provinceInput.addEventListener('change', function () {
+        populateDistricts();
+    });
+
+    districtInput.addEventListener('change', function () {
+        ubigeoInput.value = districtInput.value;
+    });
+
+    populateDistricts(form.dataset.selectedDistrict || '');
+});
+
+const defaultAddressForm = document.querySelector('[data-default-address-form]');
+document.querySelectorAll('[data-default-address-radio]').forEach(function (radio) {
+    radio.addEventListener('change', function () {
+        if (!defaultAddressForm || !radio.checked) return;
+
+        defaultAddressForm.setAttribute('aria-busy', 'true');
+        document.querySelectorAll('[data-default-address-radio]').forEach(function (addressRadio) {
+            addressRadio.disabled = addressRadio !== radio;
+        });
+
+        if (typeof defaultAddressForm.requestSubmit === 'function') {
+            defaultAddressForm.requestSubmit();
+        } else {
+            defaultAddressForm.submit();
+        }
+    });
+});
+
+const deleteAddressModal = document.getElementById('deleteAddressModal');
+if (deleteAddressModal) {
+    const deleteForm = deleteAddressModal.querySelector('[data-address-delete-form]');
+    const deleteLabel = deleteAddressModal.querySelector('[data-address-delete-label]');
+    const defaultNote = deleteAddressModal.querySelector('[data-address-delete-default-note]');
+
+    deleteAddressModal.addEventListener('show.bs.modal', function (event) {
+        const trigger = event.relatedTarget;
+        if (!trigger || !deleteForm || !deleteLabel || !defaultNote) return;
+
+        deleteForm.action = trigger.dataset.addressAction || '';
+        deleteLabel.textContent = trigger.dataset.addressLabel || 'esta direccion';
+        defaultNote.classList.toggle('d-none', trigger.dataset.addressDefault !== '1');
+    });
+}
+
 document.querySelectorAll('[data-inventory-movement-form]').forEach(function (form) {
     const type = form.querySelector('[data-movement-type]');
     const quantityField = form.querySelector('[data-movement-quantity-field]');

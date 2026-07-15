@@ -198,6 +198,7 @@ Tareas:
   - predeterminada
 - Crear relaciones `User::addresses()` y `CustomerAddress::user()`.
 - Crear un catalogo local confiable de provincias y distritos habilitados para Lima Metropolitana y Callao.
+- Usar como fuente el dataset oficial `UBIGEO 2022 - 1891 distritos` publicado por INEI en la Plataforma Nacional de Datos Abiertos.
 - Derivar y validar departamento/region y UBIGEO en backend; nunca aceptar un codigo manual sin contrastarlo con el catalogo.
 - Crear un servicio transaccional para las reglas de direcciones.
 - Limitar a 10 direcciones por usuario.

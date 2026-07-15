@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Account\CustomerAddressController;
 use App\Http\Controllers\Account\ProfileController;
 use App\Http\Controllers\Account\SecurityController;
 use App\Http\Controllers\Admin\BrandController as AdminBrandController;
@@ -96,7 +97,13 @@ Route::prefix('mi-cuenta')->name('account.')->middleware('auth')->group(function
         ->middleware('throttle:6,1')
         ->name('google.unlink');
     Route::view('/pedidos', 'account.orders')->name('orders');
-    Route::view('/direcciones', 'account.addresses')->name('addresses');
+    Route::get('/direcciones', [CustomerAddressController::class, 'index'])->name('addresses');
+    Route::get('/direcciones/nueva', [CustomerAddressController::class, 'create'])->name('addresses.create');
+    Route::post('/direcciones', [CustomerAddressController::class, 'store'])->name('addresses.store');
+    Route::patch('/direcciones/predeterminada', [CustomerAddressController::class, 'setDefault'])->name('addresses.default');
+    Route::get('/direcciones/{address}/editar', [CustomerAddressController::class, 'edit'])->name('addresses.edit');
+    Route::put('/direcciones/{address}', [CustomerAddressController::class, 'update'])->name('addresses.update');
+    Route::delete('/direcciones/{address}', [CustomerAddressController::class, 'destroy'])->name('addresses.destroy');
 });
 
 Route::prefix('admin')->name('admin.')->group(function () {
