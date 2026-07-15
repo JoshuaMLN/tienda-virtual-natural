@@ -14,6 +14,10 @@
     <x-shop.navbar />
     <x-shop.cart-drawer />
     <x-shop.cart-quantity-modal />
+    <x-shop.flash-message />
+    @auth
+        <x-account.logout-modal />
+    @endauth
 
     <main>
         @yield('content')

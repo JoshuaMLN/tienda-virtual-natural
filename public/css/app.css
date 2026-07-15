@@ -143,6 +143,77 @@ a {
     padding: 0;
 }
 
+.header-account-trigger::after {
+    margin-left: .1rem;
+}
+
+.header-account-avatar {
+    border-radius: 50%;
+    flex: 0 0 30px;
+    height: 30px;
+    object-fit: cover;
+    width: 30px;
+}
+
+.header-account-initials {
+    align-items: center;
+    background: var(--vn-green-100);
+    color: var(--vn-green-900);
+    display: inline-flex;
+    font-size: .68rem;
+    font-weight: 900;
+    justify-content: center;
+}
+
+.account-dropdown-menu {
+    border-color: var(--vn-line);
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(27, 55, 29, .12);
+    min-width: 250px;
+    padding: .45rem;
+}
+
+.account-dropdown-identity {
+    max-width: 240px;
+    padding: .55rem .65rem .35rem;
+}
+
+.account-dropdown-menu .dropdown-item {
+    align-items: center;
+    border-radius: 6px;
+    display: flex;
+    gap: .65rem;
+    min-height: 38px;
+}
+
+.account-dropdown-menu .dropdown-item i {
+    color: var(--vn-green-700);
+    width: 1rem;
+}
+
+.account-dropdown-menu .account-verification-link {
+    color: #8a5a00;
+}
+
+.account-dropdown-menu .account-verification-link i {
+    color: #b77900;
+}
+
+.account-dropdown-menu .account-dropdown-logout {
+    color: #b42318;
+}
+
+.account-dropdown-menu .account-dropdown-logout i {
+    color: #b42318;
+}
+
+.global-flash-message {
+    align-items: center;
+    border-radius: 8px;
+    display: flex;
+    gap: .65rem;
+}
+
 .header-action i {
     color: var(--vn-green-700);
     font-size: 1.15rem;

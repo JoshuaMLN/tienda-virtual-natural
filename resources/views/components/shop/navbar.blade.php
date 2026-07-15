@@ -23,12 +23,61 @@
                 <a class="header-action d-none d-lg-inline-flex" href="https://wa.me/51987654321">
                     <i class="bi bi-whatsapp"></i><span>WhatsApp<br>987 654 321</span>
                 </a>
-                <a class="header-action" href="{{ route('login') }}" aria-label="Mi cuenta">
-                    <i class="bi bi-person"></i><span class="d-none d-md-inline">Mi cuenta</span>
-                </a>
-                <a class="header-action d-none d-md-inline-flex" href="#" aria-label="Favoritos">
-                    <i class="bi bi-heart"></i><span>Favoritos</span>
-                </a>
+                @guest
+                    <a class="header-action" href="{{ route('login') }}" aria-label="Iniciar sesion">
+                        <i class="bi bi-person"></i><span class="d-none d-md-inline">Iniciar sesion</span>
+                    </a>
+                @else
+                    <div class="dropdown">
+                        <button
+                            class="header-action header-action-button header-account-trigger dropdown-toggle"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
+                            aria-label="Abrir menu de mi cuenta"
+                        >
+                            @if(auth()->user()->avatar_url)
+                                <img
+                                    class="header-account-avatar"
+                                    src="{{ auth()->user()->avatar_url }}"
+                                    alt=""
+                                    width="30"
+                                    height="30"
+                                >
+                            @else
+                                <span class="header-account-avatar header-account-initials" aria-hidden="true">
+                                    {{ auth()->user()->initials }}
+                                </span>
+                            @endif
+                            <span class="d-none d-md-inline">Mi cuenta</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end account-dropdown-menu">
+                            <li class="account-dropdown-identity">
+                                <strong class="d-block text-truncate">{{ auth()->user()->name }}</strong>
+                                <span class="d-block small text-muted text-truncate">{{ auth()->user()->email }}</span>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ route('account.profile') }}"><i class="bi bi-person"></i> Mi perfil</a></li>
+                            <li><a class="dropdown-item" href="{{ route('account.orders') }}"><i class="bi bi-bag"></i> Mis pedidos</a></li>
+                            <li><a class="dropdown-item" href="{{ route('account.addresses') }}"><i class="bi bi-geo-alt"></i> Direcciones</a></li>
+                            <li><a class="dropdown-item" href="{{ route('account.security') }}"><i class="bi bi-shield-lock"></i> Seguridad</a></li>
+                            @unless(auth()->user()->hasVerifiedEmail())
+                                <li><a class="dropdown-item account-verification-link" href="{{ route('verification.notice') }}"><i class="bi bi-envelope-exclamation"></i> Verificar correo</a></li>
+                            @endunless
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button
+                                    class="dropdown-item account-dropdown-logout"
+                                    type="button"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#logoutConfirmationModal"
+                                >
+                                    <i class="bi bi-box-arrow-right"></i> Cerrar sesion
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                @endguest
                 <button
                     class="header-action header-action-button"
                     type="button"

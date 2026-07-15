@@ -6,19 +6,13 @@
                     <span class="brand-leaf"><i class="bi bi-flower1"></i></span>
                     <span>VitaNatural <span class="brand-subtitle">Bienestar que se nota</span></span>
                 </a>
-                <div class="d-flex gap-2 fs-4">
-                    <a href="#"><i class="bi bi-instagram"></i></a>
-                    <a href="#"><i class="bi bi-facebook"></i></a>
-                    <a href="#"><i class="bi bi-tiktok"></i></a>
-                </div>
+                <p class="small text-muted mb-0">Productos naturales seleccionados para tu bienestar.</p>
             </div>
             <div class="col-lg-2 col-md-6">
                 <h6>Compra</h6>
                 <ul class="list-unstyled small d-grid gap-2">
                     <li><a href="{{ route('shop.catalog') }}">Todas las categorias</a></li>
-                    <li><a href="{{ route('shop.catalog') }}">Ofertas</a></li>
-                    <li><a href="{{ route('shop.catalog') }}">Nuevos productos</a></li>
-                    <li><a href="#">Marcas</a></li>
+                    <li><a href="{{ route('shop.catalog', ['oferta' => 1]) }}">Ofertas</a></li>
                 </ul>
             </div>
             <div class="col-lg-2 col-md-6">
@@ -31,13 +25,24 @@
                 </ul>
             </div>
             <div class="col-lg-2 col-md-6">
-                <h6>Mi cuenta</h6>
-                <ul class="list-unstyled small d-grid gap-2">
-                    <li><a href="{{ route('login') }}">Iniciar sesion</a></li>
-                    <li><a href="{{ route('account.orders') }}">Mis pedidos</a></li>
-                    <li><a href="{{ route('account.addresses') }}">Mis direcciones</a></li>
-                    <li><a href="{{ route('account.profile') }}">Mis datos</a></li>
-                </ul>
+                @guest
+                    <h6>Cuenta</h6>
+                    <ul class="list-unstyled small d-grid gap-2">
+                        <li><a href="{{ route('login') }}">Iniciar sesion</a></li>
+                        <li><a href="{{ route('register') }}">Crear cuenta</a></li>
+                    </ul>
+                @else
+                    <h6>Mi cuenta</h6>
+                    <ul class="list-unstyled small d-grid gap-2">
+                        <li><a href="{{ route('account.profile') }}">Mi perfil</a></li>
+                        <li><a href="{{ route('account.orders') }}">Mis pedidos</a></li>
+                        <li><a href="{{ route('account.addresses') }}">Mis direcciones</a></li>
+                        <li><a href="{{ route('account.security') }}">Seguridad</a></li>
+                        @unless(auth()->user()->hasVerifiedEmail())
+                            <li><a href="{{ route('verification.notice') }}">Verificar correo</a></li>
+                        @endunless
+                    </ul>
+                @endguest
             </div>
             <div class="col-lg-3 col-md-6">
                 <h6>Contactanos</h6>

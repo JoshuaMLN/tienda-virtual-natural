@@ -35,5 +35,4 @@
     </div>
 </section>
 
-<x-account.logout-modal />
 @endsection

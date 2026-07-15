@@ -21,6 +21,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProductController;
+use App\Http\Middleware\PreserveCheckoutAfterVerification;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('shop.index');
@@ -36,11 +37,16 @@ Route::delete('/carrito', [CartController::class, 'clear'])->name('shop.cart.cle
 Route::view('/contacto', 'shop.contact')->name('shop.contact');
 Route::view('/terminos-y-condiciones', 'shop.terms')->name('shop.terms');
 
-Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'verified'])->group(function () {
-    Route::view('/', 'checkout.index')->name('index');
-    Route::view('/exitoso', 'checkout.success')->name('success');
-    Route::view('/fallido', 'checkout.failed')->name('failed');
-    Route::view('/pendiente', 'checkout.pending')->name('pending');
+Route::prefix('checkout')->name('checkout.')->middleware('auth')->group(function () {
+    Route::view('/', 'checkout.index')
+        ->middleware([PreserveCheckoutAfterVerification::class, 'verified'])
+        ->name('index');
+
+    Route::middleware('verified')->group(function () {
+        Route::view('/exitoso', 'checkout.success')->name('success');
+        Route::view('/fallido', 'checkout.failed')->name('failed');
+        Route::view('/pendiente', 'checkout.pending')->name('pending');
+    });
 });
 
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])

@@ -28,6 +28,8 @@
         </div>
     </header>
 
+    <x-shop.flash-message />
+
     <main>
         @yield('content')
     </main>
