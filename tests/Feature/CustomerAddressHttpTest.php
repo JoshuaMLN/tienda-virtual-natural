@@ -57,6 +57,25 @@ class CustomerAddressHttpTest extends TestCase
             ->assertSee('id="deleteAddressModal"', false);
     }
 
+    public function test_account_layout_has_compact_mobile_navigation_and_left_offcanvas(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Maria Fernanda Perez',
+            'email' => 'maria@example.com',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('account.addresses'))
+            ->assertOk()
+            ->assertSee('data-bs-target="#accountNavigationOffcanvas"', false)
+            ->assertSee('offcanvas offcanvas-start account-mobile-offcanvas', false)
+            ->assertSee('id="accountNavigationOffcanvas"', false)
+            ->assertSee('aria-current="page"', false)
+            ->assertSee('Maria Fernanda Perez')
+            ->assertSee('maria@example.com')
+            ->assertSee('data-account-mobile-logout', false);
+    }
+
     public function test_create_form_prefills_contact_and_derives_geographic_fields(): void
     {
         $user = User::factory()->create([

@@ -96,6 +96,11 @@ window.addEventListener('resize', function () {
         document.querySelector('.admin-sidebar-backdrop')?.classList.remove('show');
         document.body.classList.remove('admin-sidebar-open');
         closeCategoryMenus();
+
+        const accountNavigation = document.getElementById('accountNavigationOffcanvas');
+        if (accountNavigation?.classList.contains('show') && window.bootstrap) {
+            window.bootstrap.Offcanvas.getOrCreateInstance(accountNavigation).hide();
+        }
     }
 });
 
@@ -114,6 +119,22 @@ document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (toolti
     if (window.bootstrap) {
         window.bootstrap.Tooltip.getOrCreateInstance(tooltipTrigger);
     }
+});
+
+document.querySelectorAll('[data-account-mobile-logout]').forEach(function (button) {
+    button.addEventListener('click', function () {
+        const offcanvasElement = button.closest('.offcanvas');
+        const logoutModal = document.getElementById('logoutConfirmationModal');
+        if (!offcanvasElement || !logoutModal || !window.bootstrap) return;
+
+        const offcanvas = window.bootstrap.Offcanvas.getOrCreateInstance(offcanvasElement);
+        button.disabled = true;
+        offcanvasElement.addEventListener('hidden.bs.offcanvas', function () {
+            button.disabled = false;
+            window.bootstrap.Modal.getOrCreateInstance(logoutModal).show();
+        }, { once: true });
+        offcanvas.hide();
+    });
 });
 
 document.querySelectorAll('[data-address-form]').forEach(function (form) {

@@ -278,6 +278,9 @@ Implementado:
 - Departamento/region y UBIGEO derivados automaticamente y excluidos como campos editables del request.
 - Validacion backend de celular, campos requeridos y coherencia provincia-distrito con mensajes legibles.
 - Tarjetas compactas y responsive, sin anidar cards, con contador de direcciones.
+- Navegacion de cuenta compacta en movil mediante un offcanvas izquierdo, conservando el sidebar en escritorio.
+- Seccion activa e identidad del cliente visibles dentro del menu movil.
+- Cierre coordinado del offcanvas antes de mostrar el modal de confirmacion de cierre de sesion.
 - Radio buttons para cambiar la predeterminada directamente desde el listado.
 - Checkbox de predeterminada en creacion y edicion, preservando siempre la invariante del dominio.
 - Primera direccion marcada automaticamente y explicada en el formulario.
@@ -302,9 +305,9 @@ Validaciones:
 Resultado de pruebas:
 
 ```txt
-CRUD HTTP de direcciones: 12 passed, 92 assertions
-Catalogo, modelo, dominio y CRUD: 35 passed, 226 assertions
-Suite completa: 234 passed, 1302 assertions
+CRUD HTTP de direcciones: 13 passed, 100 assertions
+Catalogo, modelo, dominio y CRUD: 36 passed, 234 assertions
+Suite completa: 235 passed, 1310 assertions
 ```
 
 Validacion local:
