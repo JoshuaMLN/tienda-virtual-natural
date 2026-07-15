@@ -9,6 +9,7 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Auth\SocialAccountService;
 use App\Support\Auth\GoogleProfile;
+use App\Support\Cart\CartMergeCoordinator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,7 +30,10 @@ class GoogleAuthController extends Controller
 
     private const PENDING_MINUTES = 10;
 
-    public function __construct(private readonly SocialAccountService $accounts) {}
+    public function __construct(
+        private readonly SocialAccountService $accounts,
+        private readonly CartMergeCoordinator $cartMerge,
+    ) {}
 
     public function redirect(Request $request): RedirectResponse
     {
@@ -206,6 +210,7 @@ class GoogleAuthController extends Controller
     {
         Auth::login($user);
         $request->session()->regenerate();
+        $this->cartMerge->mergeFor($user);
 
         $fallback = $user->hasVerifiedEmail()
             ? route('account.profile')

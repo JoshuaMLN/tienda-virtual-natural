@@ -3,9 +3,10 @@
 namespace App\Providers;
 
 use App\Models\Category;
-use App\Support\Cart\CartStorageInterface;
+use App\Support\Cart\CartMergeCoordinator;
 use App\Support\Cart\CartService;
-use App\Support\Cart\SessionCartStorage;
+use App\Support\Cart\CartStorageInterface;
+use App\Support\Cart\CartStorageResolver;
 use App\Support\Notifications\AdminNotificationService;
 use App\Support\Notifications\Providers\StockAlertNotificationProvider;
 use Illuminate\Auth\AuthManager;
@@ -22,11 +23,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(CartStorageInterface::class, SessionCartStorage::class);
+        $this->app->scoped(CartMergeCoordinator::class);
+        $this->app->bind(
+            CartStorageInterface::class,
+            fn ($app): CartStorageInterface => $app->make(CartStorageResolver::class)->resolve()
+        );
 
         $this->app->singleton(AdminNotificationService::class, function ($app) {
-            $service = new AdminNotificationService();
+            $service = new AdminNotificationService;
             $service->registerProvider(StockAlertNotificationProvider::class);
+
             // Future providers will be registered here
             return $service;
         });

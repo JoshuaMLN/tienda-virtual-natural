@@ -18,6 +18,13 @@ interface CartStorageInterface
     /**
      * @return array<int, string>
      */
+    public function priceReferences(): array;
+
+    public function setPriceReference(int $productId, string $price): void;
+
+    /**
+     * @return array<int, string>
+     */
     public function warnings(): array;
 
     /**

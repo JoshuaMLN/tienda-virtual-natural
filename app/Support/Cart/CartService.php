@@ -10,8 +10,7 @@ class CartService
     public function __construct(
         private readonly CartStorageInterface $storage,
         private readonly InventoryService $inventoryService,
-    ) {
-    }
+    ) {}
 
     public function get(): Cart
     {
@@ -21,6 +20,7 @@ class CartService
             return Cart::empty($this->storage->warnings());
         }
 
+        $priceReferences = $this->storage->priceReferences();
         $products = Product::query()
             ->with(['category', 'brand', 'primaryImage'])
             ->active()
@@ -53,6 +53,20 @@ class CartService
                 $quantity = (int) $product->stock;
                 $this->storage->set($product->id, $quantity);
                 $warnings[] = "{$product->name}: solicitaste {$requestedQuantity} unidades, pero solo hay {$quantity} disponibles. Actualizamos tu carrito a {$quantity} unidades.";
+            }
+
+            $priceReference = $priceReferences[$product->id] ?? null;
+
+            if ($priceReference === null) {
+                $this->storage->setPriceReference($product->id, (string) $product->price);
+            } elseif (! $this->samePrice($priceReference, $product->price)) {
+                $warnings[] = sprintf(
+                    '%s: su precio cambio de S/ %s a S/ %s. Actualizamos el precio de tu carrito.',
+                    $product->name,
+                    number_format((float) $priceReference, 2),
+                    number_format((float) $product->price, 2)
+                );
+                $this->storage->setPriceReference($product->id, (string) $product->price);
             }
 
             $items->push(CartItem::fromProduct($product, $quantity));
@@ -124,9 +138,15 @@ class CartService
             ->first();
 
         if (! $activeProduct) {
-            throw new ProductUnavailableException();
+            throw new ProductUnavailableException;
         }
 
         return $activeProduct;
+    }
+
+    private function samePrice(string|float|int|null $left, string|float|int|null $right): bool
+    {
+        return number_format((float) $left, 2, '.', '')
+            === number_format((float) $right, 2, '.', '');
     }
 }
