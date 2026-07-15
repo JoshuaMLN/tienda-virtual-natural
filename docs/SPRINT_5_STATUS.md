@@ -314,29 +314,64 @@ Validacion local:
 - Las siete rutas de direcciones estan registradas bajo `mi-cuenta` y protegidas por `auth`.
 - No existen migraciones pendientes.
 - Plantillas Blade, JavaScript y build de produccion validados correctamente.
-- Recorrido visual manual pendiente de confirmacion antes del commit conjunto de las Fases 5 y 6.
+- Recorrido visual manual aprobado y cambios separados en commits para direcciones y navegacion movil.
 
 ## Fase 7: Carrito persistente y fusion de sesion
 
-Estado: Pendiente
+Estado: Completada
 
-Por implementar:
-- Tablas y modelos `Cart` y `CartItem`.
-- `DatabaseCartStorage` compatible con el contrato actual.
-- Seleccion automatica de storage segun autenticacion.
-- `CartMergeService` transaccional.
-- Fusion despues de registro, login y Google.
-- Ajustes de stock y visibilidad con warnings legibles.
-- Limpieza del carrito invitado despues de una fusion exitosa.
-- Persistencia del carrito al cerrar sesion.
+Implementado:
+- Migracion `carts` y `cart_items` con claves foraneas, cascadas y timestamps.
+- Un solo carrito actual por usuario mediante restriccion unica en `carts.user_id`.
+- Un solo item por producto/carrito y cantidad positiva protegida en MySQL mediante `CHECK`.
+- Modelos, factories y relaciones `User::cart()`, `Cart::items()` y `Product::cartItems()`.
+- Factories reutilizables de categorias y productos para escenarios de carrito.
+- Precio de referencia informativo tanto en sesion como en base de datos.
+- `CartService` como unica capa que detecta cambios de precio y recalcula siempre desde el producto vigente.
+- Aviso con precio anterior y actual, actualizacion de referencia y ausencia de alertas repetidas para el mismo cambio.
+- `CartStorageResolver` que selecciona `SessionCartStorage` para invitados y `DatabaseCartStorage` para clientes.
+- `DatabaseCartStorage` compatible con el contrato previo para listar, agregar, actualizar, eliminar y vaciar.
+- Creacion diferida del carrito persistente solo cuando el cliente guarda o fusiona su primer item.
+- Warnings conservados en sesion para mantener su comportamiento persistente y descartable.
+- `CartMergeService` transaccional con bloqueos de usuario, carrito e items involucrados.
+- Suma de cantidades repetidas, limite por stock y retiro de productos agotados, ocultos o inexistentes.
+- Token unico por carrito invitado y registro del ultimo token fusionado para impedir duplicaciones durante reintentos.
+- Limpieza del carrito invitado unicamente despues de confirmar la transaccion.
+- `CartMergeCoordinator` con un intento por peticion y reintento automatico en una peticion posterior.
+- Fallos de fusion sin bloquear autenticacion, sin modificar el carrito guardado y sin eliminar el invitado.
+- Fusion conectada a login local, registro y autenticacion Google.
+- Logout conserva el carrito persistente y abre una sesion invitada vacia.
+- Excepcion segura en logout: si el ultimo intento de fusion falla, el carrito invitado se restaura en la nueva sesion.
+- Carrito autenticado sin expiracion automatica; el invitado mantiene la duracion configurada de la sesion.
+- Pruebas separadas para persistencia, fusion e integracion con autenticacion.
 
-Validaciones esperadas:
-- Invitados siguen usando la sesion.
-- Usuarios autenticados recuperan el mismo carrito en otra sesion.
-- Productos repetidos suman cantidades sin superar stock.
-- Productos no disponibles se retiran y se informa al cliente.
-- Una fusion fallida no pierde ninguno de los dos carritos.
-- Cerrar sesion no elimina el carrito persistente.
+Validaciones:
+- `php artisan migrate --force`
+- `php artisan migrate:status --pending`
+- `php artisan db:table cart_items`
+- `php artisan test tests/Feature/CartPersistenceTest.php tests/Feature/CartMergeTest.php tests/Feature/CartAuthenticationMergeTest.php`
+- `php artisan test tests/Feature/CartServiceTest.php tests/Feature/CartHttpTest.php tests/Feature/CartPersistenceTest.php tests/Feature/CartMergeTest.php tests/Feature/CartAuthenticationMergeTest.php`
+- `php artisan test tests/Feature/CartAuthenticationMergeTest.php tests/Feature/CustomerAuthenticationTest.php tests/Feature/GoogleAuthenticationTest.php`
+- `php artisan test`
+- `php vendor/bin/pint --test ...` sobre todos los PHP modificados en la fase.
+- `git diff --check`
+
+Resultado de pruebas:
+
+```txt
+Persistencia, fusion y autenticacion: 22 passed, 100 assertions
+Carrito completo: 49 passed, 235 assertions
+Suite completa: 257 passed, 1410 assertions
+```
+
+Validacion local:
+- Migracion `2026_07_15_000300_create_carts_and_cart_items_tables` aplicada correctamente.
+- No existen migraciones pendientes.
+- Validacion manual aprobada para persistencia despues de logout y nuevo login.
+- Fusion aprobada con productos repetidos, limite por stock y ausencia de duplicados al recargar.
+- Ajustes por reduccion de stock, agotamiento y productos ocultos verificados correctamente.
+- Cambio de precio anterior/vigente y actualizacion del total verificados sin alertas repetidas.
+- Fusion mediante registro y Google, recuperacion entre navegadores y vaciado persistente aprobados.
 
 ## Fase 8: Integracion, pruebas y cierre
 
@@ -361,6 +396,6 @@ Validaciones esperadas:
 ## Pendientes generales
 
 - Crear credenciales OAuth Google separadas para produccion antes del despliegue.
-- Implementar las Fases 7 y 8.
+- Implementar la Fase 8.
 - Actualizar cada fase al completarla con comandos y conteo real de pruebas.
 - Cerrar el sprint solo cuando no queden datos ficticios dentro del alcance de cuenta.

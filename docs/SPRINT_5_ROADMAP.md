@@ -243,6 +243,9 @@ Tareas:
 - Crear modelos, factories y migraciones para `Cart` y `CartItem`.
 - Relacionar un carrito activo unico con cada usuario.
 - Agregar restricciones unicas por carrito/producto y cantidades positivas.
+- Guardar en cada item un precio de referencia informativo para detectar cambios desde la ultima revision.
+- Mantener el precio vigente del producto como unica fuente para calcular subtotales y totales; el precio de referencia nunca congela ni autoriza un precio de venta.
+- Al detectar un cambio, informar el precio anterior y el actual, actualizar la referencia y evitar repetir el mismo aviso indefinidamente.
 - Implementar `DatabaseCartStorage` respetando `CartStorageInterface`.
 - Crear un almacenamiento/resolvedor consciente del usuario:
   - invitado usa `SessionCartStorage`
@@ -252,13 +255,16 @@ Tareas:
 - Sumar cantidades repetidas y limitar el resultado al stock disponible.
 - Informar ajustes y retiros con los warnings existentes del carrito.
 - Limpiar el carrito invitado solamente despues de una fusion exitosa.
+- Si la fusion falla, permitir el inicio de sesion, conservar ambos carritos intactos, informar el problema y dejar la fusion pendiente para reintentarla al consultar el carrito autenticado.
 - Ejecutar la fusion despues de login, registro y autenticacion Google.
 - Conservar el carrito de base de datos al cerrar sesion y comenzar una sesion invitada vacia.
+- No expirar automaticamente el carrito autenticado; conservar `updated_at` para una futura politica de limpieza de carritos abandonados.
+- Mantener el carrito invitado sujeto a la duracion normal de la sesion.
 - Verificar que iniciar sesion sin carrito invitado no altere el carrito guardado.
 - Recalcular precios siempre desde el producto vigente.
 
 Criterio de salida:
-- El carrito del cliente persiste entre sesiones/dispositivos y se combina una sola vez con el carrito invitado respetando stock y visibilidad.
+- El carrito del cliente persiste entre sesiones/dispositivos, detecta cambios de precio sin congelarlos y se combina una sola vez con el carrito invitado respetando stock y visibilidad.
 
 ## Fase 8: Integracion, pruebas y cierre
 
