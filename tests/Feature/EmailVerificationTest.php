@@ -41,7 +41,9 @@ class EmailVerificationTest extends TestCase
             ->get(route('verification.notice'))
             ->assertOk()
             ->assertSee($user->email)
-            ->assertSee(route('verification.send'), false);
+            ->assertSee(route('verification.send'), false)
+            ->assertSee('data-bs-target="#logoutConfirmationModal"', false)
+            ->assertSee('Confirmar cierre de sesion');
     }
 
     public function test_verification_link_marks_the_email_as_verified(): void

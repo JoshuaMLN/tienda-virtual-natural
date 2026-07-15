@@ -1,6 +1,6 @@
 # Sprint 5 - Estado
 
-Fecha: 2026-07-14
+Fecha: 2026-07-15
 
 Estado: En progreso
 
@@ -169,26 +169,107 @@ Google, autenticacion y seguridad: 30 passed, 181 assertions
 Suite completa: 185 passed, 973 assertions
 ```
 
-## Fase 4: Perfil y direcciones guardadas
+## Fase 4: Perfil real y avatar
+
+Estado: Completada
+
+Implementado:
+- `ProfileController` y `UpdateProfileRequest` conectados exclusivamente al usuario autenticado.
+- Edicion de nombre, telefono y correo con normalizacion, unicidad y mensajes legibles.
+- Cambio de correo con invalidacion automatica de verificacion, nuevo enlace y bloqueo de checkout mediante `verified`.
+- Correo readonly mientras Google esta vinculado, con acceso directo a Seguridad y explicacion adicional para cuentas sin contrasena.
+- Validacion backend que impide alterar el correo vinculado mediante una solicitud manipulada.
+- Cambio de correo habilitado nuevamente despues de conservar una contrasena y desvincular Google.
+- Migracion incremental de `users` con `avatar_path` opcional.
+- Cropper universal configurado en formato 1:1 para el avatar del cliente.
+- Servicio de imagen con recorte cuadrado, salida WebP de 512x512 y almacenamiento en disco publico.
+- Reemplazo y eliminacion de avatar con limpieza del archivo anterior despues de confirmar la actualizacion.
+- Iniciales del primer y ultimo nombre como fallback cuando no existe avatar.
+- Imagen de Google excluida de la importacion automatica de avatar.
+- Modal reutilizable de confirmacion para cerrar sesion desde el sidebar de cuenta y la verificacion de correo.
+- Accion de cierre resaltada en rojo sobrio, conservando POST y proteccion CSRF dentro del modal.
+- Fecha real de registro y estado real de verificacion visibles en el perfil.
+- Retiro de nombres, metricas, direcciones, pedidos y accesos ficticios de la zona de cuenta.
+- Estados vacios reales en `Mis pedidos` y `Mis direcciones` hasta sus fases correspondientes.
+- Pruebas feature en `CustomerProfileTest` para perfil, correo, autorizacion y ciclo de vida de archivos.
+
+Validaciones:
+- `php artisan migrate`
+- `php artisan migrate:status`
+- `php artisan test tests/Feature/CustomerProfileTest.php`
+- `php artisan test tests/Feature/CustomerProfileTest.php tests/Feature/CustomerAuthenticationTest.php tests/Feature/AccountSecurityTest.php tests/Feature/EmailVerificationTest.php tests/Feature/GoogleAuthenticationTest.php`
+- `php artisan test`
+- `php vendor/bin/pint --test ...`
+- `php artisan route:list --path=mi-cuenta/perfil`
+- `php artisan view:cache`
+- `node --check public/js/app.js`
+- `npm.cmd run build`
+
+Resultado de pruebas:
+
+```txt
+Perfil del cliente: 14 passed, 97 assertions
+Perfil, autenticacion, seguridad y Google: 51 passed, 303 assertions
+Suite completa: 199 passed, 1076 assertions
+```
+
+Validacion local y manual:
+- Migracion `2026_07_15_000100_add_avatar_path_to_users_table` aplicada correctamente en el lote 10.
+- Edicion de nombre, telefono y avatar verificada correctamente por el usuario.
+- Cropper, bloqueo de correo vinculado a Google y confirmacion de cierre de sesion verificados correctamente por el usuario.
+
+## Fase 5: Dominio de direcciones y UBIGEO
 
 Estado: Pendiente
 
 Por implementar:
-- Perfil conectado al usuario autenticado.
-- Edicion de nombre, telefono y correo.
-- Retiro de metricas, direcciones y pedidos ficticios.
-- Modelo, migracion, factory y CRUD de `CustomerAddress`.
-- Direccion predeterminada unica.
-- Validaciones y autorizacion por propietario.
-- Estados vacios y experiencia responsive.
+- Modelo, migracion, factory y relaciones de `CustomerAddress`.
+- Campos de direccion: etiqueta, destinatario, telefono, departamento/region, provincia, distrito, UBIGEO, direccion, referencia y predeterminada.
+- Catalogo local confiable de Lima Metropolitana y Callao.
+- Departamento/region y UBIGEO derivados y validados en backend.
+- Servicio transaccional de reglas de direcciones.
+- Limite de 10 direcciones por usuario.
+- Destinatario y telefono independientes del perfil.
+- Primera direccion predeterminada automaticamente.
+- Una sola direccion predeterminada mientras existan direcciones.
+- Cambio de predeterminada dentro de una transaccion.
+- Promocion de la direccion restante mas antigua al eliminar la predeterminada.
+- Eliminacion fisica de direcciones; pedidos futuros conservaran snapshots.
+- Pruebas unitarias y de base de datos del dominio.
 
 Validaciones esperadas:
-- Un usuario solo consulta y modifica su perfil y direcciones.
-- Cambiar el correo exige verificarlo nuevamente.
+- Provincia, distrito, departamento/region y UBIGEO siempre son coherentes con el catalogo permitido.
+- El usuario no puede guardar mas de 10 direcciones.
+- La primera direccion queda predeterminada sin accion adicional.
 - Establecer una direccion predeterminada desmarca la anterior.
+- Eliminar la predeterminada promueve la direccion restante mas antigua.
+- El dominio mantiene aisladas las direcciones de usuarios diferentes.
+
+## Fase 6: CRUD y UX de direcciones
+
+Estado: Pendiente
+
+Por implementar:
+- Controladores, Form Requests y rutas de direcciones.
+- Listado, creacion, edicion, eliminacion y seleccion de predeterminada.
+- Autorizacion por propietario sin exponer direcciones ajenas.
+- Area de entrega readonly para Lima Metropolitana y Callao.
+- Selects dependientes de provincia y distrito.
+- Departamento/region y UBIGEO completados automaticamente.
+- Radio buttons para predeterminada en el listado y checkbox al crear o editar.
+- Limite de 10 direcciones reflejado en la interfaz.
+- Confirmacion de eliminacion y aviso de promocion de predeterminada.
+- Estados vacios, validaciones legibles y experiencia responsive.
+- Pruebas feature completas del CRUD.
+
+Validaciones esperadas:
+- Un usuario solo consulta y modifica sus propias direcciones.
+- El navegador nunca solicita al usuario escribir un UBIGEO.
+- Formularios manipulados no pueden guardar combinaciones geograficas invalidas.
+- La interfaz refleja correctamente limite y direccion predeterminada.
 - Eliminar una direccion no afecta las de otras cuentas.
 
-## Fase 5: Carrito persistente y fusion de sesion
+## Fase 7: Carrito persistente y fusion de sesion
 
 Estado: Pendiente
 
@@ -210,7 +291,7 @@ Validaciones esperadas:
 - Una fusion fallida no pierde ninguno de los dos carritos.
 - Cerrar sesion no elimina el carrito persistente.
 
-## Fase 6: Integracion, pruebas y cierre
+## Fase 8: Integracion, pruebas y cierre
 
 Estado: Pendiente
 
@@ -233,6 +314,6 @@ Validaciones esperadas:
 ## Pendientes generales
 
 - Crear credenciales OAuth Google separadas para produccion antes del despliegue.
-- Implementar las Fases 4, 5 y 6.
+- Implementar las Fases 5 a 8.
 - Actualizar cada fase al completarla con comandos y conteo real de pruebas.
 - Cerrar el sprint solo cuando no queden datos ficticios dentro del alcance de cuenta.

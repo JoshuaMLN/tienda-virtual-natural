@@ -41,6 +41,7 @@ class GoogleAuthenticationTest extends TestCase
         $this->assertSame('Maria Google', $user->name);
         $this->assertSame('maria.google@example.com', $user->email);
         $this->assertNull($user->password);
+        $this->assertNull($user->avatar_path);
         $this->assertTrue($user->hasVerifiedEmail());
         $this->assertNotNull($user->terms_accepted_at);
         $this->assertDatabaseHas('social_accounts', [

@@ -24,10 +24,16 @@
             </button>
         </form>
 
-        <form class="mt-2" method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button class="btn btn-link text-vn-green" type="submit">Cerrar sesion</button>
-        </form>
+        <button
+            class="btn btn-link logout-link-danger mt-2"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#logoutConfirmationModal"
+        >
+            <i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Cerrar sesion
+        </button>
     </div>
 </section>
+
+<x-account.logout-modal />
 @endsection

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Account\ProfileController;
 use App\Http\Controllers\Account\SecurityController;
 use App\Http\Controllers\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
@@ -82,7 +83,8 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::prefix('mi-cuenta')->name('account.')->middleware('auth')->group(function () {
-    Route::view('/perfil', 'account.profile')->name('profile');
+    Route::get('/perfil', [ProfileController::class, 'edit'])->name('profile');
+    Route::patch('/perfil', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('/seguridad', [SecurityController::class, 'edit'])->name('security');
     Route::patch('/seguridad/contrasena', [SecurityController::class, 'updatePassword'])
         ->middleware('throttle:6,1')

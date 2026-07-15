@@ -734,10 +734,82 @@ a {
     color: var(--vn-green-900);
 }
 
+.account-sidebar-logout-wrap {
+    border-top: 1px solid var(--vn-line);
+    margin-top: .5rem;
+    padding-top: .5rem;
+}
+
+.account-sidebar-logout,
+.logout-link-danger {
+    color: #b42318;
+    font-weight: 800;
+}
+
+.account-sidebar-logout:hover,
+.account-sidebar-logout:focus-visible {
+    background: #fff1f0;
+    color: #8f1d14;
+}
+
+.logout-link-danger:hover,
+.logout-link-danger:focus-visible {
+    color: #8f1d14;
+}
+
 .account-sidebar a.active {
     background: var(--vn-green-100);
     color: var(--vn-green-900);
     font-weight: 900;
+}
+
+.profile-summary {
+    border-bottom: 1px solid var(--vn-line);
+}
+
+.profile-avatar-display {
+    border: 3px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--vn-line);
+    flex: 0 0 88px;
+    height: 88px;
+    object-fit: cover;
+    width: 88px;
+}
+
+.profile-avatar-fallback {
+    align-items: center;
+    background: var(--vn-green-100);
+    color: var(--vn-green-900);
+    display: inline-flex;
+    font-size: 1.5rem;
+    font-weight: 900;
+    justify-content: center;
+}
+
+.profile-avatar-panel {
+    border-left: 1px solid var(--vn-line);
+    padding-left: 1.5rem;
+}
+
+.profile-field-note {
+    min-height: 2.5rem;
+}
+
+.account-empty-state p {
+    max-width: 480px;
+}
+
+.account-empty-icon {
+    align-items: center;
+    background: var(--vn-green-100);
+    border-radius: 50%;
+    color: var(--vn-green-800);
+    display: inline-flex;
+    font-size: 1.75rem;
+    height: 64px;
+    justify-content: center;
+    width: 64px;
 }
 
 .admin-layout {
@@ -1074,6 +1146,13 @@ body.admin-sidebar-open {
 
     .account-shell {
         grid-template-columns: 1fr;
+    }
+
+    .profile-avatar-panel {
+        border-left: 0;
+        border-top: 1px solid var(--vn-line);
+        padding-left: calc(var(--bs-gutter-x) * .5);
+        padding-top: 1.5rem;
     }
 
     .admin-sidebar {

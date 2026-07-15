@@ -13,8 +13,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
-#[Fillable(['name', 'email', 'phone', 'password', 'terms_accepted_at'])]
+#[Fillable(['name', 'email', 'phone', 'avatar_path', 'password', 'terms_accepted_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmailContract
 {
@@ -46,6 +48,32 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function socialAccounts(): HasMany
     {
         return $this->hasMany(SocialAccount::class);
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_path
+            ? Storage::disk('public')->url($this->avatar_path)
+            : null;
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        $parts = Str::of($this->name)
+            ->squish()
+            ->explode(' ')
+            ->filter()
+            ->values();
+
+        if ($parts->isEmpty()) {
+            return 'VN';
+        }
+
+        $initials = $parts->count() === 1
+            ? Str::substr($parts->first(), 0, 2)
+            : Str::substr($parts->first(), 0, 1).Str::substr($parts->last(), 0, 1);
+
+        return Str::upper($initials);
     }
 
     /**

@@ -5,13 +5,14 @@
     <a class="{{ $active === 'security' ? 'active' : '' }}" href="{{ route('account.security') }}"><i class="bi bi-shield-lock"></i> Seguridad</a>
     <a class="{{ $active === 'orders' ? 'active' : '' }}" href="{{ route('account.orders') }}"><i class="bi bi-bag"></i> Mis pedidos</a>
     <a class="{{ $active === 'addresses' ? 'active' : '' }}" href="{{ route('account.addresses') }}"><i class="bi bi-geo-alt"></i> Direcciones</a>
-    <a href="#"><i class="bi bi-credit-card"></i> Metodos de pago</a>
-    <a href="#"><i class="bi bi-heart"></i> Lista de deseos</a>
-    <a href="#"><i class="bi bi-bell"></i> Notificaciones</a>
-    <form method="POST" action="{{ route('logout') }}">
-        @csrf
-        <button class="account-sidebar-action" type="submit">
-            <i class="bi bi-box-arrow-right"></i> Cerrar sesion
+    <div class="account-sidebar-logout-wrap">
+        <button
+            class="account-sidebar-action account-sidebar-logout"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#logoutConfirmationModal"
+        >
+            <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Cerrar sesion
         </button>
-    </form>
+    </div>
 </aside>

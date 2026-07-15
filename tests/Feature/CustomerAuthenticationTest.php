@@ -244,7 +244,9 @@ class CustomerAuthenticationTest extends TestCase
         $this->actingAs($user)
             ->get(route('account.profile'))
             ->assertOk()
-            ->assertSee(route('logout'), false);
+            ->assertSee(route('logout'), false)
+            ->assertSee('data-bs-target="#logoutConfirmationModal"', false)
+            ->assertSee('Confirmar cierre de sesion');
 
         $this->post(route('logout'))
             ->assertRedirect(route('shop.index'))

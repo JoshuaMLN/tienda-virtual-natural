@@ -32,6 +32,20 @@ Implementar identidad real de clientes con correo/contrasena y Google, proteger 
 - Desvincular Google solo sera posible cuando la cuenta conserve otro metodo de acceso, por ejemplo una contrasena configurada.
 - Google se probara en local con un callback autorizado y en tests con `Socialite::fake()`.
 - Las credenciales Google viviran en `.env`; `.env.example` solo contendra nombres y valores de ejemplo sin secretos.
+- Cambiar el correo normalizara y validara su unicidad, invalidara la verificacion actual y enviara un nuevo enlace. El checkout seguira bloqueado hasta verificarlo.
+- El avatar de cliente sera opcional, cuadrado 1:1, recortado antes de guardar y convertido a WebP. Se podra reemplazar o eliminar y las iniciales seran el fallback.
+- La foto de Google no se importara automaticamente como avatar.
+- Cada usuario podra guardar como maximo 10 direcciones.
+- Destinatario y telefono perteneceran a cada direccion y no se sincronizaran automaticamente con el perfil.
+- Mientras un usuario tenga direcciones, existira exactamente una predeterminada:
+  - la primera se marcara automaticamente
+  - seleccionar otra desmarcara la anterior dentro de una transaccion
+  - eliminar la predeterminada promovera la direccion restante mas antigua
+- En el listado la predeterminada se elegira con radio buttons; crear o editar mostrara un checkbox para marcar la direccion actual.
+- La cobertura visible de esta fase sera `Lima Metropolitana y Callao`, sin calcular tarifas.
+- El cliente elegira provincia `Lima` o `Callao` y luego un distrito dependiente. Departamento/region y UBIGEO se derivaran automaticamente desde un catalogo local confiable.
+- El usuario nunca escribira el UBIGEO manualmente y el backend no confiara en nombres geograficos enviados por el navegador.
+- Las direcciones guardadas se eliminaran fisicamente. En el Sprint 6 los pedidos conservaran una instantanea independiente de la direccion utilizada.
 - Cada usuario tendra como maximo un carrito activo persistente en base de datos.
 - Al iniciar sesion, el carrito invitado se fusionara con el carrito guardado:
   - se conservara la union de productos
@@ -145,35 +159,82 @@ Tareas:
 Criterio de salida:
 - Google permite crear, autenticar y vincular cuentas de forma segura, manteniendo un solo usuario por persona/correo verificado.
 
-## Fase 4: Perfil y direcciones guardadas
+## Fase 4: Perfil real y avatar
 
-Objetivo: conectar la zona de cliente a datos propios y preparar direcciones reutilizables para el checkout.
+Objetivo: conectar el perfil a datos reales del cliente y completar su identidad visual sin contenido ficticio.
 
 Tareas:
 - Crear controlador y Form Request para editar nombre, telefono y correo.
+- Al cambiar correo, normalizarlo, exigir unicidad, invalidar su verificacion, enviar un nuevo enlace y mantener bloqueado el checkout hasta verificarlo.
+- Bloquear el cambio de correo mientras Google permanezca vinculado; el cliente debe conservar otro metodo de acceso, desvincular Google desde Seguridad y recien entonces cambiarlo.
 - Mostrar fecha real de registro y estado de verificacion.
-- Eliminar del perfil metricas y pedidos ficticios hasta que existan pedidos reales.
+- Agregar `avatar_path` al usuario y reutilizar el cropper universal con configuracion 1:1 para clientes.
+- Validar el avatar, convertirlo a WebP, permitir reemplazarlo o quitarlo y eliminar archivos anteriores sin dejar huerfanos.
+- Mostrar iniciales como fallback cuando no exista avatar.
+- No importar automaticamente la imagen de perfil de Google.
+- Confirmar el cierre de sesion mediante un modal para evitar salidas accidentales desde la zona de cuenta y la verificacion de correo.
+- Eliminar del perfil nombres, metricas, direcciones y pedidos ficticios.
+- Mantener `Mis pedidos` con un estado vacio hasta el Sprint 6.
+- Crear pruebas feature de perfil, cambio de correo y ciclo de vida del avatar.
+
+Criterio de salida:
+- El cliente consulta y modifica su perfil real, administra un avatar opcional y no ve informacion simulada.
+
+## Fase 5: Dominio de direcciones y UBIGEO
+
+Objetivo: construir la persistencia y las reglas de negocio de direcciones antes de exponer formularios al cliente.
+
+Tareas:
 - Crear modelo, factory y migracion `CustomerAddress` con campos estructurados:
   - etiqueta
   - destinatario
   - telefono
-  - departamento
+  - departamento/region derivado
   - provincia
   - distrito
+  - codigo UBIGEO
   - direccion
   - referencia nullable
   - predeterminada
 - Crear relaciones `User::addresses()` y `CustomerAddress::user()`.
-- Implementar listado, creacion, edicion, eliminacion y seleccion de predeterminada.
-- Garantizar transaccionalmente una sola direccion predeterminada por usuario.
-- Impedir consultar o modificar direcciones de otro usuario.
-- Mostrar estados vacios y validaciones legibles en desktop y mobile.
-- Ocultar o dejar sin datos simulados la seccion de pedidos hasta el Sprint 6.
+- Crear un catalogo local confiable de provincias y distritos habilitados para Lima Metropolitana y Callao.
+- Derivar y validar departamento/region y UBIGEO en backend; nunca aceptar un codigo manual sin contrastarlo con el catalogo.
+- Crear un servicio transaccional para las reglas de direcciones.
+- Limitar a 10 direcciones por usuario.
+- Mantener destinatario y telefono independientes de los datos del perfil.
+- Hacer automaticamente predeterminada la primera direccion.
+- Garantizar exactamente una direccion predeterminada mientras existan direcciones.
+- Al cambiar la predeterminada, desmarcar la anterior dentro de la misma transaccion.
+- Al eliminar la predeterminada, promover la direccion restante mas antigua.
+- Eliminar fisicamente direcciones guardadas; los pedidos del Sprint 6 usaran snapshots historicos.
+- Crear pruebas unitarias y de base de datos para catalogo, limite, predeterminada y aislamiento por usuario.
 
 Criterio de salida:
-- El cliente administra sus datos y direcciones reales sin acceder a informacion de otras cuentas.
+- El dominio guarda hasta 10 direcciones canonicas por usuario y mantiene sus invariantes aun sin interfaz web.
 
-## Fase 5: Carrito persistente y fusion de sesion
+## Fase 6: CRUD y UX de direcciones
+
+Objetivo: permitir que el cliente administre visualmente sus direcciones usando el dominio validado en la fase anterior.
+
+Tareas:
+- Crear controladores, Form Requests y rutas para listar, crear, editar, eliminar y seleccionar la predeterminada.
+- Impedir consultar o modificar direcciones de otro usuario.
+- Mostrar el area `Lima Metropolitana y Callao` como readonly.
+- Usar selects dependientes para provincia `Lima` o `Callao` y sus distritos habilitados.
+- Completar departamento/region y UBIGEO automaticamente desde el distrito elegido.
+- Mostrar las direcciones como elementos compactos y responsive, sin cards anidadas.
+- Usar radio buttons en el listado para elegir la predeterminada.
+- Usar un checkbox al crear o editar para marcar la direccion actual como predeterminada.
+- Mostrar la primera direccion como predeterminada sin accion adicional.
+- Deshabilitar la creacion al alcanzar 10 direcciones y explicar el limite.
+- Agregar confirmacion antes de eliminar y comunicar cuando otra direccion sea promovida.
+- Mostrar estado vacio y validaciones legibles en desktop y mobile.
+- Crear pruebas feature de CRUD, autorizacion, UBIGEO y experiencia HTTP.
+
+Criterio de salida:
+- El cliente administra sus direcciones reales sin acceder a datos ajenos y la interfaz refleja todas las reglas del dominio.
+
+## Fase 7: Carrito persistente y fusion de sesion
 
 Objetivo: conservar el carrito entre sesiones y dispositivos sin perder la experiencia de compra como visitante.
 
@@ -198,7 +259,7 @@ Tareas:
 Criterio de salida:
 - El carrito del cliente persiste entre sesiones/dispositivos y se combina una sola vez con el carrito invitado respetando stock y visibilidad.
 
-## Fase 6: Integracion, pruebas y cierre
+## Fase 8: Integracion, pruebas y cierre
 
 Objetivo: validar los recorridos completos y dejar una base estable para checkout y pedidos.
 
@@ -257,6 +318,8 @@ Criterio de salida:
 - `auth.google.callback`
 - `account.profile`
 - `account.profile.update`
+- `account.avatar.update`
+- `account.avatar.destroy`
 - `account.security`
 - `account.password.update`
 - `account.google.link`
@@ -281,12 +344,13 @@ Criterio de salida:
 - No se implementan pedidos ni pagos antes de sus sprints.
 - La suite completa y las validaciones finales pasan.
 
-## Orden recomendado de commits
+## Orden de commits del sprint
 
-1. `feat(auth): implement customer registration and login`
-2. `feat(auth): add email verification and password recovery`
-3. `feat(auth): support secure Google account linking`
-4. `feat(account): connect customer profile and addresses`
-5. `feat(cart): persist and merge authenticated carts`
-6. `test(auth): cover customer account and cart flows`
-7. `docs(sprint-5): close authentication and account sprint`
+1. `feat(auth): implementar acceso y seguridad de clientes`
+2. `feat(auth): integrar acceso y vinculacion con Google`
+3. `feat(account): conectar perfil y avatar del cliente`
+4. `feat(account): crear dominio de direcciones y UBIGEO`
+5. `feat(account): implementar gestion de direcciones`
+6. `feat(cart): persistir y fusionar carritos autenticados`
+7. `test(sprint-5): validar flujos de cuenta y carrito`
+8. `docs(sprint-5): cerrar sprint de autenticacion y cuenta`
