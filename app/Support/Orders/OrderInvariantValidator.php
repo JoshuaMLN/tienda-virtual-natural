@@ -1,0 +1,277 @@
+<?php
+
+namespace App\Support\Orders;
+
+use App\Enums\DeliveryMethod;
+use App\Enums\DeliveryStatus;
+use App\Enums\FiscalDocumentType;
+use App\Enums\FiscalIdentityDocumentType;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Enums\TaxAffectation;
+use App\Support\Tax\TaxCalculator;
+use DomainException;
+use UnitEnum;
+use ValueError;
+
+class OrderInvariantValidator
+{
+    public function __construct(
+        private readonly TaxCalculator $taxCalculator,
+    ) {}
+
+    /**
+     * @param  array<string, mixed>  $order
+     * @param  list<array<string, mixed>>  $items
+     */
+    public function validate(array $order, array $items): void
+    {
+        $this->validateInitialStates($order);
+        $this->validateCustomerAndDelivery($order);
+        $this->validateFiscalRequest($order);
+        $this->validateAmounts($order, $items);
+    }
+
+    /** @param array<string, mixed> $order */
+    private function validateInitialStates(array $order): void
+    {
+        $expected = [
+            'order_status' => OrderStatus::PendingPayment->value,
+            'payment_status' => PaymentStatus::Pending->value,
+            'delivery_status' => DeliveryStatus::Pending->value,
+        ];
+
+        foreach ($expected as $column => $value) {
+            if ($this->enumValue($order[$column] ?? null) !== $value) {
+                throw new DomainException('Todo pedido debe crearse en sus estados iniciales.');
+            }
+        }
+    }
+
+    /** @param array<string, mixed> $order */
+    private function validateCustomerAndDelivery(array $order): void
+    {
+        if (empty($order['user_id'])) {
+            throw new DomainException('El pedido debe pertenecer a una cuenta de cliente.');
+        }
+
+        $this->requireStrings($order, ['customer_name', 'customer_email']);
+
+        if (! filter_var($order['customer_email'], FILTER_VALIDATE_EMAIL)) {
+            throw new DomainException('El correo del cliente no es valido.');
+        }
+
+        $method = $this->enum(DeliveryMethod::class, $order['delivery_method'] ?? null, 'La modalidad de entrega no es valida.');
+
+        if ($method === DeliveryMethod::HomeDelivery) {
+            $this->requireStrings($order, [
+                'delivery_recipient_name',
+                'delivery_phone',
+                'delivery_department',
+                'delivery_province',
+                'delivery_district',
+                'delivery_ubigeo',
+                'delivery_address',
+            ]);
+
+            if (! preg_match('/^\d{6}$/', (string) $order['delivery_ubigeo'])) {
+                throw new DomainException('El UBIGEO de entrega debe tener seis digitos.');
+            }
+        } else {
+            $this->requireStrings($order, ['pickup_address']);
+        }
+
+        $minimum = $this->integer($order, 'delivery_business_days_min');
+        $maximum = $this->integer($order, 'delivery_business_days_max');
+
+        if ($minimum < 1 || $maximum < $minimum) {
+            throw new DomainException('El plazo de entrega en dias habiles no es valido.');
+        }
+    }
+
+    /** @param array<string, mixed> $order */
+    private function validateFiscalRequest(array $order): void
+    {
+        $type = $this->enum(FiscalDocumentType::class, $order['fiscal_document_type'] ?? null, 'El tipo de comprobante solicitado no es valido.');
+
+        if (! $type->isSaleDocument()) {
+            throw new DomainException('El pedido solo puede solicitar boleta o factura.');
+        }
+
+        $identity = $this->enum(
+            FiscalIdentityDocumentType::class,
+            $order['fiscal_identity_document_type'] ?? null,
+            'El documento fiscal de identidad no es valido.',
+        );
+
+        $this->requireStrings($order, ['fiscal_identity_document_number', 'fiscal_email']);
+
+        if (! filter_var($order['fiscal_email'], FILTER_VALIDATE_EMAIL)) {
+            throw new DomainException('El correo fiscal no es valido.');
+        }
+
+        if ($type === FiscalDocumentType::Invoice) {
+            if ($identity !== FiscalIdentityDocumentType::Ruc
+                || ! preg_match('/^\d{11}$/', (string) $order['fiscal_identity_document_number'])) {
+                throw new DomainException('La factura requiere un RUC de once digitos.');
+            }
+
+            $this->requireStrings($order, ['fiscal_business_name', 'fiscal_address']);
+
+            return;
+        }
+
+        if ($identity === FiscalIdentityDocumentType::Ruc) {
+            throw new DomainException('La boleta requiere un documento personal.');
+        }
+
+        $this->requireStrings($order, ['fiscal_first_names', 'fiscal_last_names']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $order
+     * @param  list<array<string, mixed>>  $items
+     */
+    private function validateAmounts(array $order, array $items): void
+    {
+        if ($items === []) {
+            throw new DomainException('El pedido debe contener al menos un producto.');
+        }
+
+        $productsSubtotal = 0;
+        $discount = 0;
+        $taxable = 0;
+        $exempt = 0;
+        $unaffected = 0;
+        $tax = 0;
+
+        foreach ($items as $item) {
+            $this->requireStrings($item, ['product_sku', 'product_name', 'sale_unit']);
+            $quantity = $this->integer($item, 'quantity');
+            $unitPrice = $this->money($item, 'unit_price_cents');
+            $gross = $this->money($item, 'gross_total_cents');
+            $itemDiscount = $this->money($item, 'discount_cents');
+            $net = $this->money($item, 'net_value_cents');
+            $itemTax = $this->money($item, 'tax_cents');
+            $total = $this->money($item, 'total_cents');
+
+            if ($quantity < 1 || $gross !== $unitPrice * $quantity || $itemDiscount > $gross) {
+                throw new DomainException('Los importes y la cantidad del item no son consistentes.');
+            }
+
+            $affectation = $this->enum(TaxAffectation::class, $item['tax_affectation'] ?? null, 'La afectacion tributaria del item no es valida.');
+            $rate = $this->integer($item, 'tax_rate_bps');
+            $breakdown = $this->taxCalculator->fromTaxIncluded($gross, $affectation, $itemDiscount, $rate);
+
+            if ($rate !== $breakdown->rateBasisPoints
+                || $net !== $breakdown->netValueCents()
+                || $itemTax !== $breakdown->taxCents
+                || $total !== $breakdown->totalCents) {
+                throw new DomainException('El desglose tributario del item no coincide con la politica de calculo.');
+            }
+
+            $productsSubtotal += $gross;
+            $discount += $itemDiscount;
+            $taxable += $breakdown->taxableValueCents;
+            $exempt += $breakdown->exemptValueCents;
+            $unaffected += $breakdown->unaffectedValueCents;
+            $tax += $breakdown->taxCents;
+        }
+
+        $shippingFee = $this->money($order, 'shipping_fee_cents');
+        $shippingAffectation = $this->enum(TaxAffectation::class, $order['shipping_tax_affectation'] ?? null, 'La afectacion tributaria del envio no es valida.');
+        $shippingRate = $this->integer($order, 'shipping_tax_rate_bps');
+        $shipping = $this->taxCalculator->fromTaxIncluded($shippingFee, $shippingAffectation, rateBasisPoints: $shippingRate);
+
+        if ($shippingRate !== $shipping->rateBasisPoints
+            || $this->money($order, 'shipping_net_value_cents') !== $shipping->netValueCents()
+            || $this->money($order, 'shipping_tax_cents') !== $shipping->taxCents) {
+            throw new DomainException('El desglose tributario del envio no es consistente.');
+        }
+
+        $taxable += $shipping->taxableValueCents;
+        $exempt += $shipping->exemptValueCents;
+        $unaffected += $shipping->unaffectedValueCents;
+        $tax += $shipping->taxCents;
+        $net = $taxable + $exempt + $unaffected;
+        $total = $productsSubtotal - $discount + $shippingFee;
+
+        $expected = [
+            'products_subtotal_cents' => $productsSubtotal,
+            'discount_cents' => $discount,
+            'taxable_value_cents' => $taxable,
+            'exempt_value_cents' => $exempt,
+            'unaffected_value_cents' => $unaffected,
+            'net_value_cents' => $net,
+            'tax_cents' => $tax,
+            'total_cents' => $total,
+        ];
+
+        foreach ($expected as $column => $value) {
+            if ($this->money($order, $column) !== $value) {
+                throw new DomainException("El importe {$column} del pedido no coincide con sus items.");
+            }
+        }
+    }
+
+    /**
+     * @template T of UnitEnum
+     *
+     * @param  class-string<T>  $enum
+     * @return T
+     */
+    private function enum(string $enum, mixed $value, string $message): UnitEnum
+    {
+        if ($value instanceof $enum) {
+            return $value;
+        }
+
+        try {
+            return $enum::from((string) $value);
+        } catch (ValueError) {
+            throw new DomainException($message);
+        }
+    }
+
+    private function enumValue(mixed $value): mixed
+    {
+        return $value instanceof \BackedEnum ? $value->value : $value;
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function integer(array $attributes, string $column): int
+    {
+        $value = $attributes[$column] ?? null;
+
+        if (! is_int($value) && ! (is_string($value) && preg_match('/^\d+$/', $value))) {
+            throw new DomainException("El campo {$column} debe ser un entero.");
+        }
+
+        return (int) $value;
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function money(array $attributes, string $column): int
+    {
+        $value = $this->integer($attributes, $column);
+
+        if ($value < 0) {
+            throw new DomainException("El importe {$column} no puede ser negativo.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  list<string>  $columns
+     */
+    private function requireStrings(array $attributes, array $columns): void
+    {
+        foreach ($columns as $column) {
+            if (! is_string($attributes[$column] ?? null) || trim($attributes[$column]) === '') {
+                throw new DomainException("El campo {$column} es obligatorio.");
+            }
+        }
+    }
+}
