@@ -31,10 +31,12 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - Los cambios se muestran en un modal bloqueante con valores anteriores y actuales. Aceptarlos dispara una nueva validacion automaticamente.
 - Si vuelve a existir otro cambio concurrente, se presenta un nuevo resumen sin obligar a rellenar el formulario.
 - Una vez creado el pedido, sus precios, impuestos, envio, direccion y datos fiscales quedan congelados como snapshots historicos.
-- El codigo interno del pedido y la numeracion fiscal son independientes.
+- El codigo interno del pedido usa el formato neutral `PED-AAAA-NNNNNN`, con correlativo anual seguro ante concurrencia e independiente del ID, la marca y la numeracion fiscal.
 - Los estados de pedido, pago, entrega y reserva se modelan por separado.
-- Estados iniciales de pedido: `pending_payment`, `processing`, `shipped`, `delivered`, `cancelled`, `expired`.
+- Estados iniciales de pedido: `pending_payment`, `processing`, `completed`, `cancelled`, `expired`.
 - Estados iniciales de pago: `pending`, `paid`, `failed`, `expired`, `refunded`.
+- Estados iniciales de entrega: `pending`, `preparing`, `shipped`, `ready_for_pickup`, `delivered`, `picked_up`, `cancelled`.
+- Estados iniciales de reserva: `active`, `consumed`, `released`, `expired`.
 - Un intento de pago rechazado no equivale automaticamente a un pedido vencido. Mientras la reserva siga activa, Sprint 7 podra reintentar el pago sobre el mismo pedido.
 - El vencimiento de la reserva marca el pedido y pago como `expired`, libera stock y exige crear un pedido nuevo.
 - La reserva para pagos inmediatos sera configurable y comenzara con 15 minutos.
@@ -44,7 +46,7 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - La entrega cubre Lima Metropolitana y Callao mediante distritos configurables, cada uno con estado y tarifa.
 - El envio gratis usa un umbral global calculado sobre el subtotal de productos despues de descuentos y antes del envio. El valor `0` lo deshabilita.
 - El recojo es gratuito y solo aparece cuando el administrador ha configurado una direccion de recojo completa.
-- El plazo general de entrega sera configurable en dias habiles, inicialmente de 1 a 2, y comienza al confirmarse el pago.
+- El plazo general de entrega sera configurable en dias habiles, inicialmente de 1 a 2. La promesa mostrada se congela al crear el pedido y su computo comienza al confirmarse el pago.
 - No se calcula una fecha exacta ni se administra un calendario de feriados en este sprint.
 - Si una ubicacion esta fuera de cobertura, se muestra el WhatsApp configurado para coordinar el envio a provincia.
 - Una direccion nueva creada desde checkout se guarda en la cuenta. Al alcanzar el limite de 10, el cliente debe usar una direccion existente o administrar sus direcciones antes de continuar.
@@ -52,6 +54,10 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - Para boleta se solicitara siempre tipo y numero de documento, nombres y apellidos y correo fiscal, incluso cuando el monto no supere S/ 700.
 - Para factura se solicitara RUC, razon social, domicilio fiscal y correo fiscal. No se solicitara DNI adicional.
 - Los datos fiscales elegidos se guardan como snapshot y no modifican automaticamente el perfil del cliente.
+- El precio ingresado por el administrador y mostrado al cliente es el precio final con IGV incluido.
+- Los productos se consideran gravados con IGV de 18 % por defecto, pero el dominio queda preparado para afectaciones exoneradas o inafectas.
+- Los importes historicos del pedido se almacenan en centimos; el valor de venta y el IGV se calculan internamente sin reemplazar el precio comercial mostrado al cliente.
+- Los descuentos futuros se distribuiran proporcionalmente entre los items, con redondeo determinista y sin mezclar el descuento de productos con el envio.
 - La emision inicial del comprobante se realiza manualmente en SUNAT SEE-SOL.
 - SUNAT asigna la serie y el correlativo. La tienda solo registra exactamente los valores del comprobante ya emitido.
 - La tienda no genera PDFs fiscales. El administrador adjunta la representacion PDF oficial descargada de SUNAT.
@@ -159,26 +165,36 @@ Tareas:
   - `StockReservation`
   - historial de estados del pedido
   - `FiscalDocument`
-- Generar un codigo interno unico de pedido independiente del ID y del comprobante fiscal.
+  - historial de envios de documentos fiscales
+- Generar el codigo interno unico `PED-AAAA-NNNNNN` con correlativo anual protegido contra concurrencia e independiente del ID y del comprobante fiscal.
 - Guardar en `Order`:
   - cliente y correo de cuenta
   - estados separados de pedido, pago y entrega
   - modalidad de entrega
   - direccion de entrega o recojo como snapshot
   - datos fiscales como snapshot
-  - subtotal, descuentos, envio, valor sin IGV, IGV y total
-  - plazo de entrega vigente al confirmar el pago
-- Guardar en `OrderItem` referencias opcionales y snapshots de SKU, nombre, imagen, unidad, cantidad, precio, valor sin IGV, IGV, descuento y total.
-- Permitir que el historial siga siendo legible aunque cambien o se eliminen productos, direcciones o datos del cliente.
-- Modelar reservas con cantidad, estado, expiracion y marcas de consumo o liberacion.
-- Modelar documentos fiscales como relacion independiente y preparada para boleta, factura y futuras notas.
-- Guardar serie, correlativo, fecha, estado, rutas privadas, usuario registrador y datos de envio del comprobante.
+  - subtotal, descuentos, envio, valor sin IGV, IGV y total en centimos
+  - plazo de entrega mostrado al crear el pedido y fecha de inicio del computo al confirmar el pago
+- Guardar en `OrderItem` referencias opcionales y snapshots de SKU, nombre, imagen, unidad, cantidad, afectacion tributaria, tasa, precio final con IGV incluido, valor sin IGV, IGV, descuento y total.
+- Mantener como precio comercial el importe final ingresado por el administrador; por ejemplo, un producto publicado a S/ 190.00 conserva ese total y desglosa internamente su valor de venta e IGV.
+- Ajustar el formulario administrativo de productos para etiquetar el campo como `Precio de venta (IGV incluido)` y mostrar su desglose tributario como ayuda, sin sustituir el precio final.
+- Modelar la afectacion tributaria del producto con `Gravado 18 %` como valor predeterminado y soporte futuro para productos exonerados o inafectos.
+- Almacenar dinero en centimos y aplicar una politica unica de redondeo para evitar diferencias entre items, resumen y comprobante.
+- Preparar descuentos en cero durante este sprint y su futura distribucion proporcional por item, asignando cualquier residuo de redondeo de forma determinista.
+- Permitir que el historial siga siendo legible aunque cambien o se eliminen productos, direcciones o datos del cliente; las referencias historicas seran opcionales y no usaran eliminacion en cascada.
+- Modelar un historial inmutable que identifique el dominio modificado, estado anterior, estado nuevo, actor opcional, motivo, metadatos y fecha.
+- Modelar reservas por item con cantidad, estado, expiracion y marcas de consumo o liberacion exacta, diferenciando cancelacion y vencimiento.
+- Coordinar la confirmacion de pago y el consumo de todas sus reservas en una sola transaccion, impidiendo liberar stock de un pedido ya pagado.
+- Guardar la solicitud fiscal como snapshot del pedido sin crear todavia un `FiscalDocument`.
+- Modelar documentos fiscales como relacion independiente de varios documentos por pedido, creada solo despues del pago y preparada para boleta, factura y futuras notas relacionadas.
+- Guardar serie, correlativo, fecha, estado, rutas privadas y usuario registrador del comprobante.
+- Registrar cada intento de envio del comprobante con destinatario, administrador, fecha, resultado y detalle de error, sin duplicar el documento fiscal.
 - Agregar unicidad para tipo, serie y correlativo.
-- Implementar enums o value objects para evitar estados invalidos.
-- Crear pruebas de relaciones, snapshots, transiciones validas y restricciones de base de datos.
+- Implementar enums o value objects para estados de pedido, pago, entrega, reserva, afectacion tributaria y tipo de documento fiscal.
+- Crear pruebas de correlativo concurrente, relaciones, snapshots, calculo de IGV, redondeo, transiciones validas, referencias opcionales y restricciones de base de datos.
 
 Criterio de salida:
-- El dominio puede representar un pedido completo y auditable sin depender de datos mutables del catalogo o del perfil.
+- El dominio puede representar un pedido completo y auditable, con codigo neutral, importes tributarios reproducibles y estados independientes, sin depender de datos mutables del catalogo o del perfil.
 
 ## Fase 4: Checkout real y experiencia del formulario
 

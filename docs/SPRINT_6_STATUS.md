@@ -17,8 +17,13 @@ Crear checkout y pedidos reales sobre el carrito persistente, con configuracion 
 - La reserva inicial para pagos inmediatos sera configurable, con 15 minutos por defecto.
 - El vencimiento usa `expired` y libera inventario; no se trata como pago `failed`.
 - Entrega configurable para Lima Metropolitana y Callao.
-- Plazo general configurable de 1 a 2 dias habiles desde el pago confirmado.
+- Plazo general configurable de 1 a 2 dias habiles, congelado al crear el pedido y computado desde el pago confirmado.
 - Boleta y factura solicitan campos distintos y guardan snapshots fiscales.
+- El codigo interno del pedido sera `PED-AAAA-NNNNNN`, con correlativo anual independiente de la marca y del comprobante fiscal.
+- El precio administrado y publicado es el total con IGV incluido; su valor de venta e IGV se desglosan internamente en los snapshots.
+- Los productos parten como gravados con 18 %, con dominio preparado para afectaciones exoneradas o inafectas.
+- Los estados comerciales del pedido se separan de pago, entrega y reserva para evitar fuentes de verdad duplicadas.
+- La promesa de 1 a 2 dias habiles se congela al crear el pedido y empieza a computarse al confirmar el pago.
 - SUNAT emite manualmente y asigna serie y correlativo.
 - La tienda registra el PDF oficial, lo guarda en privado y permite enviarlo por correo.
 - Culqi y la confirmacion real de pago corresponden al Sprint 7.
@@ -116,18 +121,41 @@ Validaciones:
 
 ## Fase 3: Dominio de pedidos, reservas y documentos fiscales
 
-Estado: Pendiente
+Estado: Completada
 
-Planificado:
-- Modelos, migraciones y factories de pedidos e items.
-- Estados separados e historial auditable.
-- Snapshots de cliente, entrega, facturacion, productos e importes.
-- Reservas de stock con consumo, liberacion y expiracion.
-- Documentos fiscales independientes y numeracion unica.
-- Pruebas de dominio y restricciones.
+Implementado:
+- Enums tipados para pedido, pago, entrega, modalidad, reserva, afectacion tributaria, solicitud fiscal, documento fiscal y resultado de envio.
+- Value object `Money` para conversion, formato y operaciones en centimos; calculadora unica de impuestos incluidos y distribuidor proporcional de descuentos con residuo determinista.
+- Precio comercial conservado como total final con IGV incluido y soporte para productos gravados, exonerados e inafectos.
+- Formulario administrativo de productos con etiqueta `Precio de venta (IGV incluido)`, selector tributario y desglose auxiliar reactivo de valor de venta e IGV.
+- Modelos, relaciones y factories de `Order`, `OrderItem`, `OrderSequence`, `OrderStatusHistory`, `StockReservation`, `FiscalDocument` y `FiscalDocumentDelivery`.
+- Codigo `PED-AAAA-NNNNNN` independiente del ID, con contador anual, transaccion obligatoria, incremento atomico, limite de seis digitos y unicidad de base de datos.
+- Creacion transaccional de pedido, items e historial inicial, con validacion central de snapshots, entrega, solicitud fiscal, importes y desglose tributario.
+- Snapshots de cuenta, entrega, recojo, solicitud fiscal y productos; referencias a usuario, direccion y producto opcionales mediante `nullOnDelete`.
+- Importes de pedidos e items almacenados en centimos, con reconciliacion exacta de subtotal, descuento, envio, bases gravada/exonerada/inafecta, IGV y total.
+- Estados independientes y transiciones protegidas para pedido, pago y entrega, incluidas precondiciones por modalidad, pago, entrega y reservas.
+- Historial inmutable por dominio con estado anterior, estado nuevo, actor opcional, snapshots del actor, motivo, metadatos y fecha.
+- Reservas unicas por item con decremento bloqueado de inventario, consumo, liberacion, cancelacion y vencimiento idempotentes.
+- Coordinador transaccional de pago que consume reservas antes de confirmar el pago y evita que un pedido pagado libere stock por vencimiento.
+- Movimientos de inventario preservados al eliminar productos y protegidos como registros historicos inmutables.
+- Solicitud de boleta o factura congelada en el pedido, sin crear comprobante durante la solicitud.
+- Comprobantes fiscales independientes solo para pedidos pagados, con boleta/factura principal unica, notas relacionadas, serie y correlativo fiscal unicos y anulacion auditable.
+- Historial inmutable de cada intento de envio fiscal con destinatario, actor, resultado y error, sin duplicar el comprobante.
+- APIs existentes de carrito, entrega y configuracion alineadas al value object monetario y con importes explicitos en centimos.
 
 Pendiente:
-- Implementacion completa de la fase.
+- Ninguno.
+
+Validaciones:
+- Nueve migraciones de Fase 3 aplicadas correctamente en el lote 15 sobre la base local.
+- Prueba concurrente real con ocho procesos PHP sincronizados sobre una base compartida: correlativos unicos, consecutivos y sin huecos.
+- Pruebas de Fase 3 para dinero, IGV incluido, exonerados, inafectos, residuos, correlativos, rollback, snapshots, referencias opcionales, estados, reservas, fiscalidad e historiales.
+- Suite completa: 350 pruebas, 2161 aserciones.
+- `php artisan view:cache`: correcto.
+- `node --check public/js/app.js`: correcto.
+- `npm.cmd run build`: correcto.
+- Pint sobre todos los PHP modificados: correcto.
+- `git diff --check`: correcto.
 
 ## Fase 4: Checkout real y experiencia del formulario
 
