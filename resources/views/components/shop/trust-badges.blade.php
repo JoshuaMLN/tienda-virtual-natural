@@ -3,7 +3,11 @@
         <div class="col-md-4">
             <div class="trust-item">
                 <i class="bi bi-truck"></i>
-                <div><strong>Envio gratis</strong><br><span class="small text-muted">Desde S/ 149 a todo el Peru</span></div>
+                @if($storeSettings->freeShippingEnabled())
+                    <div><strong>Envio gratis</strong><br><span class="small text-muted">Desde S/ {{ number_format((float) $storeSettings->freeShippingThreshold(), 2) }} en Lima y Callao</span></div>
+                @else
+                    <div><strong>Entrega local</strong><br><span class="small text-muted">Lima Metropolitana y Callao</span></div>
+                @endif
             </div>
         </div>
         <div class="col-md-4">
@@ -15,7 +19,7 @@
         <div class="col-md-4">
             <div class="trust-item">
                 <i class="bi bi-whatsapp"></i>
-                <div><strong>Soporte por WhatsApp</strong><br><span class="small text-muted">987 654 321</span></div>
+                <div><strong>Soporte por WhatsApp</strong><br><span class="small text-muted">{{ $storeSettings->whatsappDisplay() }}</span></div>
             </div>
         </div>
     </div>

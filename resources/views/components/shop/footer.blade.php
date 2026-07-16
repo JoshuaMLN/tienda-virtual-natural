@@ -47,10 +47,15 @@
             <div class="col-lg-3 col-md-6">
                 <h6>Contactanos</h6>
                 <ul class="list-unstyled small d-grid gap-2">
-                    <li><i class="bi bi-whatsapp text-vn-green"></i> WhatsApp 987 654 321</li>
-                    <li><i class="bi bi-envelope text-vn-green"></i> hola@vitanatural.pe</li>
-                    <li>Lun a Vie: 9:00 am - 6:00 pm</li>
-                    <li>Sabado: 9:00 am - 1:00 pm</li>
+                    <li><a href="{{ $storeSettings->whatsappUrl() }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-whatsapp text-vn-green"></i> WhatsApp {{ $storeSettings->whatsappDisplay() }}</a></li>
+                    <li><a href="mailto:{{ $storeSettings->email() }}"><i class="bi bi-envelope text-vn-green"></i> {{ $storeSettings->email() }}</a></li>
+                    @if($storeSettings->phone())
+                        <li><i class="bi bi-telephone text-vn-green"></i> {{ $storeSettings->phone() }}</li>
+                    @endif
+                    <li>{{ $storeSettings->weekdayHours() }}</li>
+                    @if($storeSettings->saturdayHours())
+                        <li>{{ $storeSettings->saturdayHours() }}</li>
+                    @endif
                 </ul>
             </div>
         </div>

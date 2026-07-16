@@ -22,7 +22,7 @@
         <a href="#"><i class="bi bi-ticket-perforated"></i> Cupones</a>
         <a href="#"><i class="bi bi-file-earmark-text"></i> Contenido</a>
         <a href="#"><i class="bi bi-graph-up-arrow"></i> Reportes</a>
-        <a href="#"><i class="bi bi-gear"></i> Configuracion</a>
+        <a class="{{ $active === 'settings' ? 'active' : '' }}" href="{{ route('admin.settings.edit') }}"><i class="bi bi-gear"></i> Configuracion</a>
     </nav>
     <div class="admin-sidebar-footer">
         <button

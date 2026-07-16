@@ -1,5 +1,5 @@
 <div class="top-shipping-bar py-2 text-center">
-    <i class="bi bi-truck"></i> Envio gratis a todo el Peru por compras desde S/ 149
+    <i class="bi bi-truck"></i> {{ $storeSettings->shippingBanner() }}
 </div>
 
 <header class="shop-header">
@@ -20,8 +20,8 @@
             </form>
 
             <div class="d-flex align-items-center gap-3 ms-auto">
-                <a class="header-action d-none d-lg-inline-flex" href="https://wa.me/51987654321">
-                    <i class="bi bi-whatsapp"></i><span>WhatsApp<br>987 654 321</span>
+                <a class="header-action d-none d-lg-inline-flex" href="{{ $storeSettings->whatsappUrl() }}" target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-whatsapp"></i><span>WhatsApp<br>{{ $storeSettings->whatsappDisplay() }}</span>
                 </a>
                 @guest
                     <a class="header-action" href="{{ route('login') }}" aria-label="Iniciar sesion">

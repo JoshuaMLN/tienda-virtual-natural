@@ -9,6 +9,7 @@ use App\Support\Cart\CartStorageInterface;
 use App\Support\Cart\CartStorageResolver;
 use App\Support\Notifications\AdminNotificationService;
 use App\Support\Notifications\Providers\StockAlertNotificationProvider;
+use App\Support\Settings\StorefrontSettings;
 use Illuminate\Auth\AuthManager;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Pagination\Paginator;
@@ -63,6 +64,18 @@ class AppServiceProvider extends ServiceProvider
             $view->with('cartCount', Auth::user()?->isAdmin()
                 ? 0
                 : app(CartService::class)->count());
+            $view->with('storeSettings', app(StorefrontSettings::class));
+        });
+
+        View::composer([
+            'components.shop.footer',
+            'components.shop.trust-badges',
+            'components.checkout.shipping-form',
+            'layouts.checkout',
+            'shop.contact',
+            'shop.index',
+        ], function ($view) {
+            $view->with('storeSettings', app(StorefrontSettings::class));
         });
 
         View::composer('components.shop.cart-drawer', function ($view) {

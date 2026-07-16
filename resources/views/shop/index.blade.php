@@ -57,7 +57,11 @@
     <div class="row g-3">
         <div class="col-md-4">
             <div class="promo-tile p-4 d-flex align-items-center justify-content-between">
-                <div><strong>Envio gratis a todo el Peru</strong><span class="small text-muted">Por compras desde S/ 149</span></div>
+                @if($storeSettings->freeShippingEnabled())
+                    <div><strong>Envio gratis en Lima y Callao</strong><span class="small text-muted">Por compras desde S/ {{ number_format((float) $storeSettings->freeShippingThreshold(), 2) }}</span></div>
+                @else
+                    <div><strong>Entrega local</strong><span class="small text-muted">Disponible en Lima Metropolitana y Callao</span></div>
+                @endif
                 <i class="bi bi-truck fs-1 text-vn-green"></i>
             </div>
         </div>

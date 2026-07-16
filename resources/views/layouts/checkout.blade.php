@@ -11,7 +11,7 @@
 </head>
 <body class="bg-vn-soft">
     <div class="top-shipping-bar py-2 text-center">
-        <i class="bi bi-truck"></i> Envio gratis a todo el Peru por compras desde S/ 149
+        <i class="bi bi-truck"></i> {{ $storeSettings->shippingBanner() }}
     </div>
 
     <header class="bg-white border-bottom">
@@ -23,7 +23,7 @@
             <div class="d-none d-md-flex align-items-center gap-3 small fw-bold text-muted">
                 <span><i class="bi bi-shield-check text-vn-green"></i> Compra segura</span>
                 <span><i class="bi bi-lock text-vn-green"></i> Pago seguro con Culqi</span>
-                <span><i class="bi bi-whatsapp text-vn-green"></i> Soporte WhatsApp</span>
+                <a class="text-muted text-decoration-none" href="{{ $storeSettings->whatsappUrl() }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-whatsapp text-vn-green"></i> Soporte WhatsApp</a>
             </div>
         </div>
     </header>

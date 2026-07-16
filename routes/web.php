@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\Auth\PasswordResetLinkController as AdminPassword
 use App\Http\Controllers\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\OperationalSettingsController as AdminOperationalSettingsController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductSettingsController as AdminProductSettingsController;
 use App\Http\Controllers\Admin\StockController as AdminStockController;
@@ -134,6 +135,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware(['auth', 'admin'])->group(function () {
         Route::post('/logout', [AdminAuthenticatedSessionController::class, 'destroy'])->name('logout');
         Route::get('/', AdminDashboardController::class)->name('dashboard');
+        Route::get('/configuracion', [AdminOperationalSettingsController::class, 'edit'])->name('settings.edit');
+        Route::patch('/configuracion', [AdminOperationalSettingsController::class, 'update'])->name('settings.update');
+        Route::patch('/configuracion/distritos/{deliveryDistrict}', [AdminOperationalSettingsController::class, 'updateDistrict'])->name('settings.districts.update');
 
         Route::get('/categorias/slug-sugerido', [AdminCategoryController::class, 'suggestSlug'])->name('categories.suggest-slug');
         Route::patch('/categorias/{category}/estado', [AdminCategoryController::class, 'toggleStatus'])->name('categories.toggle-status');

@@ -6,6 +6,8 @@ Este documento define el orden de construccion del backend y la logica de negoci
 
 Objetivo: dejar el proyecto listo para crecer sin deuda accidental.
 
+Estado: completado.
+
 Criterios de salida:
 - `.env` configurado para la base de datos local.
 - Conexion a base de datos validada con migraciones.
@@ -19,6 +21,8 @@ Criterios de salida:
 ## Sprint 1: Catalogo real
 
 Objetivo: reemplazar arrays mock por datos de base de datos.
+
+Estado: completado.
 
 Entregables:
 - Modelos y migraciones: `Category`, `Brand`, `Product`, `ProductImage`.
@@ -47,7 +51,7 @@ Entregables:
 
 Objetivo: controlar disponibilidad antes de vender.
 
-Estado: definido.
+Estado: completado.
 
 Detalle: `docs/SPRINT_3_ROADMAP.md`.
 
@@ -61,6 +65,10 @@ Entregables:
 ## Sprint 4: Carrito
 
 Objetivo: carrito funcional en sesion.
+
+Estado: completado.
+
+Detalle: `docs/SPRINT_4_ROADMAP.md`.
 
 Entregables:
 - Agregar al carrito.
@@ -92,18 +100,33 @@ Entregables:
 
 Objetivo: crear pedidos reales desde el carrito de un cliente autenticado.
 
+Estado: en progreso.
+
+Detalle: `docs/SPRINT_6_ROADMAP.md`.
+
 Entregables:
+- Autenticacion administrativa basica, rol de administrador y proteccion de todas las rutas `/admin`.
+- Configuracion operativa centralizada de WhatsApp, correo, horario, envio gratis, recojo y plazo general de entrega.
+- Tarifas configurables por distrito para Lima Metropolitana y Callao.
 - Modelos `Order` y `OrderItem` con snapshots historicos.
+- Estados separados para pedido, pago, entrega y reserva de inventario.
 - Checkout protegido y conectado al carrito persistente.
-- Uso de direcciones guardadas y configuracion de entrega para Lima y Callao.
+- Uso de direcciones guardadas o una nueva direccion persistida en la cuenta.
+- Entrega a domicilio o recojo, disponible solo cuando exista una direccion de recojo configurada.
+- Plazo general configurable de `1 a 2 dias habiles`, contado desde la confirmacion del pago.
 - Monto global configurable para envio gratis; `0` lo deshabilita y los mensajes publicos deben usar el valor vigente.
-- Configuracion operativa centralizada de WhatsApp, correo de contacto y horario de atencion.
 - Navbar, footer, contacto y avisos de envio deben consumir los datos operativos configurados, sin valores duplicados en las vistas.
-- Recojo habilitado solo cuando exista una direccion configurada.
-- Creacion transaccional e idempotente de pedidos en estado `pending`.
-- Reserva y liberacion auditable de inventario.
+- Datos de boleta o factura solicitados condicionalmente y guardados como snapshot fiscal del pedido.
+- Revalidacion de stock, visibilidad, precios, envio y totales al confirmar, sin perder los datos del checkout.
+- Modal de cambios que permita aceptar el nuevo resumen o volver al carrito.
+- Creacion transaccional e idempotente de pedidos en estado `pending_payment`.
+- Reserva de stock configurable, con vencimiento inicial de 15 minutos para pagos inmediatos.
+- Liberacion auditable de reservas canceladas o vencidas; un vencimiento usa estado `expired`, no `failed`.
 - Resumen real, historial y detalle de pedidos para el cliente.
 - Panel admin de pedidos conectado a DB.
+- Registro manual del comprobante emitido previamente en SUNAT mediante serie, correlativo, fecha y PDF oficial.
+- Almacenamiento privado y envio o reenvio del PDF al correo fiscal del pedido.
+- Numeracion fiscal copiada desde SUNAT SEE-SOL; la tienda no genera series ni correlativos.
 
 ## Sprint 7: Pagos con Culqi
 
@@ -111,10 +134,14 @@ Objetivo: integrar pago real sin marcar ordenes antes de confirmacion backend.
 
 Entregables:
 - Configuracion Culqi en `.env`.
-- Crear intencion/cargo desde backend.
+- Crear intencion/cargo desde backend sobre un pedido `pending_payment` vigente.
 - Webhook de confirmacion.
 - Validacion de firma e idempotencia.
 - Orden marcada como pagada solo por confirmacion backend.
+- Consumo de la reserva sin volver a descontar stock.
+- Reintentos sobre el mismo pedido mientras su reserva siga vigente.
+- Intentos rechazados diferenciados de pedidos vencidos.
+- Politica separada para metodos de pago asincronos antes de habilitarlos.
 - Pantallas `success`, `failed` y `pending` conectadas a estados reales.
 
 ## Sprint 8: Promociones y banners
@@ -137,7 +164,7 @@ Entregables:
 Objetivo: cerrar la base con calidad operativa.
 
 Entregables:
-- Policies y autorizacion admin.
+- Policies granulares y autorizacion administrativa por capacidad sobre la proteccion basica creada en Sprint 6.
 - Tests de catalogo, carrito, pedidos y pagos.
 - Logs de errores de pago.
 - Validaciones finales.

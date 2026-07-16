@@ -11,19 +11,29 @@
             <div class="d-grid gap-3">
                 <div class="checkout-card p-3 d-flex align-items-center gap-3">
                     <i class="bi bi-whatsapp fs-2 text-vn-green"></i>
-                    <div><strong>WhatsApp</strong><br><span class="small">987 654 321</span></div>
+                    <div><strong>WhatsApp</strong><br><a class="small" href="{{ $storeSettings->whatsappUrl() }}" target="_blank" rel="noopener noreferrer">{{ $storeSettings->whatsappDisplay() }}</a></div>
                 </div>
                 <div class="checkout-card p-3 d-flex align-items-center gap-3">
                     <i class="bi bi-envelope fs-2 text-vn-green"></i>
-                    <div><strong>Correo electronico</strong><br><span class="small">hola@vitanatural.pe</span></div>
+                    <div><strong>Correo electronico</strong><br><a class="small" href="mailto:{{ $storeSettings->email() }}">{{ $storeSettings->email() }}</a></div>
                 </div>
-                <div class="checkout-card p-3 d-flex align-items-center gap-3">
-                    <i class="bi bi-telephone fs-2 text-vn-green"></i>
-                    <div><strong>Telefono</strong><br><span class="small">(01) 123 4567</span></div>
-                </div>
+                @if($storeSettings->phone())
+                    <div class="checkout-card p-3 d-flex align-items-center gap-3">
+                        <i class="bi bi-telephone fs-2 text-vn-green"></i>
+                        <div><strong>Telefono</strong><br><span class="small">{{ $storeSettings->phone() }}</span></div>
+                    </div>
+                @endif
                 <div class="checkout-card p-3 d-flex align-items-center gap-3">
                     <i class="bi bi-clock fs-2 text-vn-green"></i>
-                    <div><strong>Horario de atencion</strong><br><span class="small">Lun a Vie: 9:00 am - 6:00 pm</span></div>
+                    <div>
+                        <strong>Horario de atencion</strong><br>
+                        <span class="small">{{ $storeSettings->weekdayHours() }}</span>
+                        @if($storeSettings->saturdayHours())<br><span class="small">{{ $storeSettings->saturdayHours() }}</span>@endif
+                    </div>
+                </div>
+                <div class="alert alert-warning mb-0">
+                    <strong>Envios a provincia</strong><br>
+                    <span class="small">Para destinos fuera de Lima Metropolitana y Callao, coordina la entrega por WhatsApp.</span>
                 </div>
             </div>
         </div>
