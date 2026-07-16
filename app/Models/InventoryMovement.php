@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Immutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InventoryMovement extends Model
 {
+    use Immutable;
+
     public const TYPE_IN = 'in';
+
     public const TYPE_OUT = 'out';
+
     public const TYPE_ADJUSTMENT = 'adjustment';
 
     public const TYPES = [
@@ -47,5 +53,15 @@ class InventoryMovement extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function startedReservations(): HasMany
+    {
+        return $this->hasMany(StockReservation::class, 'reserve_inventory_movement_id');
+    }
+
+    public function releasedReservations(): HasMany
+    {
+        return $this->hasMany(StockReservation::class, 'release_inventory_movement_id');
     }
 }
