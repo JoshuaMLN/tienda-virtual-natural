@@ -3,6 +3,7 @@
 namespace App\Support\Settings;
 
 use App\Models\Setting;
+use App\Support\Money\Money;
 
 class StorefrontSettings
 {
@@ -64,7 +65,7 @@ class StorefrontSettings
 
     public function freeShippingThresholdCents(): int
     {
-        return $this->moneyToCents($this->freeShippingThreshold());
+        return Money::fromDecimal($this->freeShippingThreshold())->cents;
     }
 
     public function freeShippingEnabled(): bool
@@ -115,13 +116,8 @@ class StorefrontSettings
             return 'Entrega disponible solo en Lima Metropolitana y Callao';
         }
 
-        $threshold = number_format((float) $this->freeShippingThreshold(), 2);
+        $threshold = Money::fromDecimal($this->freeShippingThreshold())->formatted();
 
-        return "Envio gratis en Lima y Callao por compras desde S/ {$threshold}";
-    }
-
-    private function moneyToCents(string $amount): int
-    {
-        return (int) round(((float) $amount) * 100);
+        return "Envio gratis en Lima y Callao por compras desde {$threshold}";
     }
 }

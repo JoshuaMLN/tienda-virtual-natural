@@ -6,7 +6,9 @@ use App\Models\Cart as CartModel;
 use App\Models\CartItem;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\Money\Money;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class CartMergeService
 {
@@ -134,8 +136,11 @@ class CartMergeService
 
     private function samePrice(string|float|int|null $left, string|float|int|null $right): bool
     {
-        return number_format((float) $left, 2, '.', '')
-            === number_format((float) $right, 2, '.', '');
+        try {
+            return Money::fromDecimal($left ?? '')->cents === Money::fromDecimal($right ?? '')->cents;
+        } catch (InvalidArgumentException) {
+            return false;
+        }
     }
 
     private function priceChangedWarning(
@@ -146,8 +151,8 @@ class CartMergeService
         return sprintf(
             '%s: su precio cambio de S/ %s a S/ %s. Actualizamos el precio de tu carrito.',
             $productName,
-            number_format((float) $previousPrice, 2),
-            number_format((float) $currentPrice, 2)
+            Money::fromDecimal($previousPrice)->formatted(''),
+            Money::fromDecimal($currentPrice)->formatted('')
         );
     }
 }

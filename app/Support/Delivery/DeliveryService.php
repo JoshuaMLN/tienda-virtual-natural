@@ -3,6 +3,7 @@
 namespace App\Support\Delivery;
 
 use App\Models\DeliveryDistrict;
+use App\Support\Money\Money;
 use App\Support\Settings\StorefrontSettings;
 
 class DeliveryService
@@ -32,8 +33,8 @@ class DeliveryService
             return null;
         }
 
-        $subtotalCents = $this->moneyToCents($subtotal);
-        $baseFeeCents = $this->moneyToCents($district->shipping_fee);
+        $subtotalCents = Money::fromDecimal($subtotal)->cents;
+        $baseFeeCents = Money::fromDecimal($district->shipping_fee)->cents;
         $thresholdCents = $this->settings->freeShippingThresholdCents();
         $hasFreeShipping = $thresholdCents > 0 && $subtotalCents >= $thresholdCents;
 
@@ -51,14 +52,5 @@ class DeliveryService
     public function pickupAvailable(): bool
     {
         return $this->settings->pickupEnabled();
-    }
-
-    private function moneyToCents(int|float|string $amount): int
-    {
-        if (! is_numeric($amount)) {
-            return 0;
-        }
-
-        return max(0, (int) round(((float) $amount) * 100));
     }
 }

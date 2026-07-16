@@ -4,6 +4,8 @@ namespace App\Support\Cart;
 
 use App\Models\Product;
 use App\Support\Inventory\InventoryService;
+use App\Support\Money\Money;
+use InvalidArgumentException;
 
 class CartService
 {
@@ -63,8 +65,8 @@ class CartService
                 $warnings[] = sprintf(
                     '%s: su precio cambio de S/ %s a S/ %s. Actualizamos el precio de tu carrito.',
                     $product->name,
-                    number_format((float) $priceReference, 2),
-                    number_format((float) $product->price, 2)
+                    Money::fromDecimal($priceReference)->formatted(''),
+                    Money::fromDecimal($product->price)->formatted('')
                 );
                 $this->storage->setPriceReference($product->id, (string) $product->price);
             }
@@ -146,7 +148,10 @@ class CartService
 
     private function samePrice(string|float|int|null $left, string|float|int|null $right): bool
     {
-        return number_format((float) $left, 2, '.', '')
-            === number_format((float) $right, 2, '.', '');
+        try {
+            return Money::fromDecimal($left ?? '')->cents === Money::fromDecimal($right ?? '')->cents;
+        } catch (InvalidArgumentException) {
+            return false;
+        }
     }
 }

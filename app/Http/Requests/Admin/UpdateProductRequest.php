@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\TaxAffectation;
 use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -33,6 +34,7 @@ class UpdateProductRequest extends FormRequest
             'remove_main_image' => ['sometimes', 'boolean'],
             'price' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'compare_at_price' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'tax_affectation' => ['required', Rule::enum(TaxAffectation::class)],
             'is_active' => ['sometimes', 'boolean'],
             'is_featured' => ['sometimes', 'boolean'],
             'published_at' => ['nullable', 'date'],
@@ -51,6 +53,10 @@ class UpdateProductRequest extends FormRequest
             'sku' => trim((string) $this->input('sku')),
             'brand_id' => $this->input('brand_id') ?: null,
             'compare_at_price' => $this->input('compare_at_price') !== '' ? $this->input('compare_at_price') : null,
+            'tax_affectation' => $this->input(
+                'tax_affectation',
+                $product?->tax_affectation?->value ?? TaxAffectation::Taxed->value,
+            ),
             'is_active' => $this->boolean('is_active'),
             'is_featured' => $this->boolean('is_featured'),
             'remove_main_image' => $this->boolean('remove_main_image'),

@@ -2,6 +2,7 @@
 
 namespace App\Support\Cart;
 
+use App\Support\Money\Money;
 use Illuminate\Support\Collection;
 
 class Cart
@@ -13,8 +14,7 @@ class Cart
     public function __construct(
         public readonly Collection $items,
         public readonly array $warnings = [],
-    ) {
-    }
+    ) {}
 
     public static function empty(array $warnings = []): self
     {
@@ -62,6 +62,8 @@ class Cart
             'items' => $this->items->map->toArray()->values()->all(),
             'product_count' => $this->productCount(),
             'total_quantity' => $this->totalQuantity(),
+            'subtotal_cents' => $this->subtotalCents(),
+            'total_cents' => $this->totalCents(),
             'subtotal' => $this->subtotalCents() / 100,
             'total' => $this->totalCents() / 100,
             'formatted_subtotal' => $this->formattedSubtotal(),
@@ -72,6 +74,6 @@ class Cart
 
     private function formatMoney(int $cents): string
     {
-        return 'S/ '.number_format($cents / 100, 2);
+        return Money::fromCents($cents)->formatted();
     }
 }

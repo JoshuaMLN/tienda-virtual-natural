@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\TaxAffectation;
 use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreProductRequest extends FormRequest
 {
@@ -29,6 +31,7 @@ class StoreProductRequest extends FormRequest
             'cropped_main_image' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'compare_at_price' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'tax_affectation' => ['required', Rule::enum(TaxAffectation::class)],
             'stock' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
             'is_featured' => ['sometimes', 'boolean'],
@@ -47,6 +50,7 @@ class StoreProductRequest extends FormRequest
             'sku' => trim((string) $this->input('sku')),
             'brand_id' => $this->input('brand_id') ?: null,
             'compare_at_price' => $this->input('compare_at_price') !== '' ? $this->input('compare_at_price') : null,
+            'tax_affectation' => $this->input('tax_affectation', TaxAffectation::Taxed->value),
             'stock' => $this->input('stock') ?? 0,
             'is_active' => $this->boolean('is_active'),
             'is_featured' => $this->boolean('is_featured'),

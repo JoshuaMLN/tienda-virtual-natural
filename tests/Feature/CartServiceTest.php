@@ -27,6 +27,8 @@ class CartServiceTest extends TestCase
         $this->assertSame(5, $cart->totalQuantity());
         $this->assertSame(9950, $cart->subtotalCents());
         $this->assertSame('S/ 99.50', $cart->formattedTotal());
+        $this->assertSame(9_950, $cart->toArray()['total_cents']);
+        $this->assertSame(9_950, $cart->toArray()['items'][0]['subtotal_cents']);
         $this->assertSame(5, $cart->items->first()->quantity);
     }
 

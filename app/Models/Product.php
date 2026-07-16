@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\TaxAffectation;
+use App\Support\Money\Money;
+use App\Support\Tax\TaxCalculator;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +21,11 @@ class Product extends Model
 
     public const DEFAULT_IMAGE = 'images/placeholders/products/default-prod.webp';
 
+    protected $attributes = [
+        'tax_affectation' => 'taxed',
+        'tax_rate_bps' => 1800,
+    ];
+
     protected $fillable = [
         'category_id',
         'brand_id',
@@ -31,6 +39,7 @@ class Product extends Model
         'usage_instructions',
         'price',
         'compare_at_price',
+        'tax_affectation',
         'stock',
         'low_stock_threshold',
         'rating_average',
@@ -40,11 +49,25 @@ class Product extends Model
         'published_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Product $product): void {
+            $affectation = $product->tax_affectation instanceof TaxAffectation
+                ? $product->tax_affectation
+                : TaxAffectation::from((string) ($product->tax_affectation ?: TaxAffectation::Taxed->value));
+
+            $product->tax_affectation = $affectation;
+            $product->tax_rate_bps = $affectation->taxRateBasisPoints();
+        });
+    }
+
     protected function casts(): array
     {
         return [
             'price' => 'decimal:2',
             'compare_at_price' => 'decimal:2',
+            'tax_affectation' => TaxAffectation::class,
+            'tax_rate_bps' => 'integer',
             'stock' => 'integer',
             'low_stock_threshold' => 'integer',
             'rating_average' => 'decimal:2',
@@ -83,6 +106,11 @@ class Product extends Model
     public function cartItems(): HasMany
     {
         return $this->hasMany(CartItem::class);
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
     }
 
     public function scopeActive(Builder $query): Builder
@@ -125,7 +153,7 @@ class Product extends Model
 
     public function getFormattedPriceAttribute(): string
     {
-        return 'S/ '.number_format((float) $this->price, 2);
+        return Money::fromDecimal($this->price)->formatted();
     }
 
     public function getFormattedCompareAtPriceAttribute(): ?string
@@ -134,7 +162,26 @@ class Product extends Model
             return null;
         }
 
-        return 'S/ '.number_format((float) $this->compare_at_price, 2);
+        return Money::fromDecimal($this->compare_at_price)->formatted();
+    }
+
+    public function getPriceCentsAttribute(): int
+    {
+        return Money::fromDecimal($this->price)->cents;
+    }
+
+    public function getNetPriceCentsAttribute(): int
+    {
+        return app(TaxCalculator::class)
+            ->fromTaxIncluded($this->price_cents, $this->tax_affectation, rateBasisPoints: $this->tax_rate_bps)
+            ->netValueCents();
+    }
+
+    public function getTaxAmountCentsAttribute(): int
+    {
+        return app(TaxCalculator::class)
+            ->fromTaxIncluded($this->price_cents, $this->tax_affectation, rateBasisPoints: $this->tax_rate_bps)
+            ->taxCents;
     }
 
     public function getIsInStockAttribute(): bool

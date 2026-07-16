@@ -6,7 +6,7 @@
     $hasAnyErrors = $errors->any();
     $sectionHasErrors = fn (array $fields) => collect($fields)->contains(fn (string $field) => $errors->has($field));
     $mainSectionHasErrors = $sectionHasErrors(['name', 'slug', 'sku', 'short_description', 'category_id', 'brand_id']);
-    $salesSectionHasErrors = $sectionHasErrors(['price', 'compare_at_price', 'stock', 'published_at', 'is_active', 'is_featured']);
+    $salesSectionHasErrors = $sectionHasErrors(['price', 'compare_at_price', 'tax_affectation', 'stock', 'published_at', 'is_active', 'is_featured']);
     $contentSectionHasErrors = $sectionHasErrors(['description', 'benefits', 'ingredients', 'usage_instructions']);
     $mainSectionOpen = ! $hasAnyErrors || $mainSectionHasErrors;
     $salesSectionOpen = ! $hasAnyErrors || $salesSectionHasErrors;
@@ -114,20 +114,34 @@
         </div>
 
         <div class="admin-form-section-body" id="product-sales-section" data-section-body @if(! $salesSectionOpen) hidden @endif>
-        <div class="row g-3 align-items-end">
-            <div class="col-lg-3 col-md-6">
-                <label class="form-label" for="price">Precio <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden"> obligatorio</span></label>
-                <input class="form-control @error('price') is-invalid @enderror" id="price" name="price" type="number" min="0" step="0.01" value="{{ old('price', $product->price) }}" required>
+        <div class="row g-3 align-items-start">
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label" for="price">Precio de venta (IGV incluido) <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden"> obligatorio</span></label>
+                <input class="form-control @error('price') is-invalid @enderror" id="price" name="price" type="number" min="0" step="0.01" value="{{ old('price', $product->price) }}" data-tax-price required>
                 @error('price')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="form-text" data-tax-breakdown aria-live="polite">Ingresa el precio final que pagara el cliente.</div>
             </div>
 
-            <div class="col-lg-3 col-md-6">
-                <label class="form-label" for="compare_at_price">Precio antes</label>
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label" for="compare_at_price">Precio anterior (IGV incluido)</label>
                 <input class="form-control @error('compare_at_price') is-invalid @enderror" id="compare_at_price" name="compare_at_price" type="number" min="0" step="0.01" value="{{ old('compare_at_price', $product->compare_at_price) }}">
                 @error('compare_at_price')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
 
-            <div class="col-lg-3 col-md-6">
+            <div class="col-lg-4 col-md-6">
+                <label class="form-label" for="tax_affectation">Afectacion tributaria <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden"> obligatorio</span></label>
+                <select class="form-select @error('tax_affectation') is-invalid @enderror" id="tax_affectation" name="tax_affectation" data-tax-affectation required>
+                    @foreach($taxAffectations as $affectation)
+                        <option value="{{ $affectation->value }}" data-tax-rate-bps="{{ $affectation->taxRateBasisPoints() }}" @selected(old('tax_affectation', $product->tax_affectation?->value ?? 'taxed') === $affectation->value)>
+                            {{ $affectation->label() }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('tax_affectation')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="form-text">Consulta a tu contador antes de usar una afectacion distinta a gravado.</div>
+            </div>
+
+            <div class="col-lg-6 col-md-6">
                 @if($product->exists)
                     <label class="form-label d-flex align-items-center gap-1" for="stock_readonly">
                         Stock actual
@@ -147,7 +161,7 @@
                 @endif
             </div>
 
-            <div class="col-lg-3 col-md-6">
+            <div class="col-lg-6 col-md-6">
                 <label class="form-label" for="published_at">Fecha de Publicación</label>
                 <input class="form-control @error('published_at') is-invalid @enderror" id="published_at" name="published_at" type="datetime-local" value="{{ $publishedAt }}">
                 @error('published_at')<div class="invalid-feedback">{{ $message }}</div>@enderror

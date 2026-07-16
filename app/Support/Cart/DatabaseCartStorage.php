@@ -5,6 +5,7 @@ namespace App\Support\Cart;
 use App\Models\Cart as CartModel;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\Money\Money;
 use Illuminate\Auth\AuthManager;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -103,7 +104,7 @@ class DatabaseCartStorage implements CartStorageInterface
         return $cart->items()
             ->pluck('price_reference', 'product_id')
             ->mapWithKeys(fn ($price, $productId): array => [
-                (int) $productId => number_format((float) $price, 2, '.', ''),
+                (int) $productId => Money::fromDecimal($price)->decimal(),
             ])
             ->all();
     }
@@ -120,7 +121,7 @@ class DatabaseCartStorage implements CartStorageInterface
         $user->cart()->first()?->items()
             ->where('product_id', $productId)
             ->update([
-                'price_reference' => number_format((float) $price, 2, '.', ''),
+                'price_reference' => Money::fromDecimal($price)->decimal(),
             ]);
     }
 

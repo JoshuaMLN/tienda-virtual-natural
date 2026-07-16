@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\TaxAffectation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreProductRequest;
 use App\Http\Requests\Admin\UpdateProductRequest;
@@ -175,10 +176,12 @@ class ProductController extends Controller
                 'is_active' => true,
                 'is_featured' => false,
                 'stock' => 0,
+                'tax_affectation' => TaxAffectation::Taxed,
                 'published_at' => now(),
             ]),
             'categories' => $this->categoryOptions(),
             'brands' => $this->brandOptions(),
+            'taxAffectations' => TaxAffectation::cases(),
         ]);
     }
 
@@ -201,6 +204,7 @@ class ProductController extends Controller
             'product' => $product,
             'categories' => $this->categoryOptions(),
             'brands' => $this->brandOptions(),
+            'taxAffectations' => TaxAffectation::cases(),
         ]);
     }
 

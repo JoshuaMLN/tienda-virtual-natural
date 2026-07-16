@@ -111,7 +111,7 @@
                         <div class="d-flex justify-content-between"><span>Descuento</span><strong>S/ 0.00</strong></div>
                         <hr>
                         <div class="d-flex justify-content-between fs-5"><span>Total</span><strong data-cart-summary-total>{{ $cartData['formatted_total'] }}</strong></div>
-                        <span class="text-muted text-end">Incluye IGV</span>
+                        <span class="text-muted text-end">Impuestos incluidos cuando correspondan</span>
                     </div>
                     <a class="btn btn-vn w-100 mt-4" href="{{ route('checkout.index') }}">Proceder al checkout</a>
                     <button

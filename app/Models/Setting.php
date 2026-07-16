@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Money\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -54,7 +55,7 @@ class Setting extends Model
             $value = $default;
         }
 
-        return number_format(max(0, (float) $value), 2, '.', '');
+        return Money::fromDecimal($value)->decimal();
     }
 
     public static function publicStockDisplayThreshold(): int

@@ -121,6 +121,49 @@ document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (toolti
     }
 });
 
+document.querySelectorAll('[data-tax-breakdown]').forEach(function (output) {
+    const form = output.closest('form');
+    const priceInput = form?.querySelector('[data-tax-price]');
+    const affectationInput = form?.querySelector('[data-tax-affectation]');
+    if (!priceInput || !affectationInput) return;
+
+    function decimalToCents(value) {
+        const normalized = String(value || '').trim();
+        if (!/^\d+(?:\.\d{0,2})?$/.test(normalized)) return null;
+
+        const parts = normalized.split('.');
+        return (Number(parts[0]) * 100) + Number((parts[1] || '').padEnd(2, '0'));
+    }
+
+    function formatCents(cents) {
+        return `S/ ${(cents / 100).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    function renderTaxBreakdown() {
+        const totalCents = decimalToCents(priceInput.value);
+        const selectedOption = affectationInput.options[affectationInput.selectedIndex];
+        const rateBasisPoints = Number(selectedOption?.dataset.taxRateBps || 0);
+
+        if (totalCents === null) {
+            output.textContent = 'Ingresa el precio final que pagara el cliente.';
+            return;
+        }
+
+        if (affectationInput.value !== 'taxed') {
+            output.textContent = `Valor de venta: ${formatCents(totalCents)} | IGV: ${formatCents(0)}`;
+            return;
+        }
+
+        const netCents = Math.round((totalCents * 10000) / (10000 + rateBasisPoints));
+        const taxCents = totalCents - netCents;
+        output.textContent = `Valor de venta: ${formatCents(netCents)} | IGV: ${formatCents(taxCents)}`;
+    }
+
+    priceInput.addEventListener('input', renderTaxBreakdown);
+    affectationInput.addEventListener('change', renderTaxBreakdown);
+    renderTaxBreakdown();
+});
+
 document.querySelectorAll('[data-account-mobile-logout]').forEach(function (button) {
     button.addEventListener('click', function () {
         const offcanvasElement = button.closest('.offcanvas');

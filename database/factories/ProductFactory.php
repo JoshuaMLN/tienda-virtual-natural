@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\TaxAffectation;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,6 +26,7 @@ class ProductFactory extends Factory
             'short_description' => fake()->sentence(),
             'description' => fake()->paragraph(),
             'price' => fake()->randomFloat(2, 10, 200),
+            'tax_affectation' => TaxAffectation::Taxed,
             'stock' => fake()->numberBetween(5, 50),
             'is_active' => true,
             'is_featured' => false,

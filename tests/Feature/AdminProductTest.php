@@ -475,10 +475,103 @@ class AdminProductTest extends TestCase
             ->assertSee('Nombre <span class="required-mark"', false)
             ->assertSee('SKU <span class="required-mark"', false)
             ->assertSee('Categoria <span class="required-mark"', false)
-            ->assertSee('Precio <span class="required-mark"', false)
+            ->assertSee('Precio de venta (IGV incluido) <span class="required-mark"', false)
+            ->assertSee('Afectacion tributaria <span class="required-mark"', false)
+            ->assertSee('data-tax-breakdown', false)
+            ->assertSee('value="taxed" data-tax-rate-bps="1800"', false)
+            ->assertSee('value="exempt" data-tax-rate-bps="0"', false)
+            ->assertSee('value="unaffected" data-tax-rate-bps="0"', false)
             ->assertSee('name="stock"', false)
             ->assertDontSee('Stock minimo de alerta')
             ->assertSee('Podras agregar imagenes adicionales despues de guardar');
+    }
+
+    public function test_product_tax_affectation_defaults_to_taxed_and_derives_its_rate(): void
+    {
+        [$category] = $this->catalogRelations();
+
+        $this->post(route('admin.products.store'), [
+            'category_id' => $category->id,
+            'name' => 'Producto gravado',
+            'slug' => 'producto-gravado',
+            'sku' => 'TAX-001',
+            'price' => '118.00',
+            'is_active' => '1',
+            'is_featured' => '0',
+        ])->assertSessionHasNoErrors();
+
+        $product = Product::query()->where('sku', 'TAX-001')->firstOrFail();
+
+        $this->assertSame('taxed', $product->tax_affectation->value);
+        $this->assertSame(1800, $product->tax_rate_bps);
+        $this->assertSame(10_000, $product->net_price_cents);
+        $this->assertSame(1_800, $product->tax_amount_cents);
+    }
+
+    public function test_admin_can_store_an_exempt_product_and_rate_is_forced_to_zero(): void
+    {
+        [$category] = $this->catalogRelations();
+
+        $this->post(route('admin.products.store'), [
+            'category_id' => $category->id,
+            'name' => 'Producto exonerado',
+            'slug' => 'producto-exonerado',
+            'sku' => 'TAX-002',
+            'price' => '50.00',
+            'tax_affectation' => 'exempt',
+            'is_active' => '1',
+            'is_featured' => '0',
+        ])->assertSessionHasNoErrors();
+
+        $product = Product::query()->where('sku', 'TAX-002')->firstOrFail();
+
+        $this->assertSame('exempt', $product->tax_affectation->value);
+        $this->assertSame(0, $product->tax_rate_bps);
+        $this->assertSame(5_000, $product->net_price_cents);
+        $this->assertSame(0, $product->tax_amount_cents);
+    }
+
+    public function test_product_update_preserves_tax_affectation_when_legacy_form_omits_it(): void
+    {
+        [$category] = $this->catalogRelations();
+        $product = Product::factory()->create([
+            'category_id' => $category->id,
+            'tax_affectation' => 'unaffected',
+        ]);
+
+        $this->put(route('admin.products.update', $product), [
+            'category_id' => $category->id,
+            'name' => $product->name,
+            'slug' => $product->slug,
+            'sku' => $product->sku,
+            'price' => '25.00',
+            'is_active' => '1',
+            'is_featured' => '0',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('unaffected', $product->refresh()->tax_affectation->value);
+        $this->assertSame(0, $product->tax_rate_bps);
+    }
+
+    public function test_product_rejects_an_unknown_tax_affectation(): void
+    {
+        [$category] = $this->catalogRelations();
+
+        $this->from(route('admin.products.create'))
+            ->post(route('admin.products.store'), [
+                'category_id' => $category->id,
+                'name' => 'Producto invalido',
+                'slug' => 'producto-invalido',
+                'sku' => 'TAX-003',
+                'price' => '10.00',
+                'tax_affectation' => 'free',
+                'is_active' => '1',
+                'is_featured' => '0',
+            ])
+            ->assertRedirect(route('admin.products.create'))
+            ->assertSessionHasErrors('tax_affectation');
+
+        $this->assertDatabaseMissing('products', ['sku' => 'TAX-003']);
     }
 
     public function test_admin_product_edit_shows_stock_as_read_only(): void

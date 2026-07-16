@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\UpdateDeliveryDistrictRequest;
 use App\Http\Requests\Admin\UpdateOperationalSettingsRequest;
 use App\Models\DeliveryDistrict;
 use App\Models\Setting;
+use App\Support\Money\Money;
 use App\Support\Settings\StorefrontSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -64,7 +65,7 @@ class OperationalSettingsController extends Controller
             Setting::CONTACT_PHONE => $validated['contact_phone'] ?? '',
             Setting::BUSINESS_HOURS_WEEKDAYS => $validated['business_hours_weekdays'],
             Setting::BUSINESS_HOURS_SATURDAY => $validated['business_hours_saturday'] ?? '',
-            Setting::FREE_SHIPPING_THRESHOLD => number_format((float) $validated['free_shipping_threshold'], 2, '.', ''),
+            Setting::FREE_SHIPPING_THRESHOLD => Money::fromDecimal($validated['free_shipping_threshold'])->decimal(),
             Setting::STOCK_RESERVATION_MINUTES => (int) $validated['stock_reservation_minutes'],
             Setting::DELIVERY_BUSINESS_DAYS_MIN => (int) $validated['delivery_business_days_min'],
             Setting::DELIVERY_BUSINESS_DAYS_MAX => (int) $validated['delivery_business_days_max'],
@@ -81,7 +82,7 @@ class OperationalSettingsController extends Controller
         $validated = $request->validated();
 
         $deliveryDistrict->update([
-            'shipping_fee' => number_format((float) $validated['shipping_fee'], 2, '.', ''),
+            'shipping_fee' => Money::fromDecimal($validated['shipping_fee'])->decimal(),
             'is_active' => (bool) $validated['is_active'],
         ]);
 

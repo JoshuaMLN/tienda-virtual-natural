@@ -2,6 +2,7 @@
 
 namespace App\Support\Cart;
 
+use App\Support\Money\Money;
 use Illuminate\Support\Str;
 
 class SessionCartStorage implements CartStorageInterface
@@ -123,7 +124,7 @@ class SessionCartStorage implements CartStorageInterface
             $productId = (int) $productId;
 
             if ($productId > 0 && is_numeric($price)) {
-                $normalized[$productId] = number_format((float) $price, 2, '.', '');
+                $normalized[$productId] = Money::fromDecimal($price)->decimal();
             }
         }
 
@@ -137,7 +138,7 @@ class SessionCartStorage implements CartStorageInterface
         }
 
         $references = $this->priceReferences();
-        $references[$productId] = number_format((float) $price, 2, '.', '');
+        $references[$productId] = Money::fromDecimal($price)->decimal();
 
         session()->put(self::PRICE_REFERENCES_SESSION_KEY, $references);
     }

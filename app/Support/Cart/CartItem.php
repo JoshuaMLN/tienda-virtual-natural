@@ -3,6 +3,7 @@
 namespace App\Support\Cart;
 
 use App\Models\Product;
+use App\Support\Money\Money;
 
 class CartItem
 {
@@ -10,15 +11,14 @@ class CartItem
         public readonly Product $product,
         public readonly int $quantity,
         public readonly int $unitPriceCents,
-    ) {
-    }
+    ) {}
 
     public static function fromProduct(Product $product, int $quantity): self
     {
         return new self(
             product: $product,
             quantity: $quantity,
-            unitPriceCents: (int) round((float) $product->price * 100),
+            unitPriceCents: Money::fromDecimal($product->price)->cents,
         );
     }
 
@@ -48,6 +48,8 @@ class CartItem
             'image_url' => $this->product->main_image_url,
             'quantity' => $this->quantity,
             'stock' => (int) $this->product->stock,
+            'unit_price_cents' => $this->unitPriceCents,
+            'subtotal_cents' => $this->subtotalCents(),
             'unit_price' => $this->unitPriceCents / 100,
             'subtotal' => $this->subtotalCents() / 100,
             'formatted_unit_price' => $this->formattedUnitPrice(),
@@ -59,6 +61,6 @@ class CartItem
 
     private function formatMoney(int $cents): string
     {
-        return 'S/ '.number_format($cents / 100, 2);
+        return Money::fromCents($cents)->formatted();
     }
 }

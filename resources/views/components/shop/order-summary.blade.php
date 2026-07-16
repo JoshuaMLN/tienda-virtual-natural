@@ -30,7 +30,7 @@
         <div class="d-flex justify-content-between"><span>Descuento</span><strong>{{ $discount }}</strong></div>
         <hr>
         <div class="d-flex justify-content-between fs-5"><span>Total</span><strong>{{ $total }}</strong></div>
-        <span class="text-muted text-end">Incluye IGV</span>
+        <span class="text-muted text-end">Impuestos incluidos cuando correspondan</span>
     </div>
     @if($href)
         <a class="btn btn-vn w-100 mt-4" href="{{ $href }}">{{ $button }}</a>
