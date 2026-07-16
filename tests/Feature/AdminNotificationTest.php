@@ -5,13 +5,14 @@ namespace Tests\Feature;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\View;
-use Tests\TestCase;
 use App\Support\Notifications\AdminNotificationService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\AuthenticatesAdmins;
+use Tests\TestCase;
 
 class AdminNotificationTest extends TestCase
 {
+    use AuthenticatesAdmins;
     use RefreshDatabase;
 
     public function test_stock_notifications_are_generated_for_active_products(): void
@@ -110,7 +111,7 @@ class AdminNotificationTest extends TestCase
     public function test_topbar_renders_empty_state_when_no_notifications(): void
     {
         $view = $this->view('components.admin.topbar');
-        
+
         $view->assertDontSee('<span class="cart-count">', false);
         $view->assertSee('Todo al dia');
     }

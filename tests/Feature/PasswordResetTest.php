@@ -51,6 +51,21 @@ class PasswordResetTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_admin_email_does_not_receive_a_customer_reset_link(): void
+    {
+        Notification::fake();
+        User::factory()->admin()->create(['email' => 'admin@example.com']);
+
+        $this->post(route('password.email'), ['email' => 'admin@example.com'])
+            ->assertRedirect()
+            ->assertSessionHas(
+                'status',
+                'Si el correo pertenece a una cuenta, recibiras un enlace para restablecer tu contrasena.'
+            );
+
+        Notification::assertNothingSent();
+    }
+
     public function test_customer_can_reset_password_with_a_valid_token(): void
     {
         $user = User::factory()->create([

@@ -56,6 +56,10 @@ class SocialAccountService
 
     public function link(User $user, GoogleProfile $profile): SocialAccount
     {
+        if (! $user->isCustomer()) {
+            throw SocialAccountException::customerAccessOnly();
+        }
+
         if (! hash_equals(Str::lower(trim($user->email)), $profile->email)) {
             throw SocialAccountException::emailMismatch();
         }

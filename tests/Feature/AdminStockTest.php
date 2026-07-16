@@ -7,10 +7,12 @@ use App\Models\Category;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\AuthenticatesAdmins;
 use Tests\TestCase;
 
 class AdminStockTest extends TestCase
 {
+    use AuthenticatesAdmins;
     use RefreshDatabase;
 
     public function test_admin_can_view_stock_list_with_real_data_and_summary(): void

@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\AuthenticatesAdmins;
 use Tests\TestCase;
 
 class AdminLayoutTest extends TestCase
 {
+    use AuthenticatesAdmins;
     use RefreshDatabase;
 
     public function test_admin_mobile_sidebar_has_open_close_and_backdrop_controls(): void
@@ -18,7 +20,13 @@ class AdminLayoutTest extends TestCase
             ->assertSee('data-admin-sidebar', false)
             ->assertSee('data-admin-sidebar-close', false)
             ->assertSee('admin-sidebar-backdrop', false)
-            ->assertSee('aria-label="Cerrar menu"', false);
+            ->assertSee('admin-sidebar-nav', false)
+            ->assertSee('admin-sidebar-footer', false)
+            ->assertSee('aria-label="Cerrar menu"', false)
+            ->assertSee($this->adminUser->name)
+            ->assertSee($this->adminUser->email)
+            ->assertSee('adminLogoutConfirmationModal', false)
+            ->assertSee(route('admin.logout'), false);
     }
 
     public function test_admin_dashboard_uses_real_product_stock_data(): void

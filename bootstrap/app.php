@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureCustomerOrGuest;
+use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureUserIsCustomer;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,9 +15,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->redirectGuestsTo(fn (Request $request) => route('login'));
-        $middleware->redirectUsersTo(fn (Request $request) => route('account.profile'));
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('admin', 'admin/*')
+            ? route('admin.login')
+            : route('login'));
+        $middleware->redirectUsersTo(fn (Request $request) => $request->user()?->isAdmin()
+            ? route('admin.dashboard')
+            : route('account.profile'));
+        $middleware->alias([
+            'admin' => EnsureUserIsAdmin::class,
+            'customer' => EnsureUserIsCustomer::class,
+            'customer_or_guest' => EnsureCustomerOrGuest::class,
+        ]);
     })
+    ->withCommands()
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),

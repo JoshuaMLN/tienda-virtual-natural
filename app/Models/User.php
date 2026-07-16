@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
 use Database\Factories\UserFactory;
@@ -9,6 +10,7 @@ use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -23,6 +25,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, MustVerifyEmail, Notifiable;
+
+    protected $attributes = [
+        'role' => 'customer',
+    ];
 
     protected static function booted(): void
     {
@@ -67,6 +73,26 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasOne(Cart::class);
     }
 
+    public function scopeCustomers(Builder $query): void
+    {
+        $query->where('role', UserRole::Customer->value);
+    }
+
+    public function scopeAdmins(Builder $query): void
+    {
+        $query->where('role', UserRole::Admin->value);
+    }
+
+    public function isCustomer(): bool
+    {
+        return $this->role === UserRole::Customer;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === UserRole::Admin;
+    }
+
     public function getAvatarUrlAttribute(): ?string
     {
         return $this->avatar_path
@@ -103,6 +129,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
             'terms_accepted_at' => 'datetime',
         ];
     }

@@ -28,6 +28,12 @@
                         <i class="bi bi-person"></i><span class="d-none d-md-inline">Iniciar sesion</span>
                     </a>
                 @else
+                    @if(auth()->user()->isAdmin())
+                        <a class="header-action" href="{{ route('admin.dashboard') }}" aria-label="Ir al panel administrativo">
+                            <span class="header-account-avatar header-account-initials" aria-hidden="true">{{ auth()->user()->initials }}</span>
+                            <span class="d-none d-md-inline">Panel admin</span>
+                        </a>
+                    @else
                     <div class="dropdown">
                         <button
                             class="header-action header-action-button header-account-trigger dropdown-toggle"
@@ -77,7 +83,9 @@
                             </li>
                         </ul>
                     </div>
+                    @endif
                 @endguest
+                @if(! auth()->check() || auth()->user()->isCustomer())
                 <button
                     class="header-action header-action-button"
                     type="button"
@@ -88,6 +96,7 @@
                 >
                     <i class="bi bi-cart3"></i><span class="d-none d-md-inline">Carrito</span><span class="cart-count" data-cart-count data-cart-info-url="{{ route('shop.cart.info') }}">{{ $cartCount }}</span>
                 </button>
+                @endif
             </div>
         </div>
     </div>

@@ -8,10 +8,12 @@ use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\AuthenticatesAdmins;
 use Tests\TestCase;
 
 class AdminBrandTest extends TestCase
 {
+    use AuthenticatesAdmins;
     use RefreshDatabase;
 
     public function test_admin_can_view_brand_list(): void

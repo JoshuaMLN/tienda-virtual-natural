@@ -61,7 +61,7 @@
             <i class="bi {{ $productView['stock_icon'] }}"></i>
             {{ $productView['stock_label'] }}
         </div>
-        @if($productView['id'])
+        @if($productView['id'] && (! auth()->check() || auth()->user()->isCustomer()))
             <button
                 class="btn btn-vn-outline btn-sm w-100 mt-3"
                 type="button"

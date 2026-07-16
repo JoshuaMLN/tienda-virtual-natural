@@ -12,11 +12,15 @@
 </head>
 <body>
     <x-shop.navbar />
-    <x-shop.cart-drawer />
-    <x-shop.cart-quantity-modal />
+    @if(! auth()->check() || auth()->user()->isCustomer())
+        <x-shop.cart-drawer />
+        <x-shop.cart-quantity-modal />
+    @endif
     <x-shop.flash-message />
     @auth
+        @if(auth()->user()->isCustomer())
         <x-account.logout-modal />
+        @endif
     @endauth
 
     <main>

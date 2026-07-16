@@ -99,6 +99,46 @@ class GoogleAuthenticationTest extends TestCase
             ->assertSee(route('auth.google.confirm.store'), false);
     }
 
+    public function test_admin_email_cannot_enter_or_link_through_google_customer_access(): void
+    {
+        User::factory()->admin()->create([
+            'email' => 'admin@example.com',
+            'password' => 'AdminAccess123',
+        ]);
+
+        $this->startGuestFlow($this->googleUser([
+            'id' => 'google-admin-email',
+            'email' => 'admin@example.com',
+        ]));
+
+        $this->get(route('auth.google.callback'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors(['google'], null, 'google');
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('social_accounts', 0);
+    }
+
+    public function test_google_identity_previously_linked_to_admin_is_rejected(): void
+    {
+        $admin = User::factory()->admin()->create(['email' => 'admin@example.com']);
+        $admin->socialAccounts()->create([
+            'provider' => SocialAccount::PROVIDER_GOOGLE,
+            'provider_user_id' => 'google-linked-admin',
+        ]);
+
+        $this->startGuestFlow($this->googleUser([
+            'id' => 'google-linked-admin',
+            'email' => 'admin@example.com',
+        ]));
+
+        $this->get(route('auth.google.callback'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors(['google'], null, 'google');
+
+        $this->assertGuest();
+    }
+
     public function test_existing_local_account_is_linked_only_after_correct_password(): void
     {
         $user = User::factory()->unverified()->create([

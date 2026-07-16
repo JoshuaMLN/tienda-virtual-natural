@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Auth;
+namespace App\Http\Controllers\Admin\Auth;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -15,16 +15,16 @@ class PasswordResetLinkController extends Controller
 
     public function create(): View
     {
-        return view('auth.forgot-password');
+        return view('admin.auth.forgot-password');
     }
 
     public function store(ForgotPasswordRequest $request): RedirectResponse
     {
-        $this->passwords->sendResetLink(UserRole::Customer, $request->validated('email'));
+        $this->passwords->sendResetLink(UserRole::Admin, $request->validated('email'));
 
         return back()->with(
             'status',
-            'Si el correo pertenece a una cuenta, recibiras un enlace para restablecer tu contrasena.'
+            'Si el correo pertenece a una cuenta administrativa, recibiras un enlace de recuperacion.'
         );
     }
 }

@@ -42,7 +42,32 @@
                 @endif
             </div>
         </div>
-        <span class="thumb-sm" style="background-image: url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80')"></span>
-        <strong class="small">Admin VitaNatural</strong>
+        <div class="dropdown">
+            <button class="admin-account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Abrir menu administrativo">
+                @if(auth()->user()->avatar_url)
+                    <img class="admin-account-avatar" src="{{ auth()->user()->avatar_url }}" alt="" width="38" height="38">
+                @else
+                    <span class="admin-account-avatar admin-account-initials" aria-hidden="true">{{ auth()->user()->initials }}</span>
+                @endif
+                <span class="admin-account-copy d-none d-sm-block">
+                    <strong>{{ auth()->user()->name }}</strong>
+                    <small>Administrador</small>
+                </span>
+                <i class="bi bi-chevron-down small" aria-hidden="true"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end admin-account-menu">
+                <li class="px-3 py-2 border-bottom">
+                    <strong class="d-block text-truncate">{{ auth()->user()->name }}</strong>
+                    <span class="d-block small text-muted text-truncate">{{ auth()->user()->email }}</span>
+                </li>
+                <li><a class="dropdown-item" href="{{ route('shop.index') }}"><i class="bi bi-shop me-2"></i>Ver tienda</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <button class="dropdown-item text-danger" type="button" data-bs-toggle="modal" data-bs-target="#adminLogoutConfirmationModal">
+                        <i class="bi bi-box-arrow-left me-2"></i>Cerrar sesion
+                    </button>
+                </li>
+            </ul>
+        </div>
     </div>
 </header>

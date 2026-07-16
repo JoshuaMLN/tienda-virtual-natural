@@ -100,10 +100,20 @@ class GoogleAuthController extends Controller
         }
 
         if (($linkedUser = $this->accounts->linkedUser($profile)) !== null) {
+            if (! $linkedUser->isCustomer()) {
+                return $this->googleError('login', SocialAccountException::customerAccessOnly()->getMessage());
+            }
+
             return $this->authenticate($request, $linkedUser);
         }
 
-        if ($this->accounts->userWithEmail($profile) !== null) {
+        $existingUser = $this->accounts->userWithEmail($profile);
+
+        if ($existingUser?->isAdmin()) {
+            return $this->googleError('login', SocialAccountException::customerAccessOnly()->getMessage());
+        }
+
+        if ($existingUser !== null) {
             $request->session()->put(self::PENDING_SESSION_KEY, [
                 ...$profile->toSession(),
                 'expires_at' => now()->addMinutes(self::PENDING_MINUTES)->timestamp,
@@ -149,6 +159,12 @@ class GoogleAuthController extends Controller
         }
 
         $user = $this->accounts->userWithEmail($profile);
+
+        if ($user?->isAdmin()) {
+            $request->session()->forget(self::PENDING_SESSION_KEY);
+
+            return $this->googleError('login', SocialAccountException::customerAccessOnly()->getMessage());
+        }
 
         if ($user === null || $user->password === null || ! Hash::check($request->validated('password'), $user->password)) {
             return back()->withErrors([
@@ -208,6 +224,10 @@ class GoogleAuthController extends Controller
 
     private function authenticate(Request $request, User $user, ?string $status = null): RedirectResponse
     {
+        if (! $user->isCustomer()) {
+            return $this->googleError('login', SocialAccountException::customerAccessOnly()->getMessage());
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
         $this->cartMerge->mergeFor($user);

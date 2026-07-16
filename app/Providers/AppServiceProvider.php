@@ -60,7 +60,9 @@ class AppServiceProvider extends ServiceProvider
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get());
-            $view->with('cartCount', app(CartService::class)->count());
+            $view->with('cartCount', Auth::user()?->isAdmin()
+                ? 0
+                : app(CartService::class)->count());
         });
 
         View::composer('components.shop.cart-drawer', function ($view) {

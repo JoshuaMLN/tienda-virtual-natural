@@ -45,4 +45,9 @@ class SocialAccountException extends RuntimeException
     {
         return new self('Primero define una contrasena para no quedarte sin un metodo de acceso.');
     }
+
+    public static function customerAccessOnly(): self
+    {
+        return new self('Este correo no puede utilizarse en el acceso de clientes con Google.');
+    }
 }

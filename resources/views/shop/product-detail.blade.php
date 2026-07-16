@@ -83,6 +83,7 @@
                 <div class="col-4"><i class="bi bi-bicycle text-vn-green fs-3"></i><br><span class="small">Rutina saludable</span></div>
             </div>
 
+            @if(! auth()->check() || auth()->user()->isCustomer())
             <label class="form-label fw-bold">Cantidad</label>
             <div class="d-flex flex-wrap gap-3 align-items-center mb-3" data-cart-form>
                 <div class="quantity-control">
@@ -101,6 +102,12 @@
                     <i class="bi bi-cart-plus me-2"></i>{{ $product->is_in_stock ? 'Anadir al carrito' : 'No disponible' }}
                 </button>
             </div>
+            @else
+                <div class="alert alert-light border d-flex align-items-center gap-2 mb-3" role="status">
+                    <i class="bi bi-shield-lock text-vn-green" aria-hidden="true"></i>
+                    <span>Las cuentas administrativas no realizan compras.</span>
+                </div>
+            @endif
             <button class="btn btn-vn-outline w-100" type="button"><i class="bi bi-heart me-2"></i>Anadir a favoritos</button>
 
             <div class="mt-4">

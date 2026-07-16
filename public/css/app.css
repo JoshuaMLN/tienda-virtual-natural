@@ -1185,14 +1185,85 @@ a {
     min-height: 100vh;
 }
 
+.admin-auth-body {
+    background: #f3f5f1;
+    min-height: 100vh;
+}
+
+.admin-auth-shell {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1.5rem;
+}
+
+.admin-auth-panel {
+    background: #fff;
+    border: 1px solid #dde3db;
+    border-top: 4px solid var(--vn-green-700);
+    border-radius: 8px;
+    box-shadow: 0 18px 45px rgba(22, 49, 30, .09);
+    max-width: 460px;
+    padding: 2rem;
+    width: 100%;
+}
+
+.admin-auth-icon {
+    align-items: center;
+    background: var(--vn-green-100);
+    border-radius: 8px;
+    color: var(--vn-green-800);
+    display: inline-flex;
+    font-size: 1.35rem;
+    height: 46px;
+    justify-content: center;
+    width: 46px;
+}
+
+.admin-auth-footer {
+    border-top: 1px solid var(--vn-line);
+    color: var(--vn-muted);
+    font-size: .78rem;
+    margin-top: 1.75rem;
+    padding-top: 1rem;
+    text-align: center;
+}
+
 .admin-sidebar {
     background: linear-gradient(180deg, var(--vn-green-900), #0f3a22);
     color: #fff;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
     inset: 0 auto 0 0;
-    overflow-y: auto;
+    overflow: hidden;
     position: fixed;
     width: 250px;
     z-index: 1040;
+}
+
+.admin-sidebar-header,
+.admin-sidebar-footer {
+    flex: 0 0 auto;
+}
+
+.admin-sidebar-nav {
+    align-content: start;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: .25rem;
+    scrollbar-width: thin;
+}
+
+.admin-sidebar-footer {
+    border-top: 1px solid rgba(255, 255, 255, .14);
+    margin-top: .75rem;
+    padding-top: .75rem;
 }
 
 .admin-sidebar a {
@@ -1203,6 +1274,24 @@ a {
 .admin-sidebar a:hover {
     background: rgba(255, 255, 255, .12);
     color: #fff;
+}
+
+.admin-sidebar-logout {
+    align-items: center;
+    background: rgba(190, 45, 45, .2);
+    border: 1px solid rgba(255, 181, 181, .24);
+    border-radius: 6px;
+    color: #fff;
+    display: flex;
+    gap: .65rem;
+    padding: .75rem .85rem;
+    text-align: left;
+    width: 100%;
+}
+
+.admin-sidebar-logout:hover,
+.admin-sidebar-logout:focus-visible {
+    background: rgba(190, 45, 45, .38);
 }
 
 .admin-sidebar-close {
@@ -1251,6 +1340,57 @@ body.admin-sidebar-open {
     background: #fff;
     border-bottom: 1px solid var(--vn-line);
     min-height: 68px;
+}
+
+.admin-account-trigger {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: var(--vn-ink);
+    display: flex;
+    gap: .65rem;
+    padding: .25rem;
+}
+
+.admin-account-avatar {
+    border-radius: 50%;
+    flex: 0 0 38px;
+    height: 38px;
+    object-fit: cover;
+    width: 38px;
+}
+
+.admin-account-initials {
+    align-items: center;
+    background: var(--vn-green-100);
+    color: var(--vn-green-900);
+    display: inline-flex;
+    font-size: .78rem;
+    font-weight: 900;
+    justify-content: center;
+}
+
+.admin-account-copy {
+    line-height: 1.15;
+    max-width: 170px;
+    text-align: left;
+}
+
+.admin-account-copy strong,
+.admin-account-copy small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-account-copy small {
+    color: var(--vn-muted);
+    margin-top: .15rem;
+}
+
+.admin-account-menu {
+    min-width: 260px;
 }
 
 .stat-card {
@@ -1594,6 +1734,15 @@ body.admin-sidebar-open {
 
     .address-form-actions .btn {
         width: 100%;
+    }
+
+    .admin-auth-shell {
+        align-items: flex-start;
+        padding: 1rem;
+    }
+
+    .admin-auth-panel {
+        padding: 1.5rem;
     }
 }
 .auth-provider-divider {
