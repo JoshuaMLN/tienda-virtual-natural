@@ -70,6 +70,15 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - El envio por correo usa el correo fiscal congelado en el pedido y registra fecha, destinatario, administrador y resultado.
 - La automatizacion SUNAT mediante PSE, OSE o SEE del contribuyente queda fuera de este sprint.
 - La proteccion basica de todo `/admin` es prerrequisito del modulo de pedidos. Las policies granulares por capacidad quedan para Sprint 9.
+- La identidad del proveedor, los canales de atencion y los plazos comerciales se administran como configuracion legal; mientras falten razon social y RUC, la tienda se identifica expresamente como demostrativa y no puede habilitar ventas reales.
+- Los terminos y condiciones se publican por versiones. Una version publicada es inmutable y, al crear el pedido en la Fase 5, se conserva la version aceptada y la fecha de aceptacion.
+- La politica de privacidad se presenta como documento independiente. La aceptacion de la compra no implica consentimiento para publicidad o prospeccion comercial.
+- No se aceptan devoluciones por cambio de opinion despues de la entrega. Se atienden productos defectuosos, danados, vencidos o enviados incorrectamente sin condicionar el reclamo a que el sello permanezca intacto.
+- Los incidentes visibles se solicitan preferentemente dentro de 48 horas para facilitar su investigacion, sin usar ese plazo para extinguir derechos del consumidor. Cuando la tienda sea responsable, asume el recojo, la reposicion y el nuevo envio.
+- Un pedido puede cancelarse mientras no haya sido entregado al transportista. La devolucion se inicia al mismo medio de pago dentro del plazo comercial configurable, inicialmente 5 dias habiles; el reflejo bancario puede tardar hasta 30 dias calendario.
+- Cada tarifa de entrega cubre inicialmente tres intentos. Solo cuentan los intentos fallidos atribuibles al cliente; los errores de tienda o transportista no consumen intentos ni generan cobros adicionales.
+- Despues del primer ciclo fallido, el cliente dispone inicialmente de 7 dias calendario para pagar un nuevo envio o elegir recojo. Se permite un segundo ciclo automatico de tres intentos; un nuevo fallo pasa a atencion manual.
+- El plazo de recojo comienza cuando el pedido queda listo y sera configurable, inicialmente 14 dias calendario. Su vencimiento genera seguimiento manual, nunca descarte o cancelacion silenciosa.
 
 ## Alcance funcional
 
@@ -200,27 +209,102 @@ Criterio de salida:
 
 Objetivo: reemplazar la maqueta por un checkout protegido, responsive y conectado a direcciones, entrega y facturacion reales.
 
+Durante toda la fase:
+- No se crean pedidos, reservas, cobros ni correos.
+- Cada etapa incluye sus pruebas automatizadas y puede cerrarse en un commit independiente.
+
+### Etapa 4.1: Configuracion legal y documentos versionados
+
 Tareas:
-- Mantener `auth` y `verified` en todas las rutas de checkout.
-- Mostrar el carrito completo y bloquear el avance cuando este vacio.
-- Permitir elegir una direccion guardada o agregar una nueva que se persista en la cuenta.
-- Respetar el limite de 10 direcciones y ofrecer acceso directo a su administracion.
-- Resolver provincia, distrito y UBIGEO desde el catalogo canonico.
-- Permitir entrega a domicilio o recojo cuando este habilitado.
-- Calcular tarifa por distrito y aplicar envio gratis cuando corresponda.
-- Mostrar en la parte superior que la entrega esta disponible solo en Lima Metropolitana y Callao.
-- Mostrar el plazo configurable de 1 a 2 dias habiles desde la confirmacion del pago.
-- Permitir elegir `Boleta` o `Factura` mediante un control claro.
-- Para boleta solicitar tipo de documento, numero, nombres y apellidos y correo fiscal.
-- Para factura solicitar RUC, razon social, domicilio fiscal y correo fiscal.
-- Validar campos condicionales en backend y no aceptar datos fiscales ocultos o incompatibles.
-- Separar visualmente datos de entrega, datos fiscales y resumen del pedido.
-- Mantener todos los valores ingresados ante errores de validacion o conflictos de carrito.
-- No crear pedidos desde `GET /checkout`.
-- Crear pruebas HTTP y de vista para cada modalidad, comprobante y estado de validacion.
+- Agregar configuracion administrativa para nombre comercial, razon social o titular, RUC, domicilio fiscal, correo, WhatsApp, horario y enlace al Libro de Reclamaciones.
+- Agregar valores configurables para aviso preferente de incidentes, procesamiento interno de reembolsos, intentos por ciclo, ciclos automaticos, plazo para pagar reenvio y plazo de recojo.
+- Aplicar inicialmente 48 horas, 5 dias habiles, 3 intentos, 2 ciclos, 7 dias calendario y 14 dias calendario, respectivamente.
+- Modelar documentos legales versionados con estados `draft`, `published` y `replaced`.
+- Impedir la modificacion de una version publicada y permitir publicar una nueva version que reemplace a la anterior.
+- Reemplazar la maqueta publica de terminos y condiciones por la version activa y preparar la misma estructura para la politica de privacidad.
+- Mostrar modo demostrativo mientras no exista identidad legal completa y bloquear la futura activacion de ventas reales con configuracion incompleta.
+- Crear pruebas de configuracion, publicacion, reemplazo e inmutabilidad.
 
 Criterio de salida:
-- El cliente puede completar y revisar todos los datos necesarios sin que visitar el checkout modifique inventario ni cree pedidos.
+- Existe una version legal activa, historicamente reproducible y utilizable por el checkout, sin presentar el demo como un proveedor real.
+
+### Etapa 4.2: Base real del checkout
+
+Tareas:
+- Crear controlador, requests y servicios de lectura propios del checkout.
+- Mantener `auth`, `customer` y `verified` en todas sus rutas.
+- Reemplazar los productos estaticos por el carrito vigente y mostrar cantidades, subtotal, desglose tributario y total reales.
+- Sincronizar visibilidad, precios y disponibilidad con las reglas existentes del carrito.
+- Bloquear el avance y redirigir al carrito con un mensaje persistente cuando quede vacio.
+- Retirar la caja y el boton ficticios de Culqi, cuya integracion corresponde al Sprint 7.
+- Garantizar que `GET /checkout` no escriba direcciones, pedidos, reservas ni movimientos.
+- Crear pruebas HTTP y de vista para acceso, carrito vacio, carrito real y ausencia de efectos secundarios.
+
+Criterio de salida:
+- El checkout protegido presenta informacion real y reproducible del carrito sin modificar el dominio.
+
+### Etapa 4.3: Contacto y direcciones
+
+Tareas:
+- Mostrar el correo verificado como solo lectura y precargar nombre y telefono para esta compra sin modificar automaticamente el perfil.
+- Permitir elegir una direccion propia, priorizando la predeterminada.
+- Permitir `Guardar y usar esta direccion` desde un formulario integrado al checkout.
+- Hacer predeterminada la primera direccion y ofrecer un checkbox explicito para las siguientes.
+- Reutilizar el catalogo canonico para resolver provincia, distrito y UBIGEO sin aceptar texto libre inconsistente.
+- Respetar el limite de 10 direcciones, deshabilitar la creacion al alcanzarlo y ofrecer acceso directo a su administracion.
+- Rechazar direcciones ajenas o manipuladas y conservar la seleccion ante errores.
+- Crear pruebas de propiedad, direccion predeterminada, creacion, limite y validacion canonica.
+
+Criterio de salida:
+- El cliente puede definir de forma segura los datos de contacto y la direccion que se usaran para revisar su compra.
+
+### Etapa 4.4: Modalidad y cotizacion de entrega
+
+Tareas:
+- Mostrar en la parte superior que la entrega esta disponible solo en Lima Metropolitana y Callao.
+- Permitir entrega a domicilio o recojo cuando exista una direccion de recojo completa.
+- Mostrar todos los distritos canonicos de Lima y Callao e identificar los inactivos como no disponibles, con alternativa de contacto por WhatsApp.
+- Calcular la tarifa por distrito exclusivamente en backend y aplicar envio gratis cuando corresponda.
+- Mostrar el plazo configurable de 1 a 2 dias habiles desde la confirmacion del pago.
+- Mostrar la direccion y condiciones de recojo cuando esa modalidad este disponible.
+- Actualizar el resumen de manera dinamica, accesible y sin confiar en importes enviados por JavaScript.
+- Crear pruebas de cobertura, distrito inactivo, tarifa, envio gratis, recojo habilitado y recojo deshabilitado.
+
+Criterio de salida:
+- Cada modalidad produce una cotizacion valida y verificable sin crear el pedido ni reservar inventario.
+
+### Etapa 4.5: Datos fiscales, terminos y revision
+
+Tareas:
+- Permitir elegir `Boleta` o `Factura` mediante un control segmentado claro, con boleta como valor inicial.
+- Para boleta solicitar documento personal, numero, nombres, apellidos y correo fiscal.
+- Para factura solicitar RUC, razon social, domicilio fiscal y correo fiscal, sin solicitar DNI adicional.
+- Validar DNI, RUC con checksum y formatos admitidos para documentos extranjeros.
+- Validar campos condicionales en backend y rechazar datos ocultos, incompatibles o manipulados.
+- Mantener los datos fiscales independientes del perfil y de la direccion de entrega.
+- Exigir la aceptacion explicita de la version activa de terminos y enlazar la politica de privacidad sin mezclar consentimiento publicitario.
+- Crear una accion `Revisar pedido` que valide contacto, direccion, entrega, datos fiscales y terminos, y recalcule el resumen sin persistir un pedido.
+- Mantener todos los valores ingresados ante errores y no guardar borradores fiscales en almacenamiento persistente del navegador.
+- Crear pruebas para boleta, factura, documentos, manipulacion de campos, version legal y conservacion de datos.
+
+Criterio de salida:
+- El cliente puede completar y revisar una solicitud de checkout valida asociada a una version legal, todavia sin crear un pedido.
+
+### Etapa 4.6: UX, seguridad y cierre
+
+Tareas:
+- Separar visualmente contacto, entrega, datos fiscales y resumen sin anidar tarjetas innecesariamente.
+- Ajustar escritorio y celular, estados de carga, errores, campos obligatorios, foco y navegacion por teclado.
+- Verificar CSRF, autorizacion, propiedad de recursos y rechazo de importes o identificadores manipulados.
+- Completar pruebas HTTP, de servicios, validacion, vistas y JavaScript para los recorridos transversales.
+- Ejecutar suite completa, cache de vistas, revision de JavaScript, build frontend, formato y `git diff --check`.
+- Realizar validaciones manuales responsive y actualizar roadmap y status con resultados reales.
+
+Criterio de salida:
+- El checkout permite completar y revisar todos los datos necesarios de forma segura y responsive, listo para que la Fase 5 cree el pedido idempotente y reserve stock.
+
+Criterio de salida:
+- Las seis etapas estan completas y visitar o revisar el checkout no modifica inventario ni crea pedidos.
 
 ## Fase 5: Revalidacion, creacion idempotente y reserva
 

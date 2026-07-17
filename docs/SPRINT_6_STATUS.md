@@ -159,18 +159,84 @@ Validaciones:
 
 ## Fase 4: Checkout real y experiencia del formulario
 
-Estado: Pendiente
+Estado: En progreso (3 de 6 etapas)
+
+Decisiones cerradas:
+- La fase solo completa y revisa datos; pedidos, reservas e idempotencia comienzan en la Fase 5.
+- Informacion legal y plazos comerciales configurables, con modo demostrativo mientras no exista empresa o RUC final.
+- Terminos y condiciones versionados e inmutables despues de publicarse; politica de privacidad separada.
+- Devoluciones posteriores a la entrega solo por defecto, dano, vencimiento o producto incorrecto, sin exigir sello intacto para reconocer un defecto.
+- Aviso preferente de incidentes visibles dentro de 48 horas, sin extinguir derechos por superar ese plazo.
+- Cancelacion permitida hasta la entrega al transportista y reembolso al mismo medio de pago.
+- Procesamiento interno inicial de reembolso en 5 dias habiles y posible reflejo bancario de hasta 30 dias calendario.
+- Tres intentos por tarifa, dos ciclos automaticos como maximo y 7 dias para pagar el segundo envio.
+- Recojo configurable, inicialmente 14 dias desde que el pedido quede listo, con seguimiento manual al vencer.
 
 Planificado:
-- Direcciones guardadas o nueva direccion persistida.
-- Entrega por distrito o recojo configurado.
-- Resumen con tarifa y envio gratis.
-- Campos condicionales de boleta y factura.
-- Conservacion de datos ante errores.
-- Pruebas HTTP, validacion y vistas responsive.
+- Etapa 4.1: configuracion legal y documentos versionados. Completada.
+- Etapa 4.2: base real del checkout y carrito vigente. Completada.
+- Etapa 4.3: contacto y direcciones propias. Completada.
+- Etapa 4.4: modalidad y cotizacion de entrega.
+- Etapa 4.5: datos fiscales, terminos y revision sin crear pedido.
+- Etapa 4.6: UX, seguridad, pruebas integrales y cierre.
 
 Pendiente:
-- Implementacion completa de la fase.
+- Etapa 4.4 completa.
+- Etapa 4.5 completa.
+- Etapa 4.6 completa.
+
+Etapa 4.1 completada:
+- Identidad del proveedor y reglas comerciales configurables desde `/admin/legal`.
+- Modo demostrativo mientras no exista identidad completa, documentos vigentes o habilitacion expresa de ventas reales.
+- Validacion reutilizable de RUC peruano y bloqueo de activacion incompleta.
+- Terminos y condiciones y politica de privacidad como documentos separados.
+- Borradores unicos por tipo, contenido regenerable y deteccion de cambios posteriores en la configuracion.
+- Publicacion transaccional con version correlativa, reemplazo de la version anterior y una sola publicacion activa por tipo garantizada por base de datos.
+- Versiones publicadas y reemplazadas inmutables, con snapshot, huella, publicador e historial administrativo.
+- Paginas publicas dinamicas `/terminos-y-condiciones` y `/politica-de-privacidad`, con aviso visible de modo demostrativo.
+- Migraciones `2026_07_16_001200_create_legal_documents_and_settings` y `2026_07_16_001210_add_unique_draft_slot_to_legal_documents` aplicadas.
+- Pruebas especificas de configuracion, autorizacion, RUC, borradores, publicacion, reemplazo, unicidad, snapshots, inmutabilidad y paginas publicas.
+- Suite completa: 374 pruebas, 2278 aserciones.
+- `php artisan view:cache`: correcto.
+- `npm.cmd run build`: correcto.
+- Pint sobre PHP modificado: correcto.
+- `git diff --check`: correcto.
+
+Etapa 4.2 completada:
+- `GET /checkout` usa controlador, request y servicio de lectura propios bajo `auth`, `customer` y `verified`.
+- Carrito autenticado sincronizado con las reglas vigentes de visibilidad, stock y precio antes de renderizar.
+- Resumen real con productos, cantidades, subtotal, valores gravados, exonerados e inafectos, IGV incluido y total en centimos.
+- Carrito vacio bloqueado con redireccion a `/carrito` y aviso persistente hasta que el cliente lo cierre.
+- Checkout estatico, productos de ejemplo y componentes ficticios de Culqi retirados; el pago permanece reservado al Sprint 7.
+- Lectura sin creacion de direcciones, secuencias, pedidos, items, historiales, reservas, movimientos ni documentos fiscales.
+- Pruebas HTTP y de vista para acceso, carrito vacio, impuestos mixtos, sincronizacion, visibilidad y ausencia de efectos secundarios.
+- Validacion manual completada: 8 de 8 escenarios aprobados.
+- Suite completa: 380 pruebas, 2329 aserciones.
+- `php artisan view:cache`: correcto.
+- `node --check public/js/app.js`: correcto.
+- `npm.cmd run build`: correcto.
+- Pint sobre PHP modificado: correcto.
+- `git diff --check`: correcto.
+
+Etapa 4.3 completada:
+- Borrador de checkout asociado al cliente y conservado en sesion sin modificar automaticamente su perfil.
+- Nombre y celular precargados y editables para la compra; correo verificado mostrado como solo lectura y resuelto siempre desde la cuenta.
+- Direcciones propias ordenadas con la predeterminada primero y seleccion segura sin exponer direcciones de otros clientes.
+- Formulario integrado para guardar y usar una direccion nueva mediante el servicio transaccional existente.
+- Primera direccion predeterminada automaticamente y checkbox explicito para reemplazarla al crear las siguientes.
+- Provincia, distrito, departamento y UBIGEO resueltos con el catalogo canonico compartido por checkout y `Mis direcciones`.
+- Limite de 10 direcciones aplicado en interfaz, request y dominio, con acceso directo a su administracion.
+- Seleccion y campos conservados ante errores de validacion; borrador aislado por usuario dentro de la sesion.
+- Guardado bloqueado para invitados, clientes sin verificar y carritos vacios, sin crear pedidos, secuencias, reservas ni movimientos.
+- Sin migraciones nuevas; la etapa reutiliza `customer_addresses` y almacenamiento de sesion.
+- Pruebas de acceso, precarga, propiedad, predeterminada, creacion, normalizacion, limite, persistencia, aislamiento y ausencia de efectos secundarios.
+- Validacion manual completada: 11 de 11 escenarios aprobados.
+- Suite completa: 391 pruebas, 2443 aserciones.
+- `php artisan view:cache`: correcto.
+- `node --check public/js/app.js`: correcto.
+- `npm.cmd run build`: correcto.
+- Pint sobre PHP modificado: correcto.
+- `git diff --check`: correcto.
 
 ## Fase 5: Revalidacion, creacion idempotente y reserva
 
