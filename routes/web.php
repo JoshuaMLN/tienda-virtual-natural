@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\Auth\PasswordResetLinkController as AdminPassword
 use App\Http\Controllers\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\LegalDocumentController as AdminLegalDocumentController;
+use App\Http\Controllers\Admin\LegalSettingsController as AdminLegalSettingsController;
 use App\Http\Controllers\Admin\OperationalSettingsController as AdminOperationalSettingsController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductSettingsController as AdminProductSettingsController;
@@ -24,6 +26,7 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Middleware\PreserveCheckoutAfterVerification;
 use Illuminate\Support\Facades\Route;
@@ -41,7 +44,8 @@ Route::middleware('customer_or_guest')->group(function () {
     Route::delete('/carrito', [CartController::class, 'clear'])->name('shop.cart.clear');
 });
 Route::view('/contacto', 'shop.contact')->name('shop.contact');
-Route::view('/terminos-y-condiciones', 'shop.terms')->name('shop.terms');
+Route::get('/terminos-y-condiciones', [LegalDocumentController::class, 'terms'])->name('shop.terms');
+Route::get('/politica-de-privacidad', [LegalDocumentController::class, 'privacy'])->name('shop.privacy');
 
 Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'customer'])->group(function () {
     Route::view('/', 'checkout.index')
@@ -138,6 +142,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/configuracion', [AdminOperationalSettingsController::class, 'edit'])->name('settings.edit');
         Route::patch('/configuracion', [AdminOperationalSettingsController::class, 'update'])->name('settings.update');
         Route::patch('/configuracion/distritos/{deliveryDistrict}', [AdminOperationalSettingsController::class, 'updateDistrict'])->name('settings.districts.update');
+        Route::get('/legal', [AdminLegalSettingsController::class, 'index'])->name('legal.index');
+        Route::patch('/legal/configuracion', [AdminLegalSettingsController::class, 'update'])->name('legal.settings.update');
+        Route::post('/legal/documentos', [AdminLegalDocumentController::class, 'store'])->name('legal.documents.store');
+        Route::get('/legal/documentos/{legalDocument}/editar', [AdminLegalDocumentController::class, 'edit'])->name('legal.documents.edit');
+        Route::put('/legal/documentos/{legalDocument}', [AdminLegalDocumentController::class, 'update'])->name('legal.documents.update');
+        Route::post('/legal/documentos/{legalDocument}/regenerar', [AdminLegalDocumentController::class, 'refreshTemplate'])->name('legal.documents.refresh-template');
+        Route::post('/legal/documentos/{legalDocument}/publicar', [AdminLegalDocumentController::class, 'publish'])->name('legal.documents.publish');
+        Route::delete('/legal/documentos/{legalDocument}', [AdminLegalDocumentController::class, 'destroy'])->name('legal.documents.destroy');
 
         Route::get('/categorias/slug-sugerido', [AdminCategoryController::class, 'suggestSlug'])->name('categories.suggest-slug');
         Route::patch('/categorias/{category}/estado', [AdminCategoryController::class, 'toggleStatus'])->name('categories.toggle-status');

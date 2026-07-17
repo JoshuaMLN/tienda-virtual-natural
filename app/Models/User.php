@@ -98,6 +98,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(FiscalDocumentDelivery::class, 'attempted_by');
     }
 
+    public function createdLegalDocuments(): HasMany
+    {
+        return $this->hasMany(LegalDocument::class, 'created_by');
+    }
+
+    public function publishedLegalDocuments(): HasMany
+    {
+        return $this->hasMany(LegalDocument::class, 'published_by');
+    }
+
     public function scopeCustomers(Builder $query): void
     {
         $query->where('role', UserRole::Customer->value);

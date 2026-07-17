@@ -30,6 +30,30 @@ class Setting extends Model
 
     public const PICKUP_ADDRESS = 'pickup_address';
 
+    public const LEGAL_TRADE_NAME = 'legal_trade_name';
+
+    public const LEGAL_PROVIDER_NAME = 'legal_provider_name';
+
+    public const LEGAL_TAX_ID = 'legal_tax_id';
+
+    public const LEGAL_FISCAL_ADDRESS = 'legal_fiscal_address';
+
+    public const LEGAL_COMPLAINTS_BOOK_URL = 'legal_complaints_book_url';
+
+    public const LIVE_SALES_ENABLED = 'live_sales_enabled';
+
+    public const INCIDENT_REPORT_HOURS = 'incident_report_hours';
+
+    public const REFUND_PROCESSING_BUSINESS_DAYS = 'refund_processing_business_days';
+
+    public const DELIVERY_ATTEMPTS_PER_CYCLE = 'delivery_attempts_per_cycle';
+
+    public const DELIVERY_MAX_AUTOMATIC_CYCLES = 'delivery_max_automatic_cycles';
+
+    public const RESHIPMENT_PAYMENT_DAYS = 'reshipment_payment_days';
+
+    public const PICKUP_HOLD_DAYS = 'pickup_hold_days';
+
     protected static array $localCache = [];
 
     protected $fillable = [

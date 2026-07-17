@@ -541,6 +541,63 @@ a {
     font-weight: 900;
 }
 
+.legal-nav {
+    border-left: 2px solid var(--vn-line);
+    display: grid;
+    gap: .25rem;
+    position: sticky;
+    top: 120px;
+}
+
+.legal-nav a {
+    align-items: center;
+    color: #4a4f45;
+    display: flex;
+    font-size: .9rem;
+    font-weight: 800;
+    gap: .65rem;
+    padding: .7rem 1rem;
+}
+
+.legal-nav a.active,
+.legal-nav a:hover {
+    background: var(--vn-green-100);
+    color: var(--vn-green-900);
+}
+
+.legal-document {
+    min-width: 0;
+}
+
+.legal-document-content {
+    color: #34382f;
+    line-height: 1.75;
+}
+
+.legal-document-content h2 {
+    color: var(--vn-green-900);
+    font-size: 1.12rem;
+    font-weight: 900;
+    margin: 2rem 0 .75rem;
+}
+
+.legal-document-content h2:first-child {
+    margin-top: 0;
+}
+
+.legal-document-content p,
+.legal-document-content li {
+    max-width: 80ch;
+}
+
+.legal-editor {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: .84rem;
+    line-height: 1.55;
+    min-height: 560px;
+    resize: vertical;
+}
+
 .filter-card,
 .checkout-card,
 .account-card,
@@ -1635,6 +1692,19 @@ body.admin-sidebar-open {
 }
 
 @media (max-width: 991.98px) {
+    .legal-nav {
+        border-bottom: 1px solid var(--vn-line);
+        border-left: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        position: static;
+    }
+
+    .legal-nav a {
+        justify-content: center;
+        min-width: 0;
+        text-align: center;
+    }
+
     .shop-header {
         position: static;
     }

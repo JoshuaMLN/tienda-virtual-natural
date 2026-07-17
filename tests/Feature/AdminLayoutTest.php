@@ -23,6 +23,8 @@ class AdminLayoutTest extends TestCase
             ->assertSee('admin-sidebar-nav', false)
             ->assertSee('admin-sidebar-footer', false)
             ->assertSee('aria-label="Cerrar menu"', false)
+            ->assertSee(route('admin.legal.index'), false)
+            ->assertSee('Legal')
             ->assertSee($this->adminUser->name)
             ->assertSee($this->adminUser->email)
             ->assertSee('adminLogoutConfirmationModal', false)

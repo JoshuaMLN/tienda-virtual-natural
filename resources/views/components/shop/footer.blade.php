@@ -21,7 +21,15 @@
                     <li><a href="{{ route('shop.contact') }}">Centro de ayuda</a></li>
                     <li><a href="{{ route('shop.terms') }}">Envios y entregas</a></li>
                     <li><a href="{{ route('shop.terms') }}">Cambios y devoluciones</a></li>
-                    <li><a href="{{ route('shop.terms') }}">Preguntas frecuentes</a></li>
+                    <li><a href="{{ route('shop.terms') }}">Terminos y condiciones</a></li>
+                    <li><a href="{{ route('shop.privacy') }}">Politica de privacidad</a></li>
+                    @if($storeSettings->legalComplaintsBookUrl())
+                        <li>
+                            <a href="{{ $storeSettings->legalComplaintsBookUrl() }}" target="_blank" rel="noopener noreferrer">
+                                Libro de Reclamaciones
+                            </a>
+                        </li>
+                    @endif
                 </ul>
             </div>
             <div class="col-lg-2 col-md-6">

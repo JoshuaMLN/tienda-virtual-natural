@@ -20,7 +20,7 @@
         <a class="{{ $active === 'stock' ? 'active' : '' }}" href="{{ route('admin.stock.index') }}"><i class="bi bi-clipboard-data"></i> Stock</a>
         <a class="{{ $active === 'banners' ? 'active' : '' }}" href="{{ route('admin.banners.index') }}"><i class="bi bi-megaphone"></i> Promociones</a>
         <a href="#"><i class="bi bi-ticket-perforated"></i> Cupones</a>
-        <a href="#"><i class="bi bi-file-earmark-text"></i> Contenido</a>
+        <a class="{{ $active === 'legal' ? 'active' : '' }}" href="{{ route('admin.legal.index') }}"><i class="bi bi-file-earmark-lock"></i> Legal</a>
         <a href="#"><i class="bi bi-graph-up-arrow"></i> Reportes</a>
         <a class="{{ $active === 'settings' ? 'active' : '' }}" href="{{ route('admin.settings.edit') }}"><i class="bi bi-gear"></i> Configuracion</a>
     </nav>
