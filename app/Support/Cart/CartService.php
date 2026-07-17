@@ -129,6 +129,11 @@ class CartService
         return $this->get();
     }
 
+    public function rememberWarning(string $warning): void
+    {
+        $this->storage->addWarnings([$warning]);
+    }
+
     private function resolveActiveProduct(Product|int $product): Product
     {
         $productId = $product instanceof Product ? $product->id : $product;

@@ -136,7 +136,7 @@ class CustomerAddressController extends Controller
     }
 
     /**
-     * @return array<string, array{
+     * @return array<int|string, array{
      *     name: string,
      *     department: string,
      *     districts: array<int, array{code: string, name: string}>
@@ -144,16 +144,6 @@ class CustomerAddressController extends Controller
      */
     private function locationCatalog(): array
     {
-        $catalog = [];
-
-        foreach ($this->ubigeoCatalog->provinces() as $province) {
-            $catalog[$province['code']] = [
-                'name' => $province['name'],
-                'department' => $province['department'],
-                'districts' => $this->ubigeoCatalog->districts($province['code']),
-            ];
-        }
-
-        return $catalog;
+        return $this->ubigeoCatalog->selectionCatalog();
     }
 }

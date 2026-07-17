@@ -75,6 +75,19 @@ class LimaCallaoUbigeoCatalogTest extends TestCase
         $this->assertSame('070107', $miPeru->ubigeo);
     }
 
+    public function test_selection_catalog_groups_districts_for_shared_address_forms(): void
+    {
+        $catalog = $this->catalog()->selectionCatalog();
+
+        $this->assertSame([1501, '0701'], array_keys($catalog));
+        $this->assertSame('Lima', $catalog['1501']['department']);
+        $this->assertSame('Lima', $catalog['1501']['name']);
+        $this->assertCount(43, $catalog['1501']['districts']);
+        $this->assertSame('Callao', $catalog['0701']['department']);
+        $this->assertSame('Callao', $catalog['0701']['name']);
+        $this->assertCount(7, $catalog['0701']['districts']);
+    }
+
     public function test_catalog_rejects_a_district_from_another_province(): void
     {
         try {

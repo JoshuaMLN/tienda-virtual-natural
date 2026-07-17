@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Product;
 use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
+use App\Support\Cart\CartService;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -104,8 +106,10 @@ class EmailVerificationTest extends TestCase
             ->assertRedirect(route('verification.notice'));
 
         $verified = User::factory()->create();
-        $this->actingAs($verified)
-            ->get(route('checkout.index'))
+        $this->actingAs($verified);
+        app(CartService::class)->add(Product::factory()->create(), 1);
+
+        $this->get(route('checkout.index'))
             ->assertOk();
     }
 

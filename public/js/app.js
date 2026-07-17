@@ -229,6 +229,40 @@ document.querySelectorAll('[data-address-form]').forEach(function (form) {
     populateDistricts(form.dataset.selectedDistrict || '');
 });
 
+document.querySelectorAll('[data-checkout-contact-address-form]').forEach(function (form) {
+    const choices = form.querySelectorAll('[data-checkout-address-choice]');
+    const newAddressPanel = form.querySelector('[data-checkout-new-address]');
+    const submitLabel = form.querySelector('[data-checkout-contact-submit] span');
+
+    function syncAddressChoice() {
+        const selected = form.querySelector('[data-checkout-address-choice]:checked');
+        const isNew = selected?.value === 'new';
+        const provinceInput = newAddressPanel?.querySelector('[data-address-province]');
+
+        newAddressPanel?.classList.toggle('d-none', !isNew);
+        newAddressPanel?.querySelectorAll('input, select, textarea').forEach(function (field) {
+            if (field.matches('[data-checkout-new-address-input]') && field.dataset.locked === '1') {
+                return;
+            }
+
+            field.disabled = !isNew || (
+                field.matches('[data-address-district]')
+                && !provinceInput?.value
+            );
+        });
+
+        if (submitLabel) {
+            submitLabel.textContent = isNew ? 'Guardar y usar esta direccion' : 'Usar estos datos';
+        }
+    }
+
+    choices.forEach(function (choice) {
+        choice.addEventListener('change', syncAddressChoice);
+    });
+
+    syncAddressChoice();
+});
+
 const defaultAddressForm = document.querySelector('[data-default-address-form]');
 document.querySelectorAll('[data-default-address-radio]').forEach(function (radio) {
     radio.addEventListener('change', function () {
@@ -607,7 +641,7 @@ async function submitCartClear(button) {
 }
 
 async function submitCartWarningsClear(button) {
-    const root = button.closest('[data-cart-page], [data-cart-drawer]');
+    const root = button.closest('[data-cart-page], [data-cart-drawer], [data-checkout-page]');
     const url = root?.dataset.cartWarningsClearUrl;
     if (!url) return;
 

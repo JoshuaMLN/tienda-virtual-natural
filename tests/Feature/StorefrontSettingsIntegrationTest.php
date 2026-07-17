@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Product;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\Cart\CartService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -63,20 +65,15 @@ class StorefrontSettingsIntegrationTest extends TestCase
             ->assertDontSee('Por compras desde S/');
     }
 
-    public function test_checkout_shows_pickup_only_when_an_address_is_configured(): void
+    public function test_checkout_layout_uses_the_central_shipping_settings(): void
     {
         $customer = User::factory()->create(['email_verified_at' => now()]);
         $this->actingAs($customer);
+        app(CartService::class)->add(Product::factory()->create(), 1);
 
-        Setting::setValue(Setting::PICKUP_ADDRESS, '');
+        Setting::setValue(Setting::FREE_SHIPPING_THRESHOLD, '175.00');
         $this->get(route('checkout.index'))
             ->assertOk()
-            ->assertDontSee('Recojo en tienda');
-
-        Setting::setValue(Setting::PICKUP_ADDRESS, 'Av. Camino Real 456, San Isidro, Lima');
-        $this->get(route('checkout.index'))
-            ->assertOk()
-            ->assertSee('Recojo en tienda')
-            ->assertSee('Av. Camino Real 456, San Isidro, Lima');
+            ->assertSee('Envio gratis en Lima y Callao por compras desde S/ 175.00');
     }
 }

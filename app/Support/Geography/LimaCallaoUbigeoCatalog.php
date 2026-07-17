@@ -68,6 +68,28 @@ class LimaCallaoUbigeoCatalog
     /**
      * @return array<int|string, array{
      *     name: string,
+     *     department: string,
+     *     districts: array<int, array{code: string, name: string}>
+     * }>
+     */
+    public function selectionCatalog(): array
+    {
+        $catalog = [];
+
+        foreach ($this->provinces() as $province) {
+            $catalog[$province['code']] = [
+                'name' => $province['name'],
+                'department' => $province['department'],
+                'districts' => $this->districts($province['code']),
+            ];
+        }
+
+        return $catalog;
+    }
+
+    /**
+     * @return array<int|string, array{
+     *     name: string,
      *     department: array{code: string, name: string},
      *     districts: array<string, string>
      * }>

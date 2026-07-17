@@ -3,27 +3,77 @@
 @section('title', 'Finalizar compra | VitaNatural')
 
 @section('content')
-@php
-    $items = [
-        ['name' => 'Omega 3 Premium', 'price' => 'S/ 79.90', 'qty' => 1, 'image' => 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=300&q=80'],
-        ['name' => 'Maca negra en polvo', 'price' => 'S/ 69.80', 'qty' => 2, 'image' => 'https://images.unsplash.com/photo-1587049352851-8d4e89133924?auto=format&fit=crop&w=300&q=80'],
-        ['name' => 'Mix de frutos secos', 'price' => 'S/ 26.90', 'qty' => 1, 'image' => 'https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&w=300&q=80'],
-    ];
-@endphp
+<section
+    class="container py-5"
+    data-checkout-page
+    data-cart-warnings-clear-url="{{ route('shop.cart.warnings.clear') }}"
+>
+    <nav class="small text-muted mb-3" aria-label="Migas de pan">
+        <a href="{{ route('shop.index') }}">Inicio</a> &gt;
+        <a href="{{ route('shop.cart') }}">Carrito</a> &gt;
+        <span>Checkout</span>
+    </nav>
 
-<section class="container py-5">
-    <nav class="small text-muted mb-3">Inicio &gt; Carrito &gt; Checkout</nav>
-    <h1 class="section-title mb-4">Finalizar compra</h1>
-    <div class="row g-4 align-items-start">
-        <div class="col-lg-7 d-grid gap-4">
-            <x-checkout.customer-form />
-            <x-checkout.shipping-form />
-            <x-checkout.payment-methods />
-            <x-checkout.culqi-payment-box />
+    <div class="mb-4">
+        <h1 class="section-title mb-1">Revisa tu compra</h1>
+        <p class="text-muted mb-0">Confirma los productos e importes antes de ingresar los datos de entrega.</p>
+    </div>
+
+    @if($checkout['warnings'])
+        <div class="alert alert-warning" data-cart-warnings role="alert">
+            <div class="d-flex align-items-start justify-content-between gap-3">
+                <div data-cart-warnings-list>
+                    @foreach($checkout['warnings'] as $warning)
+                        <div>{{ $warning }}</div>
+                    @endforeach
+                </div>
+                <button class="btn-close flex-shrink-0" type="button" data-cart-warnings-clear aria-label="Cerrar aviso"></button>
+            </div>
         </div>
-        <div class="col-lg-5">
-            <x-shop.order-summary :items="$items" button="Pagar con Culqi" />
-            <p class="small text-muted mt-3 text-center"><i class="bi bi-lock"></i> Tus datos de pago estan protegidos. Culqi procesa la transaccion.</p>
+    @endif
+
+    @if(session('status') === 'checkout-contact-address-saved')
+        <div class="alert alert-success d-flex align-items-center gap-2" role="status">
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+            <span>Datos de contacto y direccion guardados para esta compra.</span>
+        </div>
+    @endif
+
+    <div class="row g-4 align-items-start">
+        <div class="col-lg-8">
+            <x-checkout.contact-address-form :checkout-form="$checkoutForm" />
+
+            <div class="checkout-card p-3 p-lg-4 mt-4">
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+                    <h2 class="h5 fw-black mb-0">Productos</h2>
+                    <span class="small text-muted">{{ $checkout['total_quantity'] }} unidades</span>
+                </div>
+
+                <div class="checkout-product-list">
+                    @foreach($checkout['items'] as $item)
+                        <article class="checkout-product-row" data-checkout-item="{{ $item['product_id'] }}">
+                            <a class="checkout-product-image" href="{{ $item['url'] }}" aria-label="Ver {{ $item['name'] }}">
+                                <img src="{{ $item['image_url'] }}" alt="{{ $item['name'] }}">
+                            </a>
+                            <div class="checkout-product-content">
+                                <a class="fw-bold" href="{{ $item['url'] }}">{{ $item['name'] }}</a>
+                                @if($item['description'])
+                                    <p class="small text-muted mb-1">{{ $item['description'] }}</p>
+                                @endif
+                                <div class="small text-muted">
+                                    {{ $item['quantity'] }} x {{ $item['formatted_unit_price'] }}
+                                    <span class="mx-1" aria-hidden="true">&middot;</span>
+                                    {{ $item['tax_label'] }}
+                                </div>
+                            </div>
+                            <strong class="checkout-product-total">{{ $item['formatted_total'] }}</strong>
+                        </article>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <x-checkout.order-summary :checkout="$checkout" />
         </div>
     </div>
 </section>

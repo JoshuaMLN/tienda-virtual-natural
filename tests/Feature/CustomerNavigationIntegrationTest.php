@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Product;
 use App\Models\User;
+use App\Support\Cart\CartService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -52,6 +54,7 @@ class CustomerNavigationIntegrationTest extends TestCase
             'email' => 'cliente@example.com',
             'password' => 'secret123',
         ]);
+        app(CartService::class)->add(Product::factory()->create(), 1);
 
         $this->get(route('checkout.index'))
             ->assertRedirect(route('login'));
@@ -70,6 +73,7 @@ class CustomerNavigationIntegrationTest extends TestCase
             'email' => 'cliente@example.com',
             'password' => 'secret123',
         ]);
+        app(CartService::class)->add(Product::factory()->create(), 1);
 
         $this->get(route('checkout.index'))
             ->assertRedirect(route('login'));

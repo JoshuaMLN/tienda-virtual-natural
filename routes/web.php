@@ -25,6 +25,8 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\CheckoutContactAddressController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\ProductController;
@@ -48,11 +50,13 @@ Route::get('/terminos-y-condiciones', [LegalDocumentController::class, 'terms'])
 Route::get('/politica-de-privacidad', [LegalDocumentController::class, 'privacy'])->name('shop.privacy');
 
 Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'customer'])->group(function () {
-    Route::view('/', 'checkout.index')
+    Route::get('/', CheckoutController::class)
         ->middleware([PreserveCheckoutAfterVerification::class, 'verified'])
         ->name('index');
 
     Route::middleware('verified')->group(function () {
+        Route::post('/contacto-direccion', CheckoutContactAddressController::class)
+            ->name('contact-address.store');
         Route::view('/exitoso', 'checkout.success')->name('success');
         Route::view('/fallido', 'checkout.failed')->name('failed');
         Route::view('/pendiente', 'checkout.pending')->name('pending');
