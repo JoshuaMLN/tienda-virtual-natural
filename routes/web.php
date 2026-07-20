@@ -29,6 +29,8 @@ use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CheckoutContactAddressController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CheckoutDeliveryQuoteController;
+use App\Http\Controllers\CheckoutFiscalController;
+use App\Http\Controllers\CheckoutReviewController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\ProductController;
@@ -61,6 +63,10 @@ Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'customer'])->
             ->name('contact-address.store');
         Route::post('/cotizacion-entrega', CheckoutDeliveryQuoteController::class)
             ->name('delivery.quote');
+        Route::post('/datos-fiscales', CheckoutFiscalController::class)
+            ->name('fiscal.store');
+        Route::post('/revisar', CheckoutReviewController::class)
+            ->name('review');
         Route::view('/exitoso', 'checkout.success')->name('success');
         Route::view('/fallido', 'checkout.failed')->name('failed');
         Route::view('/pendiente', 'checkout.pending')->name('pending');

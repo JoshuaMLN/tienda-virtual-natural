@@ -2,11 +2,13 @@
 
 namespace App\Support\Checkout;
 
+use App\Enums\LegalDocumentType;
 use App\Models\CustomerAddress;
 use App\Models\DeliveryDistrict;
 use App\Models\User;
 use App\Support\Addresses\CustomerAddressService;
 use App\Support\Geography\LimaCallaoUbigeoCatalog;
+use App\Support\Legal\LegalDocumentService;
 use App\Support\Money\Money;
 use Illuminate\Support\Collection;
 
@@ -15,6 +17,7 @@ class CheckoutFormDataService
     public function __construct(
         private readonly CheckoutDraftStore $draftStore,
         private readonly LimaCallaoUbigeoCatalog $ubigeoCatalog,
+        private readonly LegalDocumentService $legalDocuments,
     ) {}
 
     /** @return array<string, mixed> */
@@ -37,6 +40,9 @@ class CheckoutFormDataService
         $deliveryDistricts = DeliveryDistrict::query()
             ->get()
             ->keyBy('ubigeo');
+        $terms = $this->legalDocuments->active(LegalDocumentType::Terms);
+        $privacy = $this->legalDocuments->active(LegalDocumentType::Privacy);
+        $review = $draft?->review;
 
         return [
             'contact' => [
@@ -51,6 +57,27 @@ class CheckoutFormDataService
             'selected_address_id' => $selectedAddress?->getKey(),
             'selected_delivery_method' => $draft?->deliveryMethod,
             'delivery_quote_reference' => $draft?->deliveryQuote?->fingerprint(),
+            'has_saved_delivery' => $draft?->deliveryQuote !== null,
+            'fiscal' => $draft?->fiscal?->toArray(),
+            'terms' => $terms ? [
+                'id' => (int) $terms->getKey(),
+                'version' => (int) $terms->version,
+                'title' => $terms->title,
+                'url' => route(LegalDocumentType::Terms->routeName()),
+            ] : null,
+            'privacy' => $privacy ? [
+                'id' => (int) $privacy->getKey(),
+                'version' => (int) $privacy->version,
+                'title' => $privacy->title,
+                'url' => route(LegalDocumentType::Privacy->routeName()),
+            ] : null,
+            'review' => $review ? [
+                'reference' => $review->fingerprint(),
+                'delivery_quote_reference' => $review->deliveryQuoteReference,
+                'terms_document_id' => $review->termsDocumentId,
+                'terms_document_version' => $review->termsDocumentVersion,
+                'legal_is_current' => $terms !== null && $review->accepts($terms),
+            ] : null,
             'address_count' => $addresses->count(),
             'address_limit' => CustomerAddressService::MAX_ADDRESSES,
             'can_create_address' => $addresses->count() < CustomerAddressService::MAX_ADDRESSES,

@@ -131,7 +131,7 @@ class OrderFactory extends Factory
         return $this->state(fn (): array => [
             'fiscal_document_type' => FiscalDocumentType::Invoice,
             'fiscal_identity_document_type' => FiscalIdentityDocumentType::Ruc,
-            'fiscal_identity_document_number' => fake()->numerify('20#########'),
+            'fiscal_identity_document_number' => '20131312955',
             'fiscal_first_names' => null,
             'fiscal_last_names' => null,
             'fiscal_business_name' => fake()->company(),

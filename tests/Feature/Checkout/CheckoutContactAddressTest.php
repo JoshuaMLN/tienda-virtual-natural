@@ -72,7 +72,8 @@ class CheckoutContactAddressTest extends TestCase
                 && $form['selected_delivery_method'] === null
                 && $form['can_create_address'])
             ->assertSee('value="new"', false)
-            ->assertSee('Usar estos datos')
+            ->assertSee('Continuar al comprobante')
+            ->assertDontSee('Usar estos datos')
             ->assertSee('Tu primera direccion sera predeterminada automaticamente.')
             ->assertSee('data-address-location-catalog', false);
     }
@@ -127,9 +128,11 @@ class CheckoutContactAddressTest extends TestCase
 
         $this->get(route('checkout.index'))
             ->assertOk()
+            ->assertViewHas('checkoutForm', fn (array $form): bool => $form['active_step'] === 2
+                && $form['max_step'] === 2)
             ->assertSee('value="Contacto para compra"', false)
             ->assertSee('value="987654321"', false)
-            ->assertSee('Datos de contacto y entrega guardados para esta compra.');
+            ->assertSee('Continuar al pago');
     }
 
     public function test_customer_can_create_and_use_a_canonical_first_address(): void

@@ -9,6 +9,7 @@ use App\Enums\FiscalIdentityDocumentType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\TaxAffectation;
+use App\Support\Fiscal\FiscalIdentityDocument;
 use App\Support\Tax\TaxCalculator;
 use DomainException;
 use UnitEnum;
@@ -114,13 +115,20 @@ class OrderInvariantValidator
             throw new DomainException('El correo fiscal no es valido.');
         }
 
+        if (! FiscalIdentityDocument::isValid($identity, $order['fiscal_identity_document_number'])) {
+            throw new DomainException(FiscalIdentityDocument::invalidMessage($identity));
+        }
+
         if ($type === FiscalDocumentType::Invoice) {
-            if ($identity !== FiscalIdentityDocumentType::Ruc
-                || ! preg_match('/^\d{11}$/', (string) $order['fiscal_identity_document_number'])) {
+            if ($identity !== FiscalIdentityDocumentType::Ruc) {
                 throw new DomainException('La factura requiere un RUC de once digitos.');
             }
 
             $this->requireStrings($order, ['fiscal_business_name', 'fiscal_address']);
+
+            if ($this->hasValue($order, 'fiscal_first_names') || $this->hasValue($order, 'fiscal_last_names')) {
+                throw new DomainException('La factura no debe incluir nombres personales para la boleta.');
+            }
 
             return;
         }
@@ -130,6 +138,10 @@ class OrderInvariantValidator
         }
 
         $this->requireStrings($order, ['fiscal_first_names', 'fiscal_last_names']);
+
+        if ($this->hasValue($order, 'fiscal_business_name') || $this->hasValue($order, 'fiscal_address')) {
+            throw new DomainException('La boleta no debe incluir datos exclusivos de una factura.');
+        }
     }
 
     /**
@@ -277,5 +289,11 @@ class OrderInvariantValidator
                 throw new DomainException("El campo {$column} es obligatorio.");
             }
         }
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function hasValue(array $attributes, string $column): bool
+    {
+        return is_string($attributes[$column] ?? null) && trim($attributes[$column]) !== '';
     }
 }

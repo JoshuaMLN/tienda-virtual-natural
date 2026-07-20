@@ -304,9 +304,13 @@ Tareas:
 - Validar DNI, RUC con checksum y formatos admitidos para documentos extranjeros.
 - Validar campos condicionales en backend y rechazar datos ocultos, incompatibles o manipulados.
 - Mantener los datos fiscales independientes del perfil y de la direccion de entrega.
+- Permitir guardar boleta o factura como borrador en la sesion cifrada y restaurarla al recargar, sin implicar aceptacion legal ni crear el pedido.
+- Presentar el checkout como un recorrido de contacto y entrega, comprobante y pago, guardando internamente al continuar y sin botones de guardado redundantes.
 - Exigir la aceptacion explicita de la version activa de terminos y enlazar la politica de privacidad sin mezclar consentimiento publicitario.
 - Crear una accion `Revisar pedido` que valide contacto, direccion, entrega, datos fiscales y terminos, y recalcule el resumen sin persistir un pedido.
 - Mantener todos los valores ingresados ante errores y no guardar borradores fiscales en almacenamiento persistente del navegador.
+- Registrar internamente la version legal aceptada sin exponer su numero tecnico en el texto del checkbox.
+- Mantener el resumen y los productos juntos en una columna lateral de escritorio y en un resumen desplegable para celular.
 - Crear pruebas para boleta, factura, documentos, manipulacion de campos, version legal y conservacion de datos.
 
 Criterio de salida:
@@ -344,6 +348,7 @@ Tareas:
 - Devolver un conflicto estructurado con valores anteriores y nuevos sin redirigir al carrito.
 - Mostrar un modal bloqueante con `Aceptar cambios y continuar` y `Volver al carrito`.
 - Preservar direccion, entrega y datos fiscales mientras se resuelve el conflicto.
+- Persistir en el pedido la version de terminos aceptada, su huella, fecha de aceptacion y snapshot historico sin depender del documento activo futuro.
 - Al aceptar, enviar una revision del resumen y volver a validar automaticamente.
 - Repetir el aviso si existe otro cambio concurrente antes de la aceptacion final.
 - En la confirmacion vigente, bloquear productos y crear dentro de una transaccion:

@@ -141,7 +141,7 @@ class OrderCreationServiceTest extends TestCase
         $attributes = array_merge($this->orderAttributes($user, $address, $pricing), [
             'fiscal_document_type' => FiscalDocumentType::Invoice,
             'fiscal_identity_document_type' => FiscalIdentityDocumentType::Ruc,
-            'fiscal_identity_document_number' => '20123456789',
+            'fiscal_identity_document_number' => '20131312955',
             'fiscal_first_names' => null,
             'fiscal_last_names' => null,
             'fiscal_business_name' => 'Vita Empresa SAC',
@@ -157,7 +157,7 @@ class OrderCreationServiceTest extends TestCase
 
         $this->assertSame(FiscalDocumentType::Invoice, $order->fiscal_document_type);
         $this->assertSame(FiscalIdentityDocumentType::Ruc, $order->fiscal_identity_document_type);
-        $this->assertSame('20123456789', $order->fiscal_identity_document_number);
+        $this->assertSame('20131312955', $order->fiscal_identity_document_number);
         $this->assertSame('Vita Empresa SAC', $order->fiscal_business_name);
         $this->assertSame('Av. Empresa 456, San Isidro', $order->fiscal_address);
         $this->assertSame('facturacion@example.test', $order->fiscal_email);
@@ -189,6 +189,44 @@ class OrderCreationServiceTest extends TestCase
             $this->assertDatabaseMissing('order_sequences', ['year' => 2045]);
             $this->assertDatabaseCount('orders', 0);
         }
+    }
+
+    public function test_fiscal_policy_rejects_invalid_checksums_and_incompatible_fields(): void
+    {
+        [$user, $address, $product] = $this->fixtures();
+        $pricing = $this->pricing($product);
+        $items = array_map(fn ($line): array => $line->snapshotAttributes(), $pricing->lines);
+        $base = $this->orderAttributes($user, $address, $pricing);
+        $cases = [
+            2046 => array_merge($base, [
+                'fiscal_document_type' => FiscalDocumentType::Invoice,
+                'fiscal_identity_document_type' => FiscalIdentityDocumentType::Ruc,
+                'fiscal_identity_document_number' => '20131312954',
+                'fiscal_first_names' => null,
+                'fiscal_last_names' => null,
+                'fiscal_business_name' => 'Empresa SAC',
+                'fiscal_address' => 'Av. Empresa 123',
+            ]),
+            2047 => array_merge($base, [
+                'fiscal_business_name' => 'Dato incompatible',
+                'fiscal_address' => 'Direccion incompatible',
+            ]),
+        ];
+
+        foreach ($cases as $year => $attributes) {
+            try {
+                app(OrderCreationService::class)->create(
+                    $attributes,
+                    $items,
+                    new DateTimeImmutable($year.'-01-01'),
+                );
+                $this->fail('Expected the invalid fiscal request to be rejected.');
+            } catch (DomainException) {
+                $this->assertDatabaseMissing('order_sequences', ['year' => $year]);
+            }
+        }
+
+        $this->assertDatabaseCount('orders', 0);
     }
 
     /** @return array{User, CustomerAddress, Product} */

@@ -12,8 +12,8 @@
     }
 @endphp
 
-<aside class="checkout-card p-3 p-lg-4 checkout-summary" data-checkout-summary aria-busy="false">
-    <h2 class="h5 fw-black mb-3">Resumen de compra</h2>
+<section class="checkout-card p-3 p-lg-4 checkout-summary" data-checkout-summary aria-busy="false" aria-labelledby="checkout-summary-title">
+    <h2 class="h5 fw-black mb-3" id="checkout-summary-title">Resumen de compra</h2>
 
     <div class="d-grid gap-2 small">
         <div class="d-flex justify-content-between gap-3">
@@ -63,4 +63,4 @@
     <a class="btn btn-vn-outline w-100 mt-4" href="{{ route('shop.cart') }}">
         <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Volver al carrito
     </a>
-</aside>
+</section>

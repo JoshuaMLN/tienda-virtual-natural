@@ -8,7 +8,8 @@ use App\Support\Checkout\CheckoutDeliveryService;
 use App\Support\Checkout\CheckoutFormDataService;
 use App\Support\Checkout\CheckoutReadService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use Illuminate\Http\Response;
+use Illuminate\Support\ViewErrorBag;
 
 class CheckoutController extends Controller
 {
@@ -21,7 +22,7 @@ class CheckoutController extends Controller
         private readonly CartService $cartService,
     ) {}
 
-    public function __invoke(ShowCheckoutRequest $request): View|RedirectResponse
+    public function __invoke(ShowCheckoutRequest $request): Response|RedirectResponse
     {
         $checkout = $this->checkoutReadService->current();
 
@@ -45,10 +46,54 @@ class CheckoutController extends Controller
             $checkoutData['amounts'] = $delivery['quote']['summary']['amounts'];
         }
 
-        return view('checkout.index', [
+        $review = $checkoutForm['review'];
+        $checkoutForm['is_reviewed'] = is_array($review)
+            && $review['legal_is_current']
+            && is_string($delivery['quote']['quote_reference'] ?? null)
+            && hash_equals(
+                $review['delivery_quote_reference'],
+                $delivery['quote']['quote_reference'],
+            );
+        $checkoutForm['max_step'] = $checkoutForm['is_reviewed']
+            ? 3
+            : ($checkoutForm['has_saved_delivery'] ? 2 : 1);
+        $checkoutForm['active_step'] = $this->activeStep(
+            $request,
+            $checkoutForm['max_step'],
+        );
+
+        return response()->view('checkout.index', [
             'checkout' => $checkoutData,
             'checkoutForm' => $checkoutForm,
             'delivery' => $delivery,
+        ])->withHeaders([
+            'Cache-Control' => 'no-store, private',
+            'Pragma' => 'no-cache',
         ]);
+    }
+
+    private function activeStep(ShowCheckoutRequest $request, int $maxStep): int
+    {
+        $requestedStep = $request->integer('paso');
+        $activeStep = $requestedStep >= 1 && $requestedStep <= $maxStep
+            ? $requestedStep
+            : $maxStep;
+        $errors = $request->session()->get('errors');
+
+        if ($errors instanceof ViewErrorBag) {
+            if ($errors->getBag('checkout')->any()) {
+                return 1;
+            }
+
+            if ($errors->getBag('checkoutReview')->any()) {
+                return min(2, $maxStep);
+            }
+        }
+
+        return match ($request->session()->get('status')) {
+            'checkout-contact-address-saved', 'checkout-fiscal-saved' => min(2, $maxStep),
+            'checkout-reviewed' => $maxStep,
+            default => $activeStep,
+        };
     }
 }

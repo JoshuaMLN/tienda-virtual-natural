@@ -160,7 +160,7 @@ Validaciones:
 
 ## Fase 4: Checkout real y experiencia del formulario
 
-Estado: En progreso (4 de 6 etapas completadas)
+Estado: En progreso (Etapa 4.5 completada; Etapa 4.6 pendiente)
 
 Decisiones cerradas:
 - La fase solo completa y revisa datos; pedidos, reservas e idempotencia comienzan en la Fase 5.
@@ -178,11 +178,10 @@ Planificado:
 - Etapa 4.2: base real del checkout y carrito vigente. Completada.
 - Etapa 4.3: contacto y direcciones propias. Completada.
 - Etapa 4.4: modalidad y cotizacion de entrega. Completada.
-- Etapa 4.5: datos fiscales, terminos y revision sin crear pedido.
+- Etapa 4.5: datos fiscales, terminos y revision sin crear pedido. Completada.
 - Etapa 4.6: UX, seguridad, pruebas integrales y cierre.
 
 Pendiente:
-- Etapa 4.5 completa.
 - Etapa 4.6 completa.
 
 Reglas acordadas para la Etapa 4.4:
@@ -280,6 +279,38 @@ Etapa 4.4 completada:
 - Pruebas especificas de modalidad condicional, propiedad de direcciones, referencia aceptada, sincronizacion del carrito, distrito inactivo, tarifa, IGV, tarifa cero, umbral gratis, plazos distritales, recojo independiente, fines de semana, cierres, UBIGEO canonico, manipulacion y huella completa: 54 pruebas, 533 aserciones.
 - Validacion manual completada: flujos de entrega y recojo, cotizaciones, fechas estimadas y comportamiento responsive aprobados.
 - Suite completa: 426 pruebas, 2829 aserciones.
+- `php artisan view:cache`: correcto.
+- `node --check public/js/app.js`: correcto.
+- `npm.cmd run build`: correcto.
+- Pint sobre PHP modificado: correcto.
+- `git diff --check`: correcto.
+
+Etapa 4.5 completada:
+- Selector segmentado de boleta o factura, con boleta como opcion inicial y paneles condicionales accesibles.
+- Boleta con DNI, carnet de extranjeria o pasaporte, numero, nombres, apellidos y correo fiscal.
+- Factura con RUC peruano validado por checksum, razon social, domicilio fiscal y correo fiscal, sin solicitar DNI adicional.
+- Politica fiscal compartida entre checkout y dominio de pedidos para documentos personales, RUC y campos incompatibles.
+- Rechazo explicito de campos ocultos manipulados de factura en boleta y de boleta en factura.
+- Datos fiscales normalizados e independientes del perfil y de la direccion de entrega.
+- Boleta o factura guardables como borrador en la sesion cifrada mediante `POST /checkout/datos-fiscales`, con restauracion completa despues de recargar.
+- El borrador fiscal no implica aceptacion de terminos; cambiarlo invalida una revision previa sin perder contacto ni entrega.
+- Checkout reorganizado como recorrido de tres etapas: contacto y entrega, comprobante con terminos, y pago preparado para su integracion posterior.
+- Avance protegido por estado real del borrador: no se pueden saltar etapas pendientes, las completadas pueden reabrirse y los errores muestran la etapa correspondiente.
+- Un solo boton principal por etapa: `Continuar al comprobante` y `Continuar al pago`, con persistencia interna y navegacion secundaria para volver.
+- Resumen y productos agrupados en una columna lateral fija de escritorio y en un bloque desplegable compacto para celular.
+- Accion protegida `POST /checkout/revisar` que revalida carrito, contacto, propiedad de direccion, entrega, cotizacion, datos fiscales y terminos.
+- Recalculo de la cotizacion antes de revisar; cualquier cambio invalida la revision, actualiza el resumen y exige una nueva confirmacion sin volver al carrito.
+- Snapshot de revision versionado y firmado con contacto, correo verificado, cotizacion, datos fiscales, version legal, huella del contenido y hora de aceptacion del servidor.
+- Aceptacion explicita de los terminos activos y enlace independiente a privacidad, sin mostrar el numero tecnico de version ni implicar consentimiento publicitario.
+- Invalidacion automatica de la revision al cambiar contacto, entrega, correo, cotizacion, version legal o contenido de la sesion.
+- Borrador conservado solo en sesion del servidor, con cifrado de sesiones habilitado y sin `localStorage` ni `sessionStorage`.
+- Respuestas del checkout con `Cache-Control: no-store, private` para evitar cachear datos fiscales.
+- Boton de guardado de contacto y entrega visible tambien al elegir recojo, fuera del bloque condicional de direccion.
+- Revision sin crear pedidos, correlativos, items, reservas, movimientos, comprobantes ni historiales.
+- Sin migraciones nuevas; la referencia legal persistente del pedido se incorporara en la Fase 5 al crear el snapshot historico definitivo.
+- 21 pruebas nuevas para acceso, vistas, recorrido por etapas, guardado y restauracion de borradores, boleta, factura, DNI, RUC, documentos extranjeros, manipulacion, version legal, sesion, conservacion, recotizacion e invariantes fiscales.
+- Suite completa: 447 pruebas, 3062 aserciones.
+- Validacion manual completada: recorrido por etapas, resumen lateral con productos y comportamiento responsive aprobados.
 - `php artisan view:cache`: correcto.
 - `node --check public/js/app.js`: correcto.
 - `npm.cmd run build`: correcto.

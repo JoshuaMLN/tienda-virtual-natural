@@ -12,7 +12,7 @@
     <legend class="visually-hidden">Modalidad de entrega</legend>
 
     <div class="checkout-section-heading">
-        <span class="checkout-step-number">2</span>
+        <span class="checkout-step-number"><i class="bi bi-truck" aria-hidden="true"></i></span>
         <div>
             <h2 class="h5 fw-black mb-1">Modalidad de entrega</h2>
             <p class="small text-muted mb-0">Elige como deseas recibir tu compra.</p>

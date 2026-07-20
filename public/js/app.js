@@ -237,7 +237,6 @@ document.querySelectorAll('[data-checkout-contact-address-form]').forEach(functi
     const addressSection = form.querySelector('[data-checkout-address-section]');
     const newAddressPanel = form.querySelector('[data-checkout-new-address]');
     const pickupDetails = form.querySelector('[data-checkout-pickup-details]');
-    const submitLabel = form.querySelector('[data-checkout-contact-submit] span');
     const submitButton = form.querySelector('[data-checkout-contact-submit]');
     const feedback = form.querySelector('[data-checkout-delivery-feedback]');
     const feedbackIcon = form.querySelector('[data-checkout-delivery-feedback-icon]');
@@ -309,6 +308,10 @@ document.querySelectorAll('[data-checkout-contact-address-form]').forEach(functi
 
     function renderSummary(amounts, shippingLabel, note) {
         if (!amounts) return;
+
+        document.querySelectorAll('[data-checkout-overview-total]').forEach(function (total) {
+            total.textContent = amounts.formatted_total;
+        });
 
         document.querySelectorAll('[data-checkout-summary]').forEach(function (summary) {
             const fields = {
@@ -480,11 +483,6 @@ document.querySelectorAll('[data-checkout-contact-address-form]').forEach(functi
             );
         });
 
-        if (submitLabel) {
-            submitLabel.textContent = method === 'pickup'
-                ? 'Guardar datos para recojo'
-                : (isNew ? 'Guardar y usar esta direccion' : 'Usar estos datos');
-        }
     }
 
     function quotePayload() {
@@ -618,7 +616,7 @@ document.querySelectorAll('[data-checkout-contact-address-form]').forEach(functi
         if (quoteReady && quoteReferenceInput?.value) return;
 
         event.preventDefault();
-        setFeedback('warning', 'Obten una cotizacion vigente antes de guardar los datos de entrega.');
+        setFeedback('warning', 'Obten una cotizacion vigente antes de continuar al comprobante.');
         feedback?.focus({ preventScroll: false });
     });
 
@@ -629,6 +627,41 @@ document.querySelectorAll('[data-checkout-contact-address-form]').forEach(functi
     } else {
         requestQuote();
     }
+});
+
+document.querySelectorAll('[data-checkout-fiscal-form]').forEach(function (form) {
+    const types = form.querySelectorAll('[data-checkout-fiscal-type]');
+    const panels = form.querySelectorAll('[data-checkout-fiscal-panel]');
+
+    function syncFiscalType() {
+        const selectedType = form.querySelector('[data-checkout-fiscal-type]:checked')?.value || 'receipt';
+
+        panels.forEach(function (panel) {
+            const active = panel.dataset.checkoutFiscalPanel === selectedType;
+
+            panel.classList.toggle('d-none', !active);
+            panel.querySelectorAll('[data-checkout-fiscal-input]').forEach(function (field) {
+                field.disabled = !active;
+            });
+        });
+    }
+
+    types.forEach(function (type) {
+        type.addEventListener('change', syncFiscalType);
+    });
+
+    syncFiscalType();
+});
+
+document.querySelectorAll('[data-checkout-overview]').forEach(function (overview) {
+    const mobileViewport = window.matchMedia('(max-width: 991.98px)');
+
+    function syncOverview(event) {
+        overview.open = !event.matches;
+    }
+
+    syncOverview(mobileViewport);
+    mobileViewport.addEventListener('change', syncOverview);
 });
 
 const defaultAddressForm = document.querySelector('[data-default-address-form]');

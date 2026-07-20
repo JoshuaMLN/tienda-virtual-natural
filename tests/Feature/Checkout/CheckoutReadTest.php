@@ -77,7 +77,7 @@ class CheckoutReadTest extends TestCase
         $cart->add($exempt, 1);
         $cart->add($unaffected, 3);
 
-        $this->get(route('checkout.index'))
+        $response = $this->get(route('checkout.index'))
             ->assertOk()
             ->assertViewIs('checkout.index')
             ->assertViewHas('checkout', function (array $checkout): bool {
@@ -99,9 +99,20 @@ class CheckoutReadTest extends TestCase
             ->assertSee('S/ 36.00')
             ->assertSee('S/ 20.00')
             ->assertSee('S/ 30.00')
+            ->assertSee('class="checkout-progress"', false)
+            ->assertSee('class="checkout-sidebar"', false)
+            ->assertSee('data-checkout-overview open', false)
+            ->assertSee('Resumen y productos')
             ->assertSee('data-checkout-total', false)
             ->assertDontSee('Pagar con Culqi')
             ->assertDontSee('Culqi procesa la transaccion');
+
+        $content = $response->getContent();
+        $this->assertSame(1, substr_count($content, 'data-checkout-items'));
+        $this->assertLessThan(
+            strpos($content, 'id="checkout-products-title"'),
+            strpos($content, 'id="checkout-summary-title"'),
+        );
     }
 
     public function test_checkout_synchronizes_current_stock_and_price_before_rendering(): void

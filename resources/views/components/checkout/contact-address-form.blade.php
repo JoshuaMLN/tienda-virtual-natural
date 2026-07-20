@@ -46,7 +46,7 @@
 
     <section class="checkout-card p-3 p-lg-4" aria-labelledby="checkout-contact-title">
         <div class="checkout-section-heading">
-            <span class="checkout-step-number">1</span>
+            <span class="checkout-step-number"><i class="bi bi-person" aria-hidden="true"></i></span>
             <div>
                 <h2 class="h5 fw-black mb-1" id="checkout-contact-title">Datos de contacto</h2>
                 <p class="small text-muted mb-0">Estos datos se usaran solo para esta compra y no modificaran tu perfil.</p>
@@ -116,7 +116,7 @@
         data-checkout-address-section
     >
         <div class="checkout-section-heading">
-            <span class="checkout-step-number">3</span>
+            <span class="checkout-step-number"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
             <div class="flex-grow-1">
                 <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
                     <div>
@@ -380,11 +380,12 @@
             </div>
         @endif
 
-        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
-            <button class="btn btn-vn" type="submit" data-checkout-contact-submit>
-                <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
-                <span>{{ $selectedMethod === 'pickup' ? 'Guardar datos para recojo' : ($newAddressSelected ? 'Guardar y usar esta direccion' : 'Usar estos datos') }}</span>
-            </button>
-        </div>
     </section>
+
+    <div class="d-flex flex-column flex-sm-row justify-content-end gap-2">
+        <button class="btn btn-vn" type="submit" data-checkout-contact-submit>
+            <span>Continuar al comprobante</span>
+            <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+        </button>
+    </div>
 </form>
