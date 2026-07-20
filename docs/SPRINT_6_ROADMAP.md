@@ -46,9 +46,21 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - La entrega cubre Lima Metropolitana y Callao mediante distritos configurables, cada uno con estado y tarifa.
 - El envio gratis usa un umbral global calculado sobre el subtotal de productos despues de descuentos y antes del envio. El valor `0` lo deshabilita.
 - El recojo es gratuito y solo aparece cuando el administrador ha configurado una direccion de recojo completa.
-- El plazo general de entrega sera configurable en dias habiles, inicialmente de 1 a 2. La promesa mostrada se congela al crear el pedido y su computo comienza al confirmarse el pago.
-- No se calcula una fecha exacta ni se administra un calendario de feriados en este sprint.
-- Si una ubicacion esta fuera de cobertura, se muestra el WhatsApp configurado para coordinar el envio a provincia.
+- La direccion del cliente es obligatoria solo para entrega a domicilio. El recojo requiere los datos de contacto, pero usa exclusivamente la direccion configurada por la tienda.
+- La cobertura y tarifa se obtienen del UBIGEO canonico de la direccion seleccionada; el checkout no solicita un segundo distrito independiente.
+- Una direccion guardada en un distrito inactivo se conserva, pero no habilita entrega a domicilio. El cliente debe elegir otra direccion, seleccionar recojo si esta disponible o contactar por WhatsApp.
+- La entrega a domicilio se selecciona inicialmente solo cuando la direccion elegida tiene cobertura. Si no la tiene, el sistema no cambia silenciosamente a recojo ni selecciona otra modalidad.
+- Las tarifas de distrito son importes finales con IGV incluido. Una tarifa `0` en un distrito activo representa entrega gratuita, aun cuando el umbral global de envio gratis este deshabilitado.
+- El plazo general de entrega sera configurable, inicialmente de 1 a 2 dias de atencion, y actuara como respaldo para los distritos sin un plazo propio.
+- Cada distrito puede sobrescribir opcionalmente el plazo minimo y maximo de entrega sin duplicar la configuracion global.
+- El recojo usa un plazo de preparacion propio e independiente. Una vez notificado como listo, se aplica el plazo de recojo configurable, inicialmente de 14 dias calendario.
+- El checkout convierte los plazos en fechas estimadas concretas desde el siguiente dia de atencion; el dia actual nunca cuenta como dia uno.
+- Los dias de atencion se resuelven desde horarios estructurados de lunes a viernes, sabado y domingo. Un fin de semana sin apertura y cierre completos no cuenta.
+- Las fechas de cierre extraordinario se administran en un calendario sencillo y tampoco cuentan para entrega ni preparacion de recojo.
+- La cotizacion muestra fechas provisionales. Al confirmarse el pago se recalculan y congelan las fechas definitivas del pedido con el calendario vigente.
+- Si un distrito no esta disponible o el destino queda fuera de la cobertura estandar, se muestra el WhatsApp configurado para consultar otras opciones de entrega.
+- La cotizacion se calcula y recalcula en backend. La referencia de la cotizacion mostrada debe volver al servidor y coincidir con el carrito y la entrega vigentes antes de aceptarse; la sesion nunca toma importes enviados por JavaScript como fuente de verdad.
+- Si una tarifa, cobertura, precio, stock o condicion de envio cambia antes de confirmar, la Fase 5 compara la cotizacion aceptada con los valores vigentes y exige aceptar el nuevo resumen antes de crear el pedido.
 - Una direccion nueva creada desde checkout se guarda en la cuenta. Al alcanzar el limite de 10, el cliente debe usar una direccion existente o administrar sus direcciones antes de continuar.
 - Los datos de entrega y los datos fiscales son independientes.
 - Para boleta se solicitara siempre tipo y numero de documento, nombres y apellidos y correo fiscal, incluso cuando el monto no supere S/ 700.
@@ -103,7 +115,6 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - Emision automatica de boletas, facturas, notas de credito o notas de debito ante SUNAT.
 - Generacion propia de un PDF con apariencia de comprobante fiscal.
 - Envio a provincias, calculo de tarifas nacionales o integracion con couriers.
-- Calendario de feriados y fecha exacta prometida de entrega.
 - Cupones, promociones y descuentos administrables; corresponden al Sprint 8.
 - Compra parcial del carrito.
 - Checkout para invitados.
@@ -138,16 +149,18 @@ Tareas:
 - Reutilizar `settings` mediante accesores tipados para:
   - WhatsApp de atencion
   - correo de contacto
-  - horario de atencion
+  - horarios estructurados de lunes a viernes, sabado y domingo
   - umbral de envio gratis
   - minutos de reserva de stock
   - dias habiles minimos y maximos de entrega
+  - dias minimos y maximos de preparacion de recojo
   - direccion completa de recojo
 - Crear configuracion por distrito para los 43 distritos de Lima y 7 del Callao:
   - provincia
   - distrito
   - UBIGEO canonico
   - tarifa
+  - plazo minimo y maximo opcional con herencia del plazo general
   - activo/inactivo
 - Cargar inicialmente los 50 distritos activos con tarifas referenciales entre S/ 8.00 y S/ 25.00 calculadas desde San Isidro.
 - Mantener la carga idempotente para no sobrescribir tarifas o estados editados posteriormente por un administrador.
@@ -156,6 +169,7 @@ Tareas:
 - Ocultar recojo cuando falte su direccion y tratarlo como gratuito cuando este habilitado.
 - Aplicar el umbral sobre subtotal de productos despues de descuentos y antes del envio.
 - Crear una pantalla admin compacta para configuracion general y tarifas.
+- Agregar un calendario simple de fechas sin atencion, con fecha unica y motivo opcional.
 - Hacer que navbar, footer, contacto y avisos de envio consuman una unica fuente de configuracion.
 - Mostrar contacto por WhatsApp para destinos fuera de Lima Metropolitana y Callao.
 - Crear pruebas para configuracion, cobertura, tarifas, envio gratis y recojo.
@@ -183,7 +197,7 @@ Tareas:
   - direccion de entrega o recojo como snapshot
   - datos fiscales como snapshot
   - subtotal, descuentos, envio, valor sin IGV, IGV y total en centimos
-  - plazo de entrega mostrado al crear el pedido y fecha de inicio del computo al confirmar el pago
+  - plazo de entrega mostrado al crear el pedido, fecha de inicio del computo y fechas estimadas definitivas al confirmar el pago
 - Guardar en `OrderItem` referencias opcionales y snapshots de SKU, nombre, imagen, unidad, cantidad, afectacion tributaria, tasa, precio final con IGV incluido, valor sin IGV, IGV, descuento y total.
 - Mantener como precio comercial el importe final ingresado por el administrador; por ejemplo, un producto publicado a S/ 190.00 conserva ese total y desglosa internamente su valor de venta e IGV.
 - Ajustar el formulario administrativo de productos para etiquetar el campo como `Precio de venta (IGV incluido)` y mostrar su desglose tributario como ayuda, sin sustituir el precio final.
@@ -262,16 +276,24 @@ Criterio de salida:
 
 Tareas:
 - Mostrar en la parte superior que la entrega esta disponible solo en Lima Metropolitana y Callao.
-- Permitir entrega a domicilio o recojo cuando exista una direccion de recojo completa.
-- Mostrar todos los distritos canonicos de Lima y Callao e identificar los inactivos como no disponibles, con alternativa de contacto por WhatsApp.
-- Calcular la tarifa por distrito exclusivamente en backend y aplicar envio gratis cuando corresponda.
-- Mostrar el plazo configurable de 1 a 2 dias habiles desde la confirmacion del pago.
-- Mostrar la direccion y condiciones de recojo cuando esa modalidad este disponible.
-- Actualizar el resumen de manera dinamica, accesible y sin confiar en importes enviados por JavaScript.
-- Crear pruebas de cobertura, distrito inactivo, tarifa, envio gratis, recojo habilitado y recojo deshabilitado.
+- Permitir entrega a domicilio o recojo cuando exista una direccion de recojo completa; la direccion del cliente sera obligatoria solo para entrega a domicilio.
+- Resolver cobertura y tarifa exclusivamente desde el UBIGEO de la direccion seleccionada, sin permitir un segundo distrito independiente.
+- Mostrar todos los distritos canonicos de Lima y Callao e identificar los inactivos como no disponibles, sin eliminar las direcciones guardadas afectadas.
+- Cuando un distrito no este disponible, ofrecer otra direccion, recojo cuando corresponda y un mensaje para contactar por WhatsApp por otras opciones de entrega.
+- Seleccionar inicialmente entrega a domicilio solo con una direccion cubierta y no cambiar silenciosamente de direccion o modalidad cuando falte cobertura.
+- Calcular la tarifa exclusivamente en backend, tratarla como precio final con IGV incluido y aplicar envio gratis cuando corresponda.
+- Considerar gratuita una entrega con tarifa de distrito `0`, independientemente del umbral global.
+- Mostrar para domicilio una ventana de fechas calculada con el plazo propio del distrito o el plazo general de respaldo.
+- Mostrar para recojo la direccion de la tienda, una ventana de fechas calculada con su preparacion independiente y los 14 dias calendario configurables para recoger desde el aviso de pedido listo.
+- Empezar el conteo en el siguiente dia de atencion y omitir sabados o domingos cerrados y fechas registradas en el calendario sin atencion.
+- Actualizar productos, avisos y resumen de manera dinamica y accesible cuando la cotizacion sincronice el carrito.
+- Exigir que la referencia de la cotizacion mostrada coincida antes de guardar la seleccion; si cambia, solicitar una nueva confirmacion sin crear direcciones ni aceptar valores no vistos.
+- Conservar en el snapshot las lineas canonicas del carrito, con producto, cantidad, precio y desglose tributario, ademas de los totales y la entrega.
+- Preparar la cotizacion para que la Fase 5 pueda detectar cambios posteriores de tarifa, cobertura o envio gratis y solicitar aceptacion antes de crear el pedido.
+- Crear pruebas de direccion condicional, cobertura por UBIGEO, distrito inactivo, modalidad inicial, tarifa con IGV, tarifa cero, envio gratis, plazos por distrito, recojo independiente, fines de semana, cierres y snapshots de fechas.
 
 Criterio de salida:
-- Cada modalidad produce una cotizacion valida y verificable sin crear el pedido ni reservar inventario.
+- Cada modalidad produce una cotizacion vigente, valida y verificable desde backend sin crear el pedido ni reservar inventario; solo se acepta la revision que el cliente vio y puede continuar sin una direccion propia cuando elige recojo.
 
 ### Etapa 4.5: Datos fiscales, terminos y revision
 
@@ -349,7 +371,7 @@ Tareas:
 - Mostrar claramente pedidos pendientes de pago, vencidos, procesando, enviados, entregados y cancelados.
 - Permitir cancelar un pedido `pending_payment` y liberar su reserva una sola vez.
 - Preparar la accion de reintento de pago para Sprint 7 mientras la reserva siga activa.
-- Mostrar el plazo de 1 a 2 dias habiles solo desde la confirmacion de pago.
+- Mostrar las fechas estimadas definitivas solo despues de la confirmacion del pago.
 - Permitir descargar el comprobante desde almacenamiento privado cuando exista.
 - Notificar por correo la creacion y cancelacion del pedido sin adjuntar un comprobante inexistente.
 - Impedir acceso horizontal mediante consultas acotadas al usuario o policies.

@@ -17,13 +17,14 @@ Crear checkout y pedidos reales sobre el carrito persistente, con configuracion 
 - La reserva inicial para pagos inmediatos sera configurable, con 15 minutos por defecto.
 - El vencimiento usa `expired` y libera inventario; no se trata como pago `failed`.
 - Entrega configurable para Lima Metropolitana y Callao.
-- Plazo general configurable de 1 a 2 dias habiles, congelado al crear el pedido y computado desde el pago confirmado.
+- Plazo general de entrega con sobrescritura opcional por distrito y preparacion de recojo independiente.
+- Ventanas de fechas calculadas desde horarios de atencion y cierres excepcionales, definitivas al confirmar el pago.
 - Boleta y factura solicitan campos distintos y guardan snapshots fiscales.
 - El codigo interno del pedido sera `PED-AAAA-NNNNNN`, con correlativo anual independiente de la marca y del comprobante fiscal.
 - El precio administrado y publicado es el total con IGV incluido; su valor de venta e IGV se desglosan internamente en los snapshots.
 - Los productos parten como gravados con 18 %, con dominio preparado para afectaciones exoneradas o inafectas.
 - Los estados comerciales del pedido se separan de pago, entrega y reserva para evitar fuentes de verdad duplicadas.
-- La promesa de 1 a 2 dias habiles se congela al crear el pedido y empieza a computarse al confirmar el pago.
+- La cotizacion conserva las fechas provisionales mostradas y el pedido congela sus fechas definitivas al confirmarse el pago.
 - SUNAT emite manualmente y asigna serie y correlativo.
 - La tienda registra el PDF oficial, lo guarda en privado y permite enviarlo por correo.
 - Culqi y la confirmacion real de pago corresponden al Sprint 7.
@@ -159,7 +160,7 @@ Validaciones:
 
 ## Fase 4: Checkout real y experiencia del formulario
 
-Estado: En progreso (3 de 6 etapas)
+Estado: En progreso (4 de 6 etapas completadas)
 
 Decisiones cerradas:
 - La fase solo completa y revisa datos; pedidos, reservas e idempotencia comienzan en la Fase 5.
@@ -176,14 +177,24 @@ Planificado:
 - Etapa 4.1: configuracion legal y documentos versionados. Completada.
 - Etapa 4.2: base real del checkout y carrito vigente. Completada.
 - Etapa 4.3: contacto y direcciones propias. Completada.
-- Etapa 4.4: modalidad y cotizacion de entrega.
+- Etapa 4.4: modalidad y cotizacion de entrega. Completada.
 - Etapa 4.5: datos fiscales, terminos y revision sin crear pedido.
 - Etapa 4.6: UX, seguridad, pruebas integrales y cierre.
 
 Pendiente:
-- Etapa 4.4 completa.
 - Etapa 4.5 completa.
 - Etapa 4.6 completa.
+
+Reglas acordadas para la Etapa 4.4:
+- La direccion del cliente sera obligatoria solo para entrega a domicilio; el recojo usara los datos de contacto y la direccion configurada por la tienda.
+- Cobertura y tarifa se resolveran exclusivamente desde el UBIGEO canonico de la direccion seleccionada, sin un segundo selector de distrito.
+- Una direccion de un distrito inactivo se conservara, pero no habilitara domicilio; se ofreceran otra direccion, recojo si esta disponible y contacto por WhatsApp para otras opciones de entrega.
+- Domicilio se seleccionara inicialmente solo cuando la direccion elegida tenga cobertura; no habra cambios silenciosos de direccion o modalidad.
+- Las tarifas configuradas seran precios finales con IGV incluido y una tarifa `0` en un distrito activo representara entrega gratuita aunque el umbral global este deshabilitado.
+- Domicilio mostrara fechas estimadas desde el plazo propio del distrito o el respaldo general; recojo usara un plazo de preparacion separado y mantendra los 14 dias configurables desde que el pedido quede listo.
+- El conteo comenzara en el siguiente dia de atencion, usando horarios separados para lunes a viernes, sabado y domingo y omitiendo fechas no laborables configuradas.
+- La modalidad, direccion aplicable, lineas del carrito y referencia de la cotizacion mostrada se conservaran en sesion, pero todos los importes se recalcularan en backend y la referencia debera coincidir antes de aceptarse.
+- La Etapa 4.4 no creara pedidos ni reservas. La comparacion final y el modal para aceptar cambios de tarifa, cobertura, precios o stock corresponden a la Fase 5.
 
 Etapa 4.1 completada:
 - Identidad del proveedor y reglas comerciales configurables desde `/admin/legal`.
@@ -232,6 +243,43 @@ Etapa 4.3 completada:
 - Pruebas de acceso, precarga, propiedad, predeterminada, creacion, normalizacion, limite, persistencia, aislamiento y ausencia de efectos secundarios.
 - Validacion manual completada: 11 de 11 escenarios aprobados.
 - Suite completa: 391 pruebas, 2443 aserciones.
+- `php artisan view:cache`: correcto.
+- `node --check public/js/app.js`: correcto.
+- `npm.cmd run build`: correcto.
+- Pint sobre PHP modificado: correcto.
+- `git diff --check`: correcto.
+
+Etapa 4.4 completada:
+- Selector real de entrega a domicilio o recojo integrado entre contacto y direccion, sin campos de direccion duplicados.
+- Direccion del cliente condicional: obligatoria para domicilio y completamente opcional para recojo.
+- Borrador de checkout ampliado con modalidad, direccion nullable y snapshot versionado con huella de la cotizacion aceptada.
+- Cotizacion centralizada en backend desde el carrito vigente y el UBIGEO canonico, sin confiar en tarifas, impuestos o totales enviados por JavaScript.
+- Endpoint protegido `POST /checkout/cotizacion-entrega` con respuestas JSON estructuradas y validacion `422` consistente con los endpoints del carrito.
+- Tarifas finales con IGV incluido y desglose tributario recalculado mediante la politica monetaria unica del dominio.
+- Envio gratis por umbral y entrega gratuita por tarifa distrital `0` diferenciados expresamente.
+- Distritos inactivos visibles como no disponibles sin eliminar direcciones guardadas ni cambiar silenciosamente de direccion o modalidad.
+- Recojo habilitado solo con direccion de tienda, sin costo, con preparacion estimada y plazo configurable para recoger.
+- Plazo general de entrega con sobrescritura opcional por distrito y retorno explicito al valor general desde el modal administrativo.
+- Preparacion de recojo configurada de forma independiente al tiempo de entrega a domicilio.
+- Horarios estructurados de apertura y cierre para lunes a viernes, sabado y domingo; un bloque opcional vacio se considera cerrado.
+- Calendario administrativo de fechas sin atencion con fecha unica, motivo opcional, alta y eliminacion protegidas por rol.
+- Calculo de ventanas de fechas desde el siguiente dia de atencion, omitiendo cierres semanales y extraordinarios.
+- Mensajes de checkout con `Entrega estimada` o `Tu pedido estara disponible para recojo`, en lugar de rangos abstractos de dias habiles.
+- Aviso superior de cobertura exclusiva en Lima Metropolitana y Callao, con alternativa de contacto por WhatsApp.
+- Resumen dinamico de envio, valores tributarios y total en escritorio y celular; solicitudes concurrentes protegidas con `AbortController`.
+- La referencia mostrada viaja de vuelta al backend y se compara antes de cualquier alta de direccion; una cotizacion obsoleta exige confirmar nuevamente.
+- La huella incluye lineas canonicas con producto, cantidad, precio y tributacion, por lo que no confunde carritos distintos con el mismo total.
+- Cada respuesta de cotizacion sincroniza tambien productos, cantidades, avisos y contador del carrito para evitar una pantalla parcialmente obsoleta.
+- El alta de una direccion y su cotizacion final se coordinan transaccionalmente con bloqueo del distrito aplicable.
+- Los datos de recojo se actualizan desde la misma respuesta vigente de la cotizacion.
+- La huella de la cotizacion incluye las fechas estimadas, por lo que cambios relevantes del calendario exigen recalcular.
+- La confirmacion de pago calcula y congela `delivery_estimated_from` y `delivery_estimated_to` sin modificar pedidos ya pagados cuando cambia el calendario.
+- Configuracion administrativa aclarada como tarifa final con IGV incluido y `S/ 0.00` equivalente a entrega gratuita.
+- Migracion `2026_07_20_000100_add_delivery_estimates_and_business_calendar` para plazos distritales, fechas estimadas del pedido, configuracion estructurada y calendario de cierres.
+- Migracion aplicada correctamente en el lote 18 sobre la base local.
+- Pruebas especificas de modalidad condicional, propiedad de direcciones, referencia aceptada, sincronizacion del carrito, distrito inactivo, tarifa, IGV, tarifa cero, umbral gratis, plazos distritales, recojo independiente, fines de semana, cierres, UBIGEO canonico, manipulacion y huella completa: 54 pruebas, 533 aserciones.
+- Validacion manual completada: flujos de entrega y recojo, cotizaciones, fechas estimadas y comportamiento responsive aprobados.
+- Suite completa: 426 pruebas, 2829 aserciones.
 - `php artisan view:cache`: correcto.
 - `node --check public/js/app.js`: correcto.
 - `npm.cmd run build`: correcto.
