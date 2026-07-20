@@ -210,8 +210,10 @@ document.querySelectorAll('[data-address-form]').forEach(function (form) {
         (province?.districts || []).forEach(function (district) {
             const option = document.createElement('option');
             option.value = district.code;
-            option.textContent = district.name;
+            option.textContent = district.name + (district.delivery_available === false ? ' - No disponible' : '');
             option.selected = district.code === selectedDistrict;
+            option.disabled = district.delivery_available === false;
+            option.dataset.deliveryAvailable = district.delivery_available === false ? '0' : '1';
             districtInput.appendChild(option);
         });
 
@@ -231,13 +233,240 @@ document.querySelectorAll('[data-address-form]').forEach(function (form) {
 
 document.querySelectorAll('[data-checkout-contact-address-form]').forEach(function (form) {
     const choices = form.querySelectorAll('[data-checkout-address-choice]');
+    const deliveryMethods = form.querySelectorAll('[data-checkout-delivery-method]');
+    const addressSection = form.querySelector('[data-checkout-address-section]');
     const newAddressPanel = form.querySelector('[data-checkout-new-address]');
+    const pickupDetails = form.querySelector('[data-checkout-pickup-details]');
     const submitLabel = form.querySelector('[data-checkout-contact-submit] span');
+    const submitButton = form.querySelector('[data-checkout-contact-submit]');
+    const feedback = form.querySelector('[data-checkout-delivery-feedback]');
+    const feedbackIcon = form.querySelector('[data-checkout-delivery-feedback-icon]');
+    const feedbackMessage = form.querySelector('[data-checkout-delivery-feedback-message]');
+    const whatsappLink = form.querySelector('[data-checkout-delivery-whatsapp]');
+    const baseSummaryElement = form.querySelector('[data-checkout-base-summary]');
+    const quoteReferenceInput = form.querySelector('[data-checkout-quote-reference]');
+    const pickupAddress = form.querySelector('[data-checkout-pickup-address]');
+    const pickupWindow = form.querySelector('[data-checkout-pickup-window]');
+    const pickupHoldDays = form.querySelector('[data-checkout-pickup-hold-days]');
+    const quoteUrl = form.dataset.checkoutQuoteUrl;
+    let baseSummary = {};
+    let quoteController = null;
+    let quoteSequence = 0;
+    const hasInitialQuote = Boolean(
+        form.querySelector('[data-checkout-delivery-method]:checked')
+        && form.dataset.initialQuote === '1'
+        && quoteReferenceInput?.value,
+    );
+    let quoteReady = hasInitialQuote;
+
+    try {
+        baseSummary = JSON.parse(baseSummaryElement?.textContent || '{}');
+    } catch (error) {
+        baseSummary = {};
+    }
+
+    function selectedMethod() {
+        return form.querySelector('[data-checkout-delivery-method]:checked')?.value || '';
+    }
+
+    function setQuoteReference(reference = '') {
+        const normalizedReference = typeof reference === 'string' ? reference.trim() : '';
+        quoteReady = normalizedReference !== '';
+
+        if (quoteReferenceInput) {
+            quoteReferenceInput.value = normalizedReference;
+        }
+    }
+
+    function setFeedback(style, message) {
+        if (!feedback || !feedbackMessage || !feedbackIcon) return;
+
+        const styles = ['success', 'warning', 'secondary', 'danger'];
+        const icons = {
+            success: 'bi-check-circle-fill',
+            warning: 'bi-exclamation-triangle-fill',
+            danger: 'bi-x-circle-fill',
+            secondary: 'bi-info-circle-fill',
+        };
+
+        styles.forEach(function (item) {
+            feedback.classList.toggle('alert-' + item, item === style);
+        });
+        feedbackIcon.innerHTML = '<i class="bi ' + icons[style] + '" aria-hidden="true"></i>';
+        feedbackMessage.textContent = message;
+        whatsappLink?.classList.toggle('d-none', style !== 'warning');
+    }
+
+    function setSummaryBusy(isBusy) {
+        document.querySelectorAll('[data-checkout-summary]').forEach(function (summary) {
+            summary.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+        });
+
+        if (submitButton) {
+            submitButton.disabled = isBusy || !quoteReady;
+        }
+    }
+
+    function renderSummary(amounts, shippingLabel, note) {
+        if (!amounts) return;
+
+        document.querySelectorAll('[data-checkout-summary]').forEach(function (summary) {
+            const fields = {
+                '[data-checkout-subtotal]': amounts.formatted_products_subtotal,
+                '[data-checkout-shipping]': shippingLabel,
+                '[data-checkout-taxable]': amounts.formatted_taxable_value,
+                '[data-checkout-exempt]': amounts.formatted_exempt_value,
+                '[data-checkout-unaffected]': amounts.formatted_unaffected_value,
+                '[data-checkout-tax]': amounts.formatted_tax,
+                '[data-checkout-total]': amounts.formatted_total,
+            };
+
+            Object.entries(fields).forEach(function ([selector, value]) {
+                const element = summary.querySelector(selector);
+                if (element && value !== undefined) element.textContent = value;
+            });
+
+            summary.querySelector('[data-checkout-taxable-row]')?.classList.toggle('d-none', !(amounts.taxable_value_cents > 0));
+            summary.querySelector('[data-checkout-exempt-row]')?.classList.toggle('d-none', !(amounts.exempt_value_cents > 0));
+            summary.querySelector('[data-checkout-unaffected-row]')?.classList.toggle('d-none', !(amounts.unaffected_value_cents > 0));
+
+            const summaryNote = summary.querySelector('[data-checkout-summary-note]');
+            if (summaryNote) summaryNote.textContent = note;
+        });
+    }
+
+    function resetSummary(note) {
+        renderSummary(baseSummary.amounts, 'Por calcular', note || 'El envio se sumara al elegir la modalidad de entrega.');
+    }
+
+    function safeUrl(value, fallback = '#') {
+        try {
+            const url = new URL(String(value || ''), window.location.origin);
+
+            return ['http:', 'https:'].includes(url.protocol) ? url.href : fallback;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function checkoutItemElement(item) {
+        const row = document.createElement('article');
+        const productUrl = safeUrl(item.url);
+        const imageUrl = safeUrl(item.image_url, '');
+        const imageLink = document.createElement('a');
+        const image = document.createElement('img');
+        const content = document.createElement('div');
+        const nameLink = document.createElement('a');
+        const details = document.createElement('div');
+        const total = document.createElement('strong');
+        const quantity = Math.max(0, Number(item.quantity || 0));
+
+        row.className = 'checkout-product-row';
+        row.dataset.checkoutItem = String(item.product_id || '');
+
+        imageLink.className = 'checkout-product-image';
+        imageLink.href = productUrl;
+        imageLink.setAttribute('aria-label', 'Ver ' + String(item.name || 'producto'));
+        if (imageUrl) image.src = imageUrl;
+        image.alt = String(item.name || 'Producto');
+        imageLink.appendChild(image);
+
+        content.className = 'checkout-product-content';
+        nameLink.className = 'fw-bold';
+        nameLink.href = productUrl;
+        nameLink.textContent = String(item.name || 'Producto');
+        content.appendChild(nameLink);
+
+        if (item.description) {
+            const description = document.createElement('p');
+            description.className = 'small text-muted mb-1';
+            description.textContent = String(item.description);
+            content.appendChild(description);
+        }
+
+        details.className = 'small text-muted';
+        details.appendChild(document.createTextNode(
+            quantity + ' x ' + String(item.formatted_unit_price || 'S/ 0.00'),
+        ));
+
+        if (item.tax_label) {
+            const separator = document.createElement('span');
+            separator.className = 'mx-1';
+            separator.setAttribute('aria-hidden', 'true');
+            separator.textContent = '\u00b7';
+            details.appendChild(separator);
+            details.appendChild(document.createTextNode(String(item.tax_label)));
+        }
+
+        content.appendChild(details);
+        total.className = 'checkout-product-total';
+        total.textContent = String(item.formatted_total || item.formatted_subtotal || 'S/ 0.00');
+        row.append(imageLink, content, total);
+
+        return row;
+    }
+
+    function syncCheckoutCart(cart, checkout) {
+        if (!cart) return;
+
+        const checkoutPage = form.closest('[data-checkout-page]');
+        const warnings = Array.isArray(checkout?.warnings)
+            ? checkout.warnings
+            : (Array.isArray(cart.warnings) ? cart.warnings : []);
+        const items = Array.isArray(checkout?.items)
+            ? checkout.items
+            : (Array.isArray(cart.items) ? cart.items : []);
+        const productCount = Number(checkout?.product_count ?? cart.product_count ?? items.length);
+        const totalQuantity = Number(checkout?.total_quantity ?? cart.total_quantity ?? 0);
+
+        syncCartUi({ cart: cart, warnings: warnings });
+        renderWarnings(checkoutPage?.querySelector('[data-cart-warnings]'), warnings);
+
+        if (checkout?.amounts) {
+            baseSummary = checkout;
+        }
+
+        const itemsContainer = checkoutPage?.querySelector('[data-checkout-items]');
+        if (itemsContainer) {
+            itemsContainer.replaceChildren(...items.map(checkoutItemElement));
+        }
+
+        const quantityLabel = checkoutPage?.querySelector('[data-checkout-total-quantity]');
+        if (quantityLabel) {
+            quantityLabel.textContent = totalQuantity + (totalQuantity === 1 ? ' unidad' : ' unidades');
+        }
+
+        document.querySelectorAll('[data-checkout-products]').forEach(function (counter) {
+            counter.textContent = productCount + ' (' + totalQuantity + (totalQuantity === 1 ? ' unidad)' : ' unidades)');
+        });
+    }
+
+    function renderPickupDetails(delivery) {
+        if (!pickupDetails || delivery?.method !== 'pickup') return;
+
+        if (pickupAddress) pickupAddress.textContent = String(delivery.pickup_address || 'Por confirmar');
+        if (pickupWindow) pickupWindow.textContent = String(delivery.pickup_availability_label || 'en una fecha por confirmar');
+        if (pickupHoldDays) pickupHoldDays.textContent = String(delivery.pickup_hold_days ?? '0');
+        pickupDetails.classList.remove('d-none');
+    }
 
     function syncAddressChoice() {
+        const method = selectedMethod();
+        const isHomeDelivery = method === 'home_delivery';
         const selected = form.querySelector('[data-checkout-address-choice]:checked');
-        const isNew = selected?.value === 'new';
+        const isNew = isHomeDelivery && selected?.value === 'new';
         const provinceInput = newAddressPanel?.querySelector('[data-address-province]');
+
+        addressSection?.classList.toggle('d-none', !isHomeDelivery);
+        if (method !== 'pickup') {
+            pickupDetails?.classList.add('d-none');
+        }
+
+        choices.forEach(function (choice) {
+            const available = choice.dataset.deliveryAvailable !== '0';
+            choice.disabled = !isHomeDelivery || !available;
+            choice.required = isHomeDelivery && available;
+        });
 
         newAddressPanel?.classList.toggle('d-none', !isNew);
         newAddressPanel?.querySelectorAll('input, select, textarea').forEach(function (field) {
@@ -252,15 +481,154 @@ document.querySelectorAll('[data-checkout-contact-address-form]').forEach(functi
         });
 
         if (submitLabel) {
-            submitLabel.textContent = isNew ? 'Guardar y usar esta direccion' : 'Usar estos datos';
+            submitLabel.textContent = method === 'pickup'
+                ? 'Guardar datos para recojo'
+                : (isNew ? 'Guardar y usar esta direccion' : 'Usar estos datos');
+        }
+    }
+
+    function quotePayload() {
+        const method = selectedMethod();
+
+        if (method === 'pickup') {
+            return { delivery_method: method };
+        }
+
+        if (method !== 'home_delivery') return null;
+
+        const selected = form.querySelector('[data-checkout-address-choice]:checked');
+        if (!selected || selected.disabled) return null;
+
+        if (selected.value === 'new') {
+            const ubigeo = newAddressPanel?.querySelector('[data-address-district]')?.value || '';
+            return ubigeo ? { delivery_method: method, ubigeo: ubigeo } : null;
+        }
+
+        const addressId = Number(selected.dataset.addressId || 0);
+        return addressId ? { delivery_method: method, address_id: addressId } : null;
+    }
+
+    async function requestQuote() {
+        const payload = quotePayload();
+        const sequence = ++quoteSequence;
+
+        quoteController?.abort();
+        quoteController = null;
+        setQuoteReference('');
+
+        if (selectedMethod() === 'pickup') {
+            pickupDetails?.classList.add('d-none');
+        }
+
+        if (!payload || !quoteUrl) {
+            setSummaryBusy(false);
+            const unavailableAddress = form.querySelector('[data-checkout-address-choice]:checked[data-delivery-available="0"]');
+
+            if (unavailableAddress && selectedMethod() === 'home_delivery') {
+                resetSummary('La direccion seleccionada no tiene entrega a domicilio disponible.');
+                setFeedback('warning', 'La entrega a domicilio no esta disponible para el distrito seleccionado. Elige otra direccion, recojo o consulta por WhatsApp.');
+            } else {
+                resetSummary('Selecciona una direccion y un distrito disponible para calcular el envio.');
+                setFeedback('secondary', 'Completa la modalidad y la direccion para obtener una cotizacion.');
+            }
+            return;
+        }
+
+        quoteController = new AbortController();
+        setSummaryBusy(true);
+        setFeedback('secondary', 'Calculando la tarifa y el total actualizado...');
+
+        try {
+            const response = await fetch(quoteUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                },
+                body: JSON.stringify(payload),
+                signal: quoteController.signal,
+            });
+            const data = await response.json();
+
+            if (sequence !== quoteSequence) return;
+
+            syncCheckoutCart(data.cart, data.checkout);
+
+            if (data.cart && (!Array.isArray(data.cart.items) || data.cart.items.length === 0)) {
+                const redirectUrl = safeUrl(data.redirect_url, '');
+
+                setFeedback('warning', data.message || 'Tu carrito esta vacio. Regresa al carrito para continuar.');
+                if (redirectUrl) window.location.assign(redirectUrl);
+                return;
+            }
+
+            if (!response.ok || !data.delivery?.available) {
+                pickupDetails?.classList.add('d-none');
+                const amounts = data.checkout?.amounts || data.delivery?.summary?.amounts || baseSummary.amounts;
+                renderSummary(amounts, 'No disponible', 'Elige otra direccion o modalidad para continuar.');
+                setFeedback('warning', data.message || 'La modalidad seleccionada no esta disponible.');
+                return;
+            }
+
+            const delivery = data.delivery;
+            const shippingLabel = delivery.shipping_fee_cents === 0 ? 'Gratis' : delivery.formatted_shipping_fee;
+
+            if (!delivery.quote_reference) {
+                pickupDetails?.classList.add('d-none');
+                resetSummary('No pudimos validar la referencia de la cotizacion. Intentalo nuevamente.');
+                setFeedback('danger', 'La cotizacion no pudo ser validada. Selecciona nuevamente la modalidad de entrega.');
+                return;
+            }
+
+            setQuoteReference(delivery.quote_reference);
+            renderSummary(
+                delivery.summary?.amounts,
+                shippingLabel,
+                delivery.method_label + '. Tarifa final con IGV incluido.',
+            );
+            renderPickupDetails(delivery);
+            setFeedback('success', delivery.message || 'Cotizacion actualizada.');
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+
+            pickupDetails?.classList.add('d-none');
+            resetSummary('No pudimos actualizar la cotizacion. Intentalo nuevamente.');
+            setFeedback('danger', 'No pudimos conectar con el servicio de cotizacion. Intentalo nuevamente.');
+        } finally {
+            if (sequence === quoteSequence) setSummaryBusy(false);
         }
     }
 
     choices.forEach(function (choice) {
-        choice.addEventListener('change', syncAddressChoice);
+        choice.addEventListener('change', function () {
+            syncAddressChoice();
+            requestQuote();
+        });
+    });
+    deliveryMethods.forEach(function (method) {
+        method.addEventListener('change', function () {
+            syncAddressChoice();
+            requestQuote();
+        });
+    });
+    newAddressPanel?.querySelector('[data-address-province]')?.addEventListener('change', requestQuote);
+    newAddressPanel?.querySelector('[data-address-district]')?.addEventListener('change', requestQuote);
+    form.addEventListener('submit', function (event) {
+        if (quoteReady && quoteReferenceInput?.value) return;
+
+        event.preventDefault();
+        setFeedback('warning', 'Obten una cotizacion vigente antes de guardar los datos de entrega.');
+        feedback?.focus({ preventScroll: false });
     });
 
     syncAddressChoice();
+    if (hasInitialQuote) {
+        setQuoteReference(quoteReferenceInput?.value || '');
+        setSummaryBusy(false);
+    } else {
+        requestQuote();
+    }
 });
 
 const defaultAddressForm = document.querySelector('[data-default-address-form]');
@@ -316,14 +684,6 @@ document.querySelectorAll('[data-inventory-movement-form]').forEach(function (fo
 
     type.addEventListener('change', syncMovementFields);
     syncMovementFields();
-});
-
-document.querySelectorAll('[data-checkout-option]').forEach(function (option) {
-    option.addEventListener('change', function () {
-        document.querySelectorAll('[data-checkout-panel]').forEach(function (panel) {
-            panel.classList.toggle('d-none', panel.dataset.checkoutPanel !== option.value);
-        });
-    });
 });
 
 function csrfToken() {

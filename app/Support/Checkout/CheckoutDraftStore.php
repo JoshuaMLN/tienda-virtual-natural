@@ -2,8 +2,10 @@
 
 namespace App\Support\Checkout;
 
+use App\Enums\DeliveryMethod;
 use App\Models\User;
 use Illuminate\Contracts\Session\Session;
+use ValueError;
 
 class CheckoutDraftStore
 {
@@ -22,16 +24,49 @@ class CheckoutDraftStore
             || (int) ($data['user_id'] ?? 0) !== (int) $user->getKey()
             || ! is_string($data['contact_name'] ?? null)
             || ! is_string($data['contact_phone'] ?? null)
-            || (int) ($data['address_id'] ?? 0) <= 0
         ) {
             return null;
+        }
+
+        $addressId = isset($data['address_id']) ? (int) $data['address_id'] : null;
+
+        if ($addressId !== null && $addressId <= 0) {
+            return null;
+        }
+
+        try {
+            $deliveryMethod = isset($data['delivery_method'])
+                ? DeliveryMethod::from((string) $data['delivery_method'])
+                : null;
+        } catch (ValueError) {
+            return null;
+        }
+
+        if (
+            ($deliveryMethod === DeliveryMethod::HomeDelivery && $addressId === null)
+            || ($deliveryMethod === DeliveryMethod::Pickup && $addressId !== null)
+        ) {
+            return null;
+        }
+
+        $deliveryQuote = CheckoutDeliverySnapshot::fromArray(
+            is_array($data['delivery_quote'] ?? null) ? $data['delivery_quote'] : null,
+        );
+
+        if (
+            $deliveryQuote !== null
+            && ($deliveryQuote->method !== $deliveryMethod || $deliveryQuote->addressId !== $addressId)
+        ) {
+            $deliveryQuote = null;
         }
 
         return new CheckoutDraft(
             userId: (int) $user->getKey(),
             contactName: $data['contact_name'],
             contactPhone: $data['contact_phone'],
-            addressId: (int) $data['address_id'],
+            addressId: $addressId,
+            deliveryMethod: $deliveryMethod,
+            deliveryQuote: $deliveryQuote,
         );
     }
 
@@ -39,13 +74,17 @@ class CheckoutDraftStore
         User $user,
         string $contactName,
         string $contactPhone,
-        int $addressId,
+        ?int $addressId,
+        DeliveryMethod $deliveryMethod,
+        CheckoutDeliverySnapshot $deliveryQuote,
     ): CheckoutDraft {
         $draft = new CheckoutDraft(
             userId: (int) $user->getKey(),
             contactName: $contactName,
             contactPhone: $contactPhone,
             addressId: $addressId,
+            deliveryMethod: $deliveryMethod,
+            deliveryQuote: $deliveryQuote,
         );
 
         $this->session->put(self::SESSION_KEY, $draft->toArray());

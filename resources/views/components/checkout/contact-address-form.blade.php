@@ -1,12 +1,14 @@
-@props(['checkoutForm'])
+@props(['checkoutForm', 'delivery'])
 
 @php
     $checkoutErrors = $errors->getBag('checkout');
+    $selectedMethod = old('delivery_method', $delivery['selected_method']);
+    $homeDeliverySelected = $selectedMethod === 'home_delivery';
     $defaultChoice = $checkoutForm['selected_address_id']
         ? 'address:'.$checkoutForm['selected_address_id']
         : 'new';
     $selectedChoice = old('address_choice', $defaultChoice);
-    $newAddressSelected = $selectedChoice === 'new';
+    $newAddressSelected = $homeDeliverySelected && $selectedChoice === 'new';
     $contactName = old('contact_name', $checkoutForm['contact']['name']);
     $contactPhone = old('contact_phone', $checkoutForm['contact']['phone']);
     $selectedProvince = old('province_code', '');
@@ -17,6 +19,7 @@
     $department = $selectedLocation['department'] ?? '';
     $isFirstAddress = $checkoutForm['is_first_address'];
     $isDefault = $isFirstAddress || (bool) old('is_default', false);
+    $initialQuoteReference = (string) data_get($delivery, 'quote.quote_reference', '');
 @endphp
 
 <form
@@ -25,11 +28,21 @@
     action="{{ route('checkout.contact-address.store') }}"
     data-address-form
     data-checkout-contact-address-form
+    data-checkout-delivery
+    data-checkout-quote-url="{{ route('checkout.delivery.quote') }}"
+    data-initial-quote="{{ $initialQuoteReference !== '' && ! session()->hasOldInput() ? '1' : '0' }}"
     data-selected-district="{{ $selectedDistrict }}"
 >
     @csrf
+    <input
+        type="hidden"
+        name="quote_reference"
+        value="{{ $initialQuoteReference }}"
+        data-checkout-quote-reference
+    >
 
     <script type="application/json" data-address-location-catalog>@json($checkoutForm['location_catalog'])</script>
+    <script type="application/json" data-checkout-base-summary>@json($delivery['base_summary'])</script>
 
     <section class="checkout-card p-3 p-lg-4" aria-labelledby="checkout-contact-title">
         <div class="checkout-section-heading">
@@ -95,9 +108,15 @@
         </div>
     </section>
 
-    <section class="checkout-card p-3 p-lg-4" aria-labelledby="checkout-address-title">
+    <x-checkout.shipping-form :delivery="$delivery" />
+
+    <section
+        class="checkout-card p-3 p-lg-4 {{ $homeDeliverySelected ? '' : 'd-none' }}"
+        aria-labelledby="checkout-address-title"
+        data-checkout-address-section
+    >
         <div class="checkout-section-heading">
-            <span class="checkout-step-number">2</span>
+            <span class="checkout-step-number">3</span>
             <div class="flex-grow-1">
                 <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
                     <div>
@@ -127,13 +146,21 @@
                             value="{{ $choice }}"
                             {{ $selectedChoice === $choice ? 'checked' : '' }}
                             data-checkout-address-choice
-                            required
+                            data-address-id="{{ $address['id'] }}"
+                            data-delivery-available="{{ $address['delivery_available'] ? '1' : '0' }}"
+                            @disabled(! $address['delivery_available'])
+                            @required($homeDeliverySelected && $address['delivery_available'])
                         >
                         <span class="checkout-address-option-content">
                             <span class="d-flex flex-wrap align-items-center gap-2 mb-1">
                                 <strong>{{ $address['label'] }}</strong>
                                 @if($address['is_default'])
                                     <span class="badge text-bg-success">Predeterminada</span>
+                                @endif
+                                @if($address['delivery_available'])
+                                    <span class="badge checkout-coverage-badge">Tarifa base {{ $address['formatted_shipping_fee'] }}</span>
+                                @else
+                                    <span class="badge text-bg-warning">No disponible</span>
                                 @endif
                             </span>
                             <span class="d-block">{{ $address['recipient_name'] }} · {{ $address['phone'] }}</span>
@@ -156,7 +183,8 @@
                     value="new"
                     {{ $newAddressSelected ? 'checked' : '' }}
                     data-checkout-address-choice
-                    required
+                    data-delivery-available="1"
+                    @required($homeDeliverySelected)
                 >
                 <span class="checkout-address-option-content">
                     <strong><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Agregar una nueva direccion</strong>
@@ -355,7 +383,7 @@
         <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
             <button class="btn btn-vn" type="submit" data-checkout-contact-submit>
                 <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
-                <span>{{ $newAddressSelected ? 'Guardar y usar esta direccion' : 'Usar estos datos' }}</span>
+                <span>{{ $selectedMethod === 'pickup' ? 'Guardar datos para recojo' : ($newAddressSelected ? 'Guardar y usar esta direccion' : 'Usar estos datos') }}</span>
             </button>
         </div>
     </section>

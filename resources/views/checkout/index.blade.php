@@ -19,37 +19,51 @@
         <p class="text-muted mb-0">Confirma los productos e importes antes de ingresar los datos de entrega.</p>
     </div>
 
-    @if($checkout['warnings'])
-        <div class="alert alert-warning" data-cart-warnings role="alert">
-            <div class="d-flex align-items-start justify-content-between gap-3">
-                <div data-cart-warnings-list>
-                    @foreach($checkout['warnings'] as $warning)
-                        <div>{{ $warning }}</div>
-                    @endforeach
-                </div>
-                <button class="btn-close flex-shrink-0" type="button" data-cart-warnings-clear aria-label="Cerrar aviso"></button>
+    <div class="alert alert-warning {{ $checkout['warnings'] ? '' : 'd-none' }}" data-cart-warnings role="alert">
+        <div class="d-flex align-items-start justify-content-between gap-3">
+            <div data-cart-warnings-list>
+                @foreach($checkout['warnings'] as $warning)
+                    <div>{{ $warning }}</div>
+                @endforeach
             </div>
+            <button class="btn-close flex-shrink-0" type="button" data-cart-warnings-clear aria-label="Cerrar aviso"></button>
         </div>
-    @endif
+    </div>
 
     @if(session('status') === 'checkout-contact-address-saved')
         <div class="alert alert-success d-flex align-items-center gap-2" role="status">
             <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-            <span>Datos de contacto y direccion guardados para esta compra.</span>
+            <span>Datos de contacto y entrega guardados para esta compra.</span>
         </div>
     @endif
 
+    <div class="checkout-coverage-note mb-4" role="note">
+        <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+        <div>
+            <strong>Entrega disponible solo en Lima Metropolitana y Callao.</strong>
+            @if($delivery['whatsapp_url'])
+                <span>Si tu distrito no esta disponible, consulta otras opciones por
+                    <a href="{{ $delivery['whatsapp_url'] }}" target="_blank" rel="noopener noreferrer">WhatsApp</a>.
+                </span>
+            @endif
+        </div>
+    </div>
+
     <div class="row g-4 align-items-start">
         <div class="col-lg-8">
-            <x-checkout.contact-address-form :checkout-form="$checkoutForm" />
+            <x-checkout.contact-address-form :checkout-form="$checkoutForm" :delivery="$delivery" />
+
+            <div class="d-lg-none mt-4">
+                <x-checkout.order-summary :checkout="$checkout" :delivery="$delivery" />
+            </div>
 
             <div class="checkout-card p-3 p-lg-4 mt-4">
                 <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
                     <h2 class="h5 fw-black mb-0">Productos</h2>
-                    <span class="small text-muted">{{ $checkout['total_quantity'] }} unidades</span>
+                    <span class="small text-muted" data-checkout-total-quantity>{{ $checkout['total_quantity'] }} unidades</span>
                 </div>
 
-                <div class="checkout-product-list">
+                <div class="checkout-product-list" data-checkout-items>
                     @foreach($checkout['items'] as $item)
                         <article class="checkout-product-row" data-checkout-item="{{ $item['product_id'] }}">
                             <a class="checkout-product-image" href="{{ $item['url'] }}" aria-label="Ver {{ $item['name'] }}">
@@ -72,8 +86,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
-            <x-checkout.order-summary :checkout="$checkout" />
+        <div class="col-lg-4 d-none d-lg-block">
+            <x-checkout.order-summary :checkout="$checkout" :delivery="$delivery" />
         </div>
     </div>
 </section>

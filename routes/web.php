@@ -28,6 +28,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CheckoutContactAddressController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\CheckoutDeliveryQuoteController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\ProductController;
@@ -58,6 +59,8 @@ Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'customer'])->
     Route::middleware('verified')->group(function () {
         Route::post('/contacto-direccion', CheckoutContactAddressController::class)
             ->name('contact-address.store');
+        Route::post('/cotizacion-entrega', CheckoutDeliveryQuoteController::class)
+            ->name('delivery.quote');
         Route::view('/exitoso', 'checkout.success')->name('success');
         Route::view('/fallido', 'checkout.failed')->name('failed');
         Route::view('/pendiente', 'checkout.pending')->name('pending');

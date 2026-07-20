@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Checkout\ShowCheckoutRequest;
 use App\Support\Cart\CartService;
+use App\Support\Checkout\CheckoutDeliveryService;
 use App\Support\Checkout\CheckoutFormDataService;
 use App\Support\Checkout\CheckoutReadService;
 use Illuminate\Http\RedirectResponse;
@@ -16,6 +17,7 @@ class CheckoutController extends Controller
     public function __construct(
         private readonly CheckoutReadService $checkoutReadService,
         private readonly CheckoutFormDataService $checkoutFormDataService,
+        private readonly CheckoutDeliveryService $checkoutDeliveryService,
         private readonly CartService $cartService,
     ) {}
 
@@ -30,9 +32,23 @@ class CheckoutController extends Controller
             return redirect()->route('shop.cart');
         }
 
+        $checkoutForm = $this->checkoutFormDataService->for($request->user());
+        $delivery = $this->checkoutDeliveryService->initialState(
+            $request->user(),
+            $checkout,
+            $checkoutForm['selected_delivery_method'],
+            $checkoutForm['selected_address_id'],
+        );
+        $checkoutData = $checkout->toArray();
+
+        if (is_array($delivery['quote'] ?? null)) {
+            $checkoutData['amounts'] = $delivery['quote']['summary']['amounts'];
+        }
+
         return view('checkout.index', [
-            'checkout' => $checkout->toArray(),
-            'checkoutForm' => $this->checkoutFormDataService->for($request->user()),
+            'checkout' => $checkoutData,
+            'checkoutForm' => $checkoutForm,
+            'delivery' => $delivery,
         ]);
     }
 }

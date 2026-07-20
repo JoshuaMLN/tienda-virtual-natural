@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Checkout;
 
+use App\Enums\DeliveryMethod;
 use App\Models\CustomerAddress;
 use App\Support\Addresses\CustomerAddressService;
+use App\Support\Delivery\DeliveryService;
 use App\Support\Geography\InvalidUbigeoException;
 use App\Support\Geography\LimaCallaoUbigeoCatalog;
 use Illuminate\Foundation\Http\FormRequest;
@@ -31,8 +33,19 @@ class SaveCheckoutContactAddressRequest extends FormRequest
         return [
             'contact_name' => ['required', 'string', 'max:120'],
             'contact_phone' => ['required', 'string', 'regex:/^9\d{8}$/'],
-            'address_choice' => ['required', 'string', 'regex:/^(?:new|address:\d+)$/'],
-            'address_mode' => ['required', Rule::in(['existing', 'new'])],
+            'delivery_method' => ['required', Rule::enum(DeliveryMethod::class)],
+            'quote_reference' => ['required', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'address_choice' => [
+                'exclude_unless:delivery_method,'.DeliveryMethod::HomeDelivery->value,
+                'required',
+                'string',
+                'regex:/^(?:new|address:\d+)$/',
+            ],
+            'address_mode' => [
+                'exclude_unless:delivery_method,'.DeliveryMethod::HomeDelivery->value,
+                'required',
+                Rule::in(['existing', 'new']),
+            ],
             'address_id' => [
                 'exclude_unless:address_mode,existing',
                 'required',
@@ -59,6 +72,10 @@ class SaveCheckoutContactAddressRequest extends FormRequest
             'contact_name.max' => 'El nombre de contacto no debe superar los 120 caracteres.',
             'contact_phone.required' => 'Ingresa un celular de contacto para esta compra.',
             'contact_phone.regex' => 'Ingresa un celular peruano valido de 9 digitos.',
+            'delivery_method.required' => 'Selecciona entrega a domicilio o recojo en tienda.',
+            'delivery_method.enum' => 'La modalidad de entrega seleccionada no es valida.',
+            'quote_reference.required' => 'Calcula y revisa la cotizacion antes de guardar estos datos.',
+            'quote_reference.regex' => 'La cotizacion mostrada ya no es valida. Vuelve a calcularla.',
             'address_choice.required' => 'Selecciona una direccion o agrega una nueva.',
             'address_choice.regex' => 'La seleccion de direccion no es valida.',
             'address_id.required' => 'Selecciona una direccion guardada.',
@@ -81,15 +98,19 @@ class SaveCheckoutContactAddressRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $deliveryMethod = trim((string) $this->input('delivery_method'));
         $choice = trim((string) $this->input('address_choice'));
-        $isExisting = str_starts_with($choice, 'address:');
+        $isHomeDelivery = $deliveryMethod === DeliveryMethod::HomeDelivery->value;
+        $isExisting = $isHomeDelivery && str_starts_with($choice, 'address:');
         $reference = Str::squish((string) $this->input('reference'));
 
         $this->merge([
             'contact_name' => Str::squish((string) $this->input('contact_name')),
             'contact_phone' => $this->digits($this->input('contact_phone')),
-            'address_choice' => $choice,
-            'address_mode' => $isExisting ? 'existing' : 'new',
+            'delivery_method' => $deliveryMethod,
+            'quote_reference' => strtolower(trim((string) $this->input('quote_reference'))),
+            'address_choice' => $isHomeDelivery ? $choice : null,
+            'address_mode' => $isHomeDelivery ? ($isExisting ? 'existing' : 'new') : null,
             'address_id' => $isExisting ? (int) Str::after($choice, 'address:') : null,
             'label' => Str::squish((string) $this->input('label')),
             'recipient_name' => Str::squish((string) $this->input('recipient_name')),
@@ -105,6 +126,40 @@ class SaveCheckoutContactAddressRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            if ($this->input('delivery_method') === DeliveryMethod::Pickup->value) {
+                if (! app(DeliveryService::class)->pickupAvailable()) {
+                    $validator->errors()->add(
+                        'delivery_method',
+                        'El recojo en tienda no esta disponible en este momento.',
+                    );
+                }
+
+                return;
+            }
+
+            if ($this->input('delivery_method') !== DeliveryMethod::HomeDelivery->value) {
+                return;
+            }
+
+            if ($this->input('address_mode') === 'existing') {
+                if ($validator->errors()->has('address_id')) {
+                    return;
+                }
+
+                $address = $this->user()?->addresses()
+                    ->whereKey((int) $this->input('address_id'))
+                    ->first();
+
+                if ($address !== null && ! app(DeliveryService::class)->hasCoverage($address->ubigeo)) {
+                    $validator->errors()->add(
+                        'address_choice',
+                        'La entrega a domicilio no esta disponible para el distrito seleccionado.',
+                    );
+                }
+
+                return;
+            }
+
             if ($this->input('address_mode') !== 'new') {
                 return;
             }
@@ -134,6 +189,15 @@ class SaveCheckoutContactAddressRequest extends FormRequest
                 $validator->errors()->add(
                     'district_code',
                     'El distrito no pertenece a la provincia seleccionada.',
+                );
+
+                return;
+            }
+
+            if (! app(DeliveryService::class)->hasCoverage($this->string('district_code')->toString())) {
+                $validator->errors()->add(
+                    'district_code',
+                    'La entrega a domicilio no esta disponible para este distrito.',
                 );
             }
         });

@@ -25,17 +25,64 @@ final readonly class CheckoutSummary
             'product_count' => $this->cart->productCount(),
             'total_quantity' => $this->cart->totalQuantity(),
             'warnings' => $this->cart->warnings,
-            'amounts' => [
-                ...$this->pricing->orderAmountAttributes(),
-                'formatted_products_subtotal' => $this->format($this->pricing->productsSubtotalCents),
-                'formatted_taxable_value' => $this->format($this->pricing->taxableValueCents),
-                'formatted_exempt_value' => $this->format($this->pricing->exemptValueCents),
-                'formatted_unaffected_value' => $this->format($this->pricing->unaffectedValueCents),
-                'formatted_net_value' => $this->format($this->pricing->netValueCents),
-                'formatted_tax' => $this->format($this->pricing->taxCents),
-                'formatted_total' => $this->format($this->pricing->totalCents),
-            ],
+            'amounts' => $this->amountsToArray(),
         ];
+    }
+
+    /** @return array<string, int|string> */
+    public function amountsToArray(): array
+    {
+        return [
+            ...$this->pricing->orderAmountAttributes(),
+            'formatted_products_subtotal' => $this->format($this->pricing->productsSubtotalCents),
+            'formatted_taxable_value' => $this->format($this->pricing->taxableValueCents),
+            'formatted_exempt_value' => $this->format($this->pricing->exemptValueCents),
+            'formatted_unaffected_value' => $this->format($this->pricing->unaffectedValueCents),
+            'formatted_net_value' => $this->format($this->pricing->netValueCents),
+            'formatted_tax' => $this->format($this->pricing->taxCents),
+            'formatted_total' => $this->format($this->pricing->totalCents),
+        ];
+    }
+
+    /**
+     * @return list<array{
+     *     product_id: int,
+     *     product_sku: string,
+     *     product_name: string,
+     *     quantity: int,
+     *     tax_affectation: string,
+     *     tax_rate_bps: int,
+     *     unit_price_cents: int,
+     *     gross_total_cents: int,
+     *     discount_cents: int,
+     *     net_value_cents: int,
+     *     tax_cents: int,
+     *     total_cents: int
+     * }>
+     */
+    public function itemSnapshots(): array
+    {
+        $items = array_map(
+            fn (OrderLinePricing $line): array => [
+                'product_id' => (int) $line->product->getKey(),
+                'product_sku' => (string) $line->product->sku,
+                'product_name' => (string) $line->product->name,
+                'quantity' => $line->quantity,
+                'tax_affectation' => $line->taxAffectation->value,
+                'tax_rate_bps' => $line->taxRateBasisPoints,
+                'unit_price_cents' => $line->unitPriceCents,
+                'gross_total_cents' => $line->grossTotalCents,
+                'discount_cents' => $line->discountCents,
+                'net_value_cents' => $line->netValueCents,
+                'tax_cents' => $line->taxCents,
+                'total_cents' => $line->totalCents,
+            ],
+            $this->pricing->lines,
+        );
+
+        usort($items, fn (array $left, array $right): int => $left['product_id'] <=> $right['product_id']);
+
+        return $items;
     }
 
     /** @return array<string, mixed> */

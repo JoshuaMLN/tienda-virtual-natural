@@ -2,8 +2,11 @@
 
 namespace Tests\Feature\Checkout;
 
+use App\Enums\DeliveryMethod;
 use App\Models\CustomerAddress;
+use App\Models\DeliveryDistrict;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Models\User;
 use App\Support\Addresses\CustomerAddressService;
 use App\Support\Cart\CartService;
@@ -13,6 +16,13 @@ use Tests\TestCase;
 class CheckoutContactAddressTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Setting::clearLocalCache();
+
+        parent::tearDown();
+    }
 
     public function test_checkout_prefills_contact_and_prioritizes_the_owned_default_address(): void
     {
@@ -59,9 +69,10 @@ class CheckoutContactAddressTest extends TestCase
             ->assertOk()
             ->assertViewHas('checkoutForm', fn (array $form): bool => $form['is_first_address']
                 && $form['selected_address_id'] === null
+                && $form['selected_delivery_method'] === null
                 && $form['can_create_address'])
             ->assertSee('value="new"', false)
-            ->assertSee('Guardar y usar esta direccion')
+            ->assertSee('Usar estos datos')
             ->assertSee('Tu primera direccion sera predeterminada automaticamente.')
             ->assertSee('data-address-location-catalog', false);
     }
@@ -75,21 +86,37 @@ class CheckoutContactAddressTest extends TestCase
         ]);
         $address = CustomerAddress::factory()->for($user)->default()->create();
         $this->withCart($user);
+        $quoteReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $address->id,
+        );
 
         $this->post(route('checkout.contact-address.store'), [
             'contact_name' => 'Contacto para compra',
             'contact_phone' => '987 654 321',
             'contact_email' => 'manipulado@example.com',
+            'delivery_method' => DeliveryMethod::HomeDelivery->value,
             'address_choice' => 'address:'.$address->id,
+            'quote_reference' => $quoteReference,
         ])
             ->assertRedirect(route('checkout.index'))
             ->assertSessionHas('status', 'checkout-contact-address-saved')
-            ->assertSessionHas('checkout.draft', fn (array $draft): bool => $draft === [
-                'user_id' => $user->id,
-                'contact_name' => 'Contacto para compra',
-                'contact_phone' => '987654321',
-                'address_id' => $address->id,
-            ]);
+            ->assertSessionHas('checkout.draft', function (array $draft) use ($user, $address, $quoteReference): bool {
+                $quote = $draft['delivery_quote'] ?? null;
+
+                return $draft['user_id'] === $user->id
+                    && $draft['contact_name'] === 'Contacto para compra'
+                    && $draft['contact_phone'] === '987654321'
+                    && $draft['address_id'] === $address->id
+                    && $draft['delivery_method'] === DeliveryMethod::HomeDelivery->value
+                    && is_array($quote)
+                    && $quote['method'] === DeliveryMethod::HomeDelivery->value
+                    && $quote['address_id'] === $address->id
+                    && $quote['ubigeo'] === '150140'
+                    && $quote['base_fee_cents'] === 1180
+                    && $quote['amounts']['shipping_fee_cents'] === 1180
+                    && $quote['fingerprint'] === $quoteReference;
+            });
 
         $user->refresh();
         $this->assertSame('Nombre del perfil', $user->name);
@@ -102,7 +129,7 @@ class CheckoutContactAddressTest extends TestCase
             ->assertOk()
             ->assertSee('value="Contacto para compra"', false)
             ->assertSee('value="987654321"', false)
-            ->assertSee('Datos de contacto y direccion guardados para esta compra.');
+            ->assertSee('Datos de contacto y entrega guardados para esta compra.');
     }
 
     public function test_customer_can_create_and_use_a_canonical_first_address(): void
@@ -140,6 +167,39 @@ class CheckoutContactAddressTest extends TestCase
         $this->assertNoCheckoutDomainRecords();
     }
 
+    public function test_customer_can_save_pickup_without_an_address(): void
+    {
+        Setting::setValue(Setting::PICKUP_ADDRESS, 'Av. Javier Prado 1234, San Isidro');
+        $user = User::factory()->create();
+        $this->withCart($user);
+        $quoteReference = $this->quoteReference(DeliveryMethod::Pickup);
+
+        $this->post(route('checkout.contact-address.store'), [
+            'contact_name' => 'Contacto para recojo',
+            'contact_phone' => '987654321',
+            'delivery_method' => DeliveryMethod::Pickup->value,
+            'quote_reference' => $quoteReference,
+        ])
+            ->assertRedirect(route('checkout.index'))
+            ->assertSessionHas('status', 'checkout-contact-address-saved')
+            ->assertSessionHas('checkout.draft', function (array $draft) use ($user): bool {
+                $quote = $draft['delivery_quote'] ?? null;
+
+                return $draft['user_id'] === $user->id
+                    && $draft['address_id'] === null
+                    && $draft['delivery_method'] === DeliveryMethod::Pickup->value
+                    && is_array($quote)
+                    && $quote['method'] === DeliveryMethod::Pickup->value
+                    && $quote['address_id'] === null
+                    && $quote['ubigeo'] === null
+                    && $quote['pickup_address'] === 'Av. Javier Prado 1234, San Isidro'
+                    && $quote['amounts']['shipping_fee_cents'] === 0;
+            });
+
+        $this->assertDatabaseCount('customer_addresses', 0);
+        $this->assertNoCheckoutDomainRecords();
+    }
+
     public function test_new_address_only_replaces_the_default_when_explicitly_requested(): void
     {
         $user = User::factory()->create();
@@ -174,12 +234,19 @@ class CheckoutContactAddressTest extends TestCase
         $user = User::factory()->create();
         $foreignAddress = CustomerAddress::factory()->create();
         $this->withCart($user);
+        $quoteReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $foreignAddress->id,
+            expectSuccess: false,
+        );
 
         $this->from(route('checkout.index'))
             ->post(route('checkout.contact-address.store'), [
                 'contact_name' => 'Maria Perez',
                 'contact_phone' => '987654321',
+                'delivery_method' => DeliveryMethod::HomeDelivery->value,
                 'address_choice' => 'address:'.$foreignAddress->id,
+                'quote_reference' => $quoteReference,
             ])
             ->assertRedirect(route('checkout.index'))
             ->assertSessionHasErrors(['address_id'], null, 'checkout');
@@ -188,6 +255,78 @@ class CheckoutContactAddressTest extends TestCase
         $this->assertDatabaseHas('customer_addresses', [
             'id' => $foreignAddress->id,
             'user_id' => $foreignAddress->user_id,
+        ]);
+    }
+
+    public function test_checkout_keeps_an_owned_address_visible_when_its_district_becomes_inactive(): void
+    {
+        $user = User::factory()->create();
+        $address = CustomerAddress::factory()->for($user)->default()->create([
+            'label' => 'Casa fuera de cobertura',
+        ]);
+        DeliveryDistrict::factory()->inactive()->create([
+            'ubigeo' => $address->ubigeo,
+            'district' => $address->district,
+            'shipping_fee' => '11.80',
+        ]);
+        Setting::setValue(Setting::PICKUP_ADDRESS, 'Av. Javier Prado 1234, San Isidro');
+        $this->withCart($user, withCoverage: false);
+
+        $this->get(route('checkout.index'))
+            ->assertOk()
+            ->assertViewHas('checkoutForm', function (array $form) use ($address): bool {
+                $savedAddress = collect($form['addresses'])->firstWhere('id', $address->id);
+
+                return $form['selected_address_id'] === $address->id
+                    && $form['selected_delivery_method'] === null
+                    && is_array($savedAddress)
+                    && $savedAddress['delivery_available'] === false
+                    && $savedAddress['formatted_shipping_fee'] === null;
+            })
+            ->assertViewHas('delivery', fn (array $delivery): bool => $delivery['selected_method'] === null
+                && $delivery['quote'] === null
+                && $delivery['pickup_available'] === true)
+            ->assertSee('Casa fuera de cobertura')
+            ->assertSee('No disponible');
+    }
+
+    public function test_checkout_does_not_replace_a_deleted_draft_address_silently(): void
+    {
+        $user = User::factory()->create();
+        $selected = CustomerAddress::factory()->for($user)->default()->create([
+            'label' => 'Direccion elegida',
+        ]);
+        $fallback = CustomerAddress::factory()->for($user)->create([
+            'label' => 'Otra direccion',
+        ]);
+        $this->withCart($user);
+        $quoteReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $selected->id,
+        );
+
+        $this->post(route('checkout.contact-address.store'), [
+            'contact_name' => 'Maria Perez',
+            'contact_phone' => '987654321',
+            'delivery_method' => DeliveryMethod::HomeDelivery->value,
+            'address_choice' => 'address:'.$selected->id,
+            'quote_reference' => $quoteReference,
+        ])->assertRedirect(route('checkout.index'));
+
+        $selected->delete();
+
+        $this->get(route('checkout.index'))
+            ->assertOk()
+            ->assertViewHas('checkoutForm', fn (array $form): bool => $form['selected_address_id'] === null)
+            ->assertViewHas('delivery', fn (array $delivery): bool => $delivery['selected_method'] === DeliveryMethod::HomeDelivery->value
+                && $delivery['quote'] === null
+                && $delivery['unavailable_message'] === 'Selecciona una direccion con cobertura para cotizar la entrega.')
+            ->assertSee('Otra direccion')
+            ->assertSee('Selecciona una direccion con cobertura para cotizar la entrega.');
+
+        $this->assertDatabaseHas('customer_addresses', [
+            'id' => $fallback->id,
+            'user_id' => $user->id,
         ]);
     }
 
@@ -236,23 +375,148 @@ class CheckoutContactAddressTest extends TestCase
         $this->assertNull(session('checkout.draft'));
     }
 
+    public function test_quote_reference_is_required_and_must_be_a_sha_256_hash(): void
+    {
+        $user = User::factory()->create();
+        $address = CustomerAddress::factory()->for($user)->default()->create();
+        $this->withCart($user);
+        $payload = [
+            'contact_name' => 'Maria Perez',
+            'contact_phone' => '987654321',
+            'delivery_method' => DeliveryMethod::HomeDelivery->value,
+            'address_choice' => 'address:'.$address->id,
+        ];
+
+        $this->from(route('checkout.index'))
+            ->post(route('checkout.contact-address.store'), $payload)
+            ->assertRedirect(route('checkout.index'))
+            ->assertSessionHasErrors(['quote_reference'], null, 'checkout');
+
+        $this->from(route('checkout.index'))
+            ->post(route('checkout.contact-address.store'), [
+                ...$payload,
+                'quote_reference' => 'referencia-no-valida',
+            ])
+            ->assertRedirect(route('checkout.index'))
+            ->assertSessionHasErrors(['quote_reference'], null, 'checkout');
+
+        $this->assertNull(session('checkout.draft'));
+        $this->assertDatabaseCount('customer_addresses', 1);
+    }
+
+    public function test_a_new_address_is_not_created_when_its_accepted_tariff_is_stale(): void
+    {
+        $user = User::factory()->create();
+        $this->withCart($user);
+        $quoteReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            ubigeo: '150140',
+        );
+
+        DeliveryDistrict::query()
+            ->where('ubigeo', '150140')
+            ->update(['shipping_fee' => '17.70']);
+
+        $this->from(route('checkout.index'))
+            ->post(route('checkout.contact-address.store'), $this->newAddressData([
+                'quote_reference' => $quoteReference,
+            ]))
+            ->assertRedirect(route('checkout.index'))
+            ->assertSessionHasErrors(['delivery_method'], null, 'checkout');
+
+        $this->assertDatabaseCount('customer_addresses', 0);
+        $this->assertNull(session('checkout.draft'));
+        $this->assertNoCheckoutDomainRecords();
+    }
+
+    public function test_an_accepted_quote_is_rejected_when_a_product_price_changes(): void
+    {
+        $user = User::factory()->create();
+        $address = CustomerAddress::factory()->for($user)->default()->create();
+        $product = $this->withCart($user);
+        $quoteReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $address->id,
+        );
+
+        $product->update(['price' => '69.00']);
+
+        $this->from(route('checkout.index'))
+            ->post(route('checkout.contact-address.store'), [
+                'contact_name' => 'Maria Perez',
+                'contact_phone' => '987654321',
+                'delivery_method' => DeliveryMethod::HomeDelivery->value,
+                'address_choice' => 'address:'.$address->id,
+                'quote_reference' => $quoteReference,
+            ])
+            ->assertRedirect(route('checkout.index'))
+            ->assertSessionHasErrors(['delivery_method'], null, 'checkout');
+
+        $this->assertNull(session('checkout.draft'));
+        $this->assertDatabaseCount('customer_addresses', 1);
+        $this->assertNoCheckoutDomainRecords();
+    }
+
+    public function test_an_accepted_quote_is_rejected_when_the_cart_quantity_changes(): void
+    {
+        $user = User::factory()->create();
+        $address = CustomerAddress::factory()->for($user)->default()->create();
+        $product = $this->withCart($user);
+        $quoteReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $address->id,
+        );
+
+        app(CartService::class)->add($product, 1);
+
+        $this->from(route('checkout.index'))
+            ->post(route('checkout.contact-address.store'), [
+                'contact_name' => 'Maria Perez',
+                'contact_phone' => '987654321',
+                'delivery_method' => DeliveryMethod::HomeDelivery->value,
+                'address_choice' => 'address:'.$address->id,
+                'quote_reference' => $quoteReference,
+            ])
+            ->assertRedirect(route('checkout.index'))
+            ->assertSessionHasErrors(['delivery_method'], null, 'checkout');
+
+        $this->assertDatabaseHas('cart_items', [
+            'product_id' => $product->id,
+            'quantity' => 2,
+        ]);
+        $this->assertNull(session('checkout.draft'));
+        $this->assertDatabaseCount('customer_addresses', 1);
+        $this->assertNoCheckoutDomainRecords();
+    }
+
     public function test_contact_address_route_requires_verified_customer_and_non_empty_cart(): void
     {
-        $this->post(route('checkout.contact-address.store'), [])
+        $payload = [
+            'contact_name' => 'Maria Perez',
+            'contact_phone' => '987654321',
+            'delivery_method' => DeliveryMethod::HomeDelivery->value,
+            'address_choice' => 'address:1',
+            'quote_reference' => str_repeat('a', 64),
+        ];
+
+        $this->post(route('checkout.contact-address.store'), $payload)
             ->assertRedirect(route('login'));
 
         $unverified = User::factory()->unverified()->create();
         $this->actingAs($unverified)
-            ->post(route('checkout.contact-address.store'), [])
+            ->post(route('checkout.contact-address.store'), $payload)
             ->assertRedirect(route('verification.notice'));
 
         $verified = User::factory()->create();
         $address = CustomerAddress::factory()->for($verified)->default()->create();
+        $this->ensureHomeDeliveryCoverage();
         $this->actingAs($verified)
             ->post(route('checkout.contact-address.store'), [
                 'contact_name' => 'Maria Perez',
                 'contact_phone' => '987654321',
+                'delivery_method' => DeliveryMethod::HomeDelivery->value,
                 'address_choice' => 'address:'.$address->id,
+                'quote_reference' => str_repeat('a', 64),
             ])
             ->assertRedirect(route('checkout.index'));
 
@@ -268,11 +532,17 @@ class CheckoutContactAddressTest extends TestCase
         ]);
         $firstAddress = CustomerAddress::factory()->for($firstUser)->default()->create();
         $this->withCart($firstUser);
+        $quoteReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $firstAddress->id,
+        );
 
         $this->post(route('checkout.contact-address.store'), [
             'contact_name' => 'Contacto privado',
             'contact_phone' => '986111222',
+            'delivery_method' => DeliveryMethod::HomeDelivery->value,
             'address_choice' => 'address:'.$firstAddress->id,
+            'quote_reference' => $quoteReference,
         ])->assertRedirect(route('checkout.index'));
 
         $secondUser = User::factory()->create([
@@ -293,18 +563,29 @@ class CheckoutContactAddressTest extends TestCase
             ->assertDontSee('986111222');
     }
 
-    private function withCart(User $user): void
+    private function withCart(User $user, bool $withCoverage = true): Product
     {
+        if ($withCoverage) {
+            $this->ensureHomeDeliveryCoverage();
+        }
+
         $this->actingAs($user);
-        app(CartService::class)->add(Product::factory()->create(['stock' => 20]), 1);
+        $product = Product::factory()->create([
+            'price' => '59.00',
+            'stock' => 20,
+        ]);
+        app(CartService::class)->add($product, 1);
+
+        return $product;
     }
 
     /** @param array<string, mixed> $overrides */
     private function newAddressData(array $overrides = []): array
     {
-        return [
+        $data = [
             'contact_name' => 'Maria Fernanda Perez',
             'contact_phone' => '987654321',
+            'delivery_method' => DeliveryMethod::HomeDelivery->value,
             'address_choice' => 'new',
             'label' => 'Casa',
             'recipient_name' => 'Maria Fernanda Perez',
@@ -316,6 +597,48 @@ class CheckoutContactAddressTest extends TestCase
             'is_default' => false,
             ...$overrides,
         ];
+
+        if (! array_key_exists('quote_reference', $data)) {
+            $data['quote_reference'] = $this->quoteReference(
+                DeliveryMethod::HomeDelivery,
+                ubigeo: (string) $data['district_code'],
+            );
+        }
+
+        return $data;
+    }
+
+    private function quoteReference(
+        DeliveryMethod $method,
+        ?int $addressId = null,
+        ?string $ubigeo = null,
+        bool $expectSuccess = true,
+    ): string {
+        $payload = ['delivery_method' => $method->value];
+
+        if ($addressId !== null) {
+            $payload['address_id'] = $addressId;
+        }
+
+        if ($ubigeo !== null) {
+            $payload['ubigeo'] = $ubigeo;
+        }
+
+        $response = $this->postJson(route('checkout.delivery.quote'), $payload);
+
+        if (! $expectSuccess) {
+            $response->assertUnprocessable();
+
+            return str_repeat('a', 64);
+        }
+
+        $response->assertOk();
+        $reference = $response->json('delivery.quote_reference');
+
+        $this->assertIsString($reference);
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $reference);
+
+        return $reference;
     }
 
     private function assertNoCheckoutDomainRecords(): void
@@ -326,5 +649,20 @@ class CheckoutContactAddressTest extends TestCase
         $this->assertDatabaseCount('order_status_histories', 0);
         $this->assertDatabaseCount('stock_reservations', 0);
         $this->assertDatabaseCount('inventory_movements', 0);
+    }
+
+    private function ensureHomeDeliveryCoverage(): void
+    {
+        DeliveryDistrict::query()->updateOrCreate(
+            ['ubigeo' => '150140'],
+            [
+                'province_code' => '1501',
+                'department' => 'Lima',
+                'province' => 'Lima',
+                'district' => 'Santiago de Surco',
+                'shipping_fee' => '11.80',
+                'is_active' => true,
+            ],
+        );
     }
 }
