@@ -32,6 +32,7 @@
     data-checkout-quote-url="{{ route('checkout.delivery.quote') }}"
     data-initial-quote="{{ $initialQuoteReference !== '' && ! session()->hasOldInput() ? '1' : '0' }}"
     data-selected-district="{{ $selectedDistrict }}"
+    aria-busy="false"
 >
     @csrf
     <input
@@ -129,7 +130,7 @@
         </div>
 
         @if($checkoutErrors->has('address_choice') || $checkoutErrors->has('address_id'))
-            <div class="alert alert-danger py-2 mt-3 mb-0" role="alert">
+            <div class="alert alert-danger py-2 mt-3 mb-0" role="alert" data-checkout-error>
                 {{ $checkoutErrors->first('address_choice') ?: $checkoutErrors->first('address_id') }}
             </div>
         @endif

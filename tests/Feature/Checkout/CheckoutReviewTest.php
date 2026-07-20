@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\Cart\CartService;
 use App\Support\Legal\LegalDocumentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class CheckoutReviewTest extends TestCase
@@ -72,6 +73,34 @@ class CheckoutReviewTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())
             ->post(route('checkout.review'), $payload)
             ->assertForbidden();
+    }
+
+    public function test_checkout_forms_expose_csrf_and_mutating_routes_keep_required_middleware(): void
+    {
+        $user = User::factory()->create();
+        $this->withCart($user);
+
+        $this->get(route('checkout.index'))
+            ->assertOk()
+            ->assertSee('name="csrf-token"', false)
+            ->assertSee('name="_token"', false)
+            ->assertSee('data-checkout-contact-submit', false)
+            ->assertSee('data-checkout-fiscal-submit', false)
+            ->assertSee('aria-busy="false"', false);
+
+        foreach ([
+            'checkout.contact-address.store',
+            'checkout.delivery.quote',
+            'checkout.fiscal.store',
+            'checkout.review',
+        ] as $routeName) {
+            $middleware = Route::getRoutes()->getByName($routeName)?->gatherMiddleware() ?? [];
+
+            $this->assertContains('web', $middleware, $routeName.' no tiene middleware web/CSRF.');
+            $this->assertContains('auth', $middleware, $routeName.' no exige autenticacion.');
+            $this->assertContains('customer', $middleware, $routeName.' no restringe a clientes.');
+            $this->assertContains('verified', $middleware, $routeName.' no exige correo verificado.');
+        }
     }
 
     public function test_checkout_progress_cannot_skip_pending_steps_and_can_reopen_completed_steps(): void
@@ -154,6 +183,117 @@ class CheckoutReviewTest extends TestCase
             ->assertSee('value="Empresa Persistente SAC"', false)
             ->assertSee('value="Av. Persistente 123"', false)
             ->assertDontSee('Revision completada');
+
+        $this->assertNoCheckoutDomainRecords();
+    }
+
+    public function test_changing_contact_invalidates_review_without_losing_fiscal_data(): void
+    {
+        $user = User::factory()->create();
+        $this->preparePickupDraft($user);
+        $this->post(route('checkout.review'), $this->receiptPayload())
+            ->assertSessionHasNoErrors();
+
+        $quoteReference = session('checkout.draft.delivery_quote.fingerprint');
+
+        $this->post(route('checkout.contact-address.store'), [
+            'contact_name' => 'Nuevo contacto',
+            'contact_phone' => '912345678',
+            'delivery_method' => DeliveryMethod::Pickup->value,
+            'quote_reference' => $quoteReference,
+        ])
+            ->assertRedirect(route('checkout.index'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('checkout.draft', fn (array $draft): bool => $draft['contact_name'] === 'Nuevo contacto'
+                && $draft['contact_phone'] === '912345678'
+                && $draft['review'] === null
+                && $draft['fiscal']['document_type'] === 'receipt'
+                && $draft['fiscal']['identity_document_number'] === '12345678');
+
+        $this->get(route('checkout.index'))
+            ->assertOk()
+            ->assertViewHas('checkoutForm', fn (array $form): bool => $form['active_step'] === 2
+                && $form['max_step'] === 2)
+            ->assertSee('value="Maria Fernanda"', false)
+            ->assertDontSee('Revision completada');
+
+        $this->assertNoCheckoutDomainRecords();
+    }
+
+    public function test_unchanged_fiscal_data_preserves_review_and_changed_data_invalidates_it(): void
+    {
+        $user = User::factory()->create();
+        $this->preparePickupDraft($user);
+        $payload = $this->receiptPayload();
+
+        $this->post(route('checkout.review'), $payload)
+            ->assertSessionHasNoErrors();
+        $reviewReference = session('checkout.draft.review.fingerprint');
+
+        unset($payload['terms_document_id'], $payload['terms_accepted']);
+        $this->post(route('checkout.fiscal.store'), $payload)
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($reviewReference, session('checkout.draft.review.fingerprint'));
+
+        $payload['receipt_email'] = 'nuevo-comprobante@example.test';
+        $this->post(route('checkout.fiscal.store'), $payload)
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('checkout.draft', fn (array $draft): bool => $draft['review'] === null
+                && $draft['fiscal']['email'] === 'nuevo-comprobante@example.test');
+
+        $this->get(route('checkout.index'))
+            ->assertOk()
+            ->assertViewHas('checkoutForm', fn (array $form): bool => $form['active_step'] === 2
+                && $form['max_step'] === 2)
+            ->assertDontSee('Revision completada');
+
+        $this->assertNoCheckoutDomainRecords();
+    }
+
+    public function test_changed_customer_email_invalidates_review_without_losing_fiscal_data(): void
+    {
+        $user = User::factory()->create(['email' => 'original@example.test']);
+        $this->preparePickupDraft($user);
+        $this->post(route('checkout.review'), $this->receiptPayload())
+            ->assertSessionHasNoErrors();
+
+        $user->update(['email' => 'actualizado@example.test']);
+        $user->forceFill(['email_verified_at' => now()])->save();
+        $this->actingAs($user);
+
+        $this->get(route('checkout.index'))
+            ->assertOk()
+            ->assertViewHas('checkoutForm', fn (array $form): bool => $form['active_step'] === 2
+                && $form['max_step'] === 2
+                && $form['fiscal']['identity_document_number'] === '12345678')
+            ->assertDontSee('Revision completada');
+
+        $this->assertNoCheckoutDomainRecords();
+    }
+
+    public function test_validation_errors_reopen_the_stage_that_needs_attention(): void
+    {
+        $user = User::factory()->create();
+        $this->withCart($user);
+
+        $this->post(route('checkout.contact-address.store'), [])
+            ->assertSessionHasErrors(['contact_name'], null, 'checkout');
+
+        $this->get(route('checkout.index'))
+            ->assertOk()
+            ->assertViewHas('checkoutForm', fn (array $form): bool => $form['active_step'] === 1);
+
+        $this->preparePickupDraft($user, addCart: false);
+
+        $this->post(route('checkout.review'), $this->receiptPayload([
+            'receipt_identity_document_number' => '123',
+        ]))->assertSessionHasErrors(['receipt_identity_document_number'], null, 'checkoutReview');
+
+        $this->get(route('checkout.index'))
+            ->assertOk()
+            ->assertViewHas('checkoutForm', fn (array $form): bool => $form['active_step'] === 2
+                && $form['max_step'] === 2);
 
         $this->assertNoCheckoutDomainRecords();
     }

@@ -613,7 +613,23 @@ document.querySelectorAll('[data-checkout-contact-address-form]').forEach(functi
     newAddressPanel?.querySelector('[data-address-province]')?.addEventListener('change', requestQuote);
     newAddressPanel?.querySelector('[data-address-district]')?.addEventListener('change', requestQuote);
     form.addEventListener('submit', function (event) {
-        if (quoteReady && quoteReferenceInput?.value) return;
+        if (form.dataset.submitting === '1') {
+            event.preventDefault();
+            return;
+        }
+
+        if (quoteReady && quoteReferenceInput?.value) {
+            form.dataset.submitting = '1';
+            form.setAttribute('aria-busy', 'true');
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                const label = submitButton.querySelector('span');
+                if (label) label.textContent = 'Guardando...';
+            }
+
+            return;
+        }
 
         event.preventDefault();
         setFeedback('warning', 'Obten una cotizacion vigente antes de continuar al comprobante.');
@@ -632,6 +648,7 @@ document.querySelectorAll('[data-checkout-contact-address-form]').forEach(functi
 document.querySelectorAll('[data-checkout-fiscal-form]').forEach(function (form) {
     const types = form.querySelectorAll('[data-checkout-fiscal-type]');
     const panels = form.querySelectorAll('[data-checkout-fiscal-panel]');
+    const submitButton = form.querySelector('[data-checkout-fiscal-submit]');
 
     function syncFiscalType() {
         const selectedType = form.querySelector('[data-checkout-fiscal-type]:checked')?.value || 'receipt';
@@ -650,7 +667,38 @@ document.querySelectorAll('[data-checkout-fiscal-form]').forEach(function (form)
         type.addEventListener('change', syncFiscalType);
     });
 
+    form.addEventListener('submit', function (event) {
+        if (form.dataset.submitting === '1') {
+            event.preventDefault();
+            return;
+        }
+
+        form.dataset.submitting = '1';
+        form.setAttribute('aria-busy', 'true');
+
+        if (submitButton) {
+            submitButton.disabled = true;
+            const label = submitButton.querySelector('span');
+            if (label) label.textContent = 'Revisando...';
+        }
+    });
+
     syncFiscalType();
+});
+
+document.querySelectorAll('[data-checkout-page]').forEach(function (page) {
+    const activeStage = page.querySelector('[data-checkout-stage]:not([hidden])');
+    const errorTarget = activeStage?.querySelector('.is-invalid:not([disabled]), [data-checkout-error]');
+
+    if (!errorTarget) return;
+
+    if (!errorTarget.matches('input, select, textarea, button, a[href]')) {
+        errorTarget.setAttribute('tabindex', '-1');
+    }
+
+    window.requestAnimationFrame(function () {
+        errorTarget.focus({ preventScroll: false });
+    });
 });
 
 document.querySelectorAll('[data-checkout-overview]').forEach(function (overview) {

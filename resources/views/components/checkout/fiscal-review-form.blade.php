@@ -32,6 +32,7 @@
     method="POST"
     action="{{ route('checkout.review') }}"
     data-checkout-fiscal-form
+    aria-busy="false"
 >
     @csrf
 
@@ -45,7 +46,7 @@
         </div>
 
         @if($reviewErrors->has('fiscal_document_type'))
-            <div class="alert alert-danger py-2 mt-3 mb-0" role="alert">
+            <div class="alert alert-danger py-2 mt-3 mb-0" role="alert" data-checkout-error>
                 {{ $reviewErrors->first('fiscal_document_type') }}
             </div>
         @endif
@@ -263,7 +264,7 @@
         </div>
 
         @if($reviewErrors->has('review'))
-            <div class="alert alert-warning mt-3 mb-0" role="alert">
+            <div class="alert alert-warning mt-3 mb-0" role="alert" data-checkout-error>
                 <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
                 {{ $reviewErrors->first('review') }}
             </div>
@@ -326,7 +327,7 @@
                 <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
                 Volver
             </a>
-            <button class="btn btn-vn" type="submit" @disabled(! $canReview)>
+            <button class="btn btn-vn" type="submit" data-checkout-fiscal-submit @disabled(! $canReview)>
                 <span>{{ $checkoutForm['is_reviewed'] ? 'Actualizar y continuar' : 'Continuar al pago' }}</span>
                 <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
             </button>
