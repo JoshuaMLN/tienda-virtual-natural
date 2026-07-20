@@ -160,7 +160,7 @@ Validaciones:
 
 ## Fase 4: Checkout real y experiencia del formulario
 
-Estado: En progreso (Etapa 4.5 completada; Etapa 4.6 pendiente)
+Estado: Completada
 
 Decisiones cerradas:
 - La fase solo completa y revisa datos; pedidos, reservas e idempotencia comienzan en la Fase 5.
@@ -179,10 +179,10 @@ Planificado:
 - Etapa 4.3: contacto y direcciones propias. Completada.
 - Etapa 4.4: modalidad y cotizacion de entrega. Completada.
 - Etapa 4.5: datos fiscales, terminos y revision sin crear pedido. Completada.
-- Etapa 4.6: UX, seguridad, pruebas integrales y cierre.
+- Etapa 4.6: UX, seguridad, pruebas integrales y cierre. Completada.
 
 Pendiente:
-- Etapa 4.6 completa.
+- Ninguno. Las seis etapas de la Fase 4 estan completadas.
 
 Reglas acordadas para la Etapa 4.4:
 - La direccion del cliente sera obligatoria solo para entrega a domicilio; el recojo usara los datos de contacto y la direccion configurada por la tienda.
@@ -316,6 +316,22 @@ Etapa 4.5 completada:
 - `npm.cmd run build`: correcto.
 - Pint sobre PHP modificado: correcto.
 - `git diff --check`: correcto.
+
+Etapa 4.6 completada:
+- Formularios de contacto y comprobante con estado `aria-busy`, texto de progreso y bloqueo de doble envio.
+- Foco automatico en el primer campo invalido o alerta de la etapa visible despues de una respuesta con errores.
+- Rutas mutables verificadas bajo `web`, `auth`, `customer` y `verified`, con token CSRF disponible en layout y formularios.
+- Cobertura adicional para invalidar la revision al cambiar contacto, datos fiscales o correo, conservando el borrador fiscal cuando corresponde.
+- Cobertura del retorno automatico a la etapa que contiene errores y de la ausencia de pedidos, reservas, movimientos o documentos como efecto lateral.
+- Sin uso de `localStorage` ni `sessionStorage` para el borrador del checkout.
+- 5 pruebas nuevas; checkout completo: 63 pruebas, 800 aserciones.
+- Suite completa: 452 pruebas, 3157 aserciones.
+- `php artisan view:cache`: correcto.
+- `node --check public/js/app.js`: correcto.
+- `npm.cmd run build`: correcto.
+- Pint sobre PHP modificado: correcto.
+- `git diff --check`: correcto.
+- Validacion manual final completada: 6 de 6 escenarios aprobados para doble envio, foco de errores, teclado, historial, recuperacion de conexion y responsive extremo.
 
 ## Fase 5: Revalidacion, creacion idempotente y reserva
 

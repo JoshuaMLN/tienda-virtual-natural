@@ -326,6 +326,10 @@ Tareas:
 - Ejecutar suite completa, cache de vistas, revision de JavaScript, build frontend, formato y `git diff --check`.
 - Realizar validaciones manuales responsive y actualizar roadmap y status con resultados reales.
 
+Avance verificado:
+- Auditoria automatizada, seguridad transversal, estados de envio, foco de errores y suite completa aprobados.
+- Validacion manual final de interaccion, teclado y responsive aprobada; Etapa 4.6 y Fase 4 cerradas.
+
 Criterio de salida:
 - El checkout permite completar y revisar todos los datos necesarios de forma segura y responsive, listo para que la Fase 5 cree el pedido idempotente y reserve stock.
 
