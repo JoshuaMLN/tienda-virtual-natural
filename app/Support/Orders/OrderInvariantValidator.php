@@ -85,7 +85,11 @@ class OrderInvariantValidator
         $maximum = $this->integer($order, 'delivery_business_days_max');
 
         if ($minimum < 1 || $maximum < $minimum) {
-            throw new DomainException('El plazo de entrega en dias habiles no es valido.');
+            throw new DomainException('El plazo de entrega en dias de atencion no es valido.');
+        }
+
+        if (($order['delivery_estimated_from'] ?? null) !== null || ($order['delivery_estimated_to'] ?? null) !== null) {
+            throw new DomainException('Las fechas estimadas se definen al confirmar el pago.');
         }
     }
 

@@ -29,6 +29,7 @@
                         <strong>Horario de atencion</strong><br>
                         <span class="small">{{ $storeSettings->weekdayHours() }}</span>
                         @if($storeSettings->saturdayHours())<br><span class="small">{{ $storeSettings->saturdayHours() }}</span>@endif
+                        @if($storeSettings->sundayHours())<br><span class="small">{{ $storeSettings->sundayHours() }}</span>@endif
                     </div>
                 </div>
                 <div class="alert alert-warning mb-0">

@@ -11,6 +11,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\TaxAffectation;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\Delivery\BusinessDayCalendar;
 use App\Support\Orders\OrderHistoryRecorder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -67,6 +68,8 @@ class OrderFactory extends Factory
             'total_cents' => 10_000,
             'delivery_business_days_min' => 1,
             'delivery_business_days_max' => 2,
+            'delivery_estimated_from' => null,
+            'delivery_estimated_to' => null,
             'reservation_expires_at' => null,
         ];
     }
@@ -82,11 +85,22 @@ class OrderFactory extends Factory
 
     public function paid(): static
     {
-        return $this->state(fn (): array => [
-            'payment_status' => PaymentStatus::Paid,
-            'paid_at' => now(),
-            'delivery_window_starts_at' => now(),
-        ]);
+        return $this->state(function (array $attributes): array {
+            $paidAt = now();
+            $estimatedDates = app(BusinessDayCalendar::class)->estimate(
+                (int) ($attributes['delivery_business_days_min'] ?? 1),
+                (int) ($attributes['delivery_business_days_max'] ?? 2),
+                $paidAt,
+            );
+
+            return [
+                'payment_status' => PaymentStatus::Paid,
+                'paid_at' => $paidAt,
+                'delivery_window_starts_at' => $paidAt,
+                'delivery_estimated_from' => $estimatedDates->from,
+                'delivery_estimated_to' => $estimatedDates->to,
+            ];
+        });
     }
 
     public function processing(): static

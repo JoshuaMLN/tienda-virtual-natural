@@ -51,12 +51,79 @@ class StorefrontSettings
 
     public function weekdayHours(): string
     {
-        return Setting::string(Setting::BUSINESS_HOURS_WEEKDAYS, 'Lunes a viernes: 9:00 am - 6:00 pm');
+        return $this->scheduleLabel(
+            'Lunes a viernes',
+            $this->weekdayOpenTime(),
+            $this->weekdayCloseTime(),
+        );
     }
 
     public function saturdayHours(): string
     {
-        return Setting::string(Setting::BUSINESS_HOURS_SATURDAY, 'Sabado: 9:00 am - 1:00 pm');
+        return $this->scheduleLabel(
+            'Sabado',
+            $this->saturdayOpenTime(),
+            $this->saturdayCloseTime(),
+        );
+    }
+
+    public function sundayHours(): string
+    {
+        return $this->scheduleLabel(
+            'Domingo',
+            $this->sundayOpenTime(),
+            $this->sundayCloseTime(),
+        );
+    }
+
+    public function weekdayOpenTime(): string
+    {
+        return Setting::string(Setting::BUSINESS_HOURS_WEEKDAYS_OPEN, '09:00');
+    }
+
+    public function weekdayCloseTime(): string
+    {
+        return Setting::string(Setting::BUSINESS_HOURS_WEEKDAYS_CLOSE, '18:00');
+    }
+
+    public function saturdayOpenTime(): ?string
+    {
+        return $this->nullableTime(Setting::BUSINESS_HOURS_SATURDAY_OPEN, '09:00');
+    }
+
+    public function saturdayCloseTime(): ?string
+    {
+        return $this->nullableTime(Setting::BUSINESS_HOURS_SATURDAY_CLOSE, '13:00');
+    }
+
+    public function sundayOpenTime(): ?string
+    {
+        return $this->nullableTime(Setting::BUSINESS_HOURS_SUNDAY_OPEN);
+    }
+
+    public function sundayCloseTime(): ?string
+    {
+        return $this->nullableTime(Setting::BUSINESS_HOURS_SUNDAY_CLOSE);
+    }
+
+    /** @return array{opens_at: string, closes_at: string}|null */
+    public function scheduleForIsoWeekday(int $isoWeekday): ?array
+    {
+        [$opensAt, $closesAt] = match ($isoWeekday) {
+            1, 2, 3, 4, 5 => [$this->weekdayOpenTime(), $this->weekdayCloseTime()],
+            6 => [$this->saturdayOpenTime(), $this->saturdayCloseTime()],
+            7 => [$this->sundayOpenTime(), $this->sundayCloseTime()],
+            default => [null, null],
+        };
+
+        if ($opensAt === null || $closesAt === null || $opensAt >= $closesAt) {
+            return null;
+        }
+
+        return [
+            'opens_at' => $opensAt,
+            'closes_at' => $closesAt,
+        ];
     }
 
     public function freeShippingThreshold(): string
@@ -95,10 +162,23 @@ class StorefrontSettings
         $maximum = $this->deliveryBusinessDaysMax();
 
         if ($minimum === $maximum) {
-            return $minimum === 1 ? '1 dia habil' : "{$minimum} dias habiles";
+            return $minimum === 1 ? '1 dia de atencion' : "{$minimum} dias de atencion";
         }
 
-        return "{$minimum} a {$maximum} dias habiles";
+        return "{$minimum} a {$maximum} dias de atencion";
+    }
+
+    public function pickupPreparationBusinessDaysMin(): int
+    {
+        return max(1, Setting::integer(Setting::PICKUP_PREPARATION_BUSINESS_DAYS_MIN, 1));
+    }
+
+    public function pickupPreparationBusinessDaysMax(): int
+    {
+        return max(
+            $this->pickupPreparationBusinessDaysMin(),
+            Setting::integer(Setting::PICKUP_PREPARATION_BUSINESS_DAYS_MAX, 1),
+        );
     }
 
     public function pickupAddress(): string
@@ -184,6 +264,7 @@ class StorefrontSettings
             'contact_whatsapp' => $this->whatsapp(),
             'business_hours_weekdays' => $this->weekdayHours(),
             'business_hours_saturday' => $this->saturdayHours(),
+            'business_hours_sunday' => $this->sundayHours(),
             'incident_report_hours' => $this->incidentReportHours(),
             'refund_processing_business_days' => $this->refundProcessingBusinessDays(),
             'delivery_attempts_per_cycle' => $this->deliveryAttemptsPerCycle(),
@@ -232,5 +313,30 @@ class StorefrontSettings
         $threshold = Money::fromDecimal($this->freeShippingThreshold())->formatted();
 
         return "Envio gratis en Lima y Callao por compras desde {$threshold}";
+    }
+
+    private function nullableTime(string $key, string $default = ''): ?string
+    {
+        $value = Setting::string($key, $default);
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function scheduleLabel(string $dayLabel, ?string $opensAt, ?string $closesAt): string
+    {
+        if ($opensAt === null || $closesAt === null) {
+            return '';
+        }
+
+        return "{$dayLabel}: {$this->displayTime($opensAt)} - {$this->displayTime($closesAt)}";
+    }
+
+    private function displayTime(string $time): string
+    {
+        [$hour, $minute] = array_map('intval', explode(':', $time));
+        $period = $hour < 12 ? 'a. m.' : 'p. m.';
+        $displayHour = $hour % 12 ?: 12;
+
+        return sprintf('%d:%02d %s', $displayHour, $minute, $period);
     }
 }

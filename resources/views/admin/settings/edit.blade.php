@@ -38,15 +38,57 @@
                     <input class="form-control @error('contact_phone') is-invalid @enderror" id="contact_phone" name="contact_phone" value="{{ old('contact_phone', $storeSettings->phone()) }}">
                     @error('contact_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="business_hours_weekdays">Horario de lunes a viernes <span class="required-mark" aria-hidden="true">*</span></label>
-                    <input class="form-control @error('business_hours_weekdays') is-invalid @enderror" id="business_hours_weekdays" name="business_hours_weekdays" value="{{ old('business_hours_weekdays', $storeSettings->weekdayHours()) }}" required>
-                    @error('business_hours_weekdays')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="business_hours_saturday">Horario de sabado</label>
-                    <input class="form-control @error('business_hours_saturday') is-invalid @enderror" id="business_hours_saturday" name="business_hours_saturday" value="{{ old('business_hours_saturday', $storeSettings->saturdayHours()) }}">
-                    @error('business_hours_saturday')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                <div class="col-12">
+                    <div class="form-label mb-2">Horarios de atencion</div>
+                    <div class="row g-3">
+                        <div class="col-lg-4">
+                            <div class="small fw-bold mb-2">Lunes a viernes <span class="required-mark" aria-hidden="true">*</span></div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small" for="business_hours_weekdays_open">Apertura</label>
+                                    <input class="form-control @error('business_hours_weekdays_open') is-invalid @enderror" id="business_hours_weekdays_open" name="business_hours_weekdays_open" type="time" value="{{ old('business_hours_weekdays_open', $storeSettings->weekdayOpenTime()) }}" required>
+                                    @error('business_hours_weekdays_open')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small" for="business_hours_weekdays_close">Cierre</label>
+                                    <input class="form-control @error('business_hours_weekdays_close') is-invalid @enderror" id="business_hours_weekdays_close" name="business_hours_weekdays_close" type="time" value="{{ old('business_hours_weekdays_close', $storeSettings->weekdayCloseTime()) }}" required>
+                                    @error('business_hours_weekdays_close')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="small fw-bold mb-2">Sabado</div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small" for="business_hours_saturday_open">Apertura</label>
+                                    <input class="form-control @error('business_hours_saturday_open') is-invalid @enderror" id="business_hours_saturday_open" name="business_hours_saturday_open" type="time" value="{{ old('business_hours_saturday_open', $storeSettings->saturdayOpenTime()) }}">
+                                    @error('business_hours_saturday_open')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small" for="business_hours_saturday_close">Cierre</label>
+                                    <input class="form-control @error('business_hours_saturday_close') is-invalid @enderror" id="business_hours_saturday_close" name="business_hours_saturday_close" type="time" value="{{ old('business_hours_saturday_close', $storeSettings->saturdayCloseTime()) }}">
+                                    @error('business_hours_saturday_close')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
+                            <div class="form-text">Deja ambas horas vacias si no se atiende.</div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="small fw-bold mb-2">Domingo</div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small" for="business_hours_sunday_open">Apertura</label>
+                                    <input class="form-control @error('business_hours_sunday_open') is-invalid @enderror" id="business_hours_sunday_open" name="business_hours_sunday_open" type="time" value="{{ old('business_hours_sunday_open', $storeSettings->sundayOpenTime()) }}">
+                                    @error('business_hours_sunday_open')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small" for="business_hours_sunday_close">Cierre</label>
+                                    <input class="form-control @error('business_hours_sunday_close') is-invalid @enderror" id="business_hours_sunday_close" name="business_hours_sunday_close" type="time" value="{{ old('business_hours_sunday_close', $storeSettings->sundayCloseTime()) }}">
+                                    @error('business_hours_sunday_close')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
+                            <div class="form-text">Deja ambas horas vacias si no se atiende.</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -79,15 +121,16 @@
                     <label class="form-label" for="delivery_business_days_min">Entrega minima <span class="required-mark" aria-hidden="true">*</span></label>
                     <div class="input-group">
                         <input class="form-control @error('delivery_business_days_min') is-invalid @enderror" id="delivery_business_days_min" name="delivery_business_days_min" type="number" min="1" max="30" value="{{ old('delivery_business_days_min', $storeSettings->deliveryBusinessDaysMin()) }}" required>
-                        <span class="input-group-text">dias habiles</span>
+                        <span class="input-group-text">dias de atencion</span>
                         @error('delivery_business_days_min')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
+                    <div class="form-text">Se usa cuando un distrito no tiene un plazo propio.</div>
                 </div>
                 <div class="col-sm-6 col-xl-3">
                     <label class="form-label" for="delivery_business_days_max">Entrega maxima <span class="required-mark" aria-hidden="true">*</span></label>
                     <div class="input-group">
                         <input class="form-control @error('delivery_business_days_max') is-invalid @enderror" id="delivery_business_days_max" name="delivery_business_days_max" type="number" min="1" max="30" value="{{ old('delivery_business_days_max', $storeSettings->deliveryBusinessDaysMax()) }}" required>
-                        <span class="input-group-text">dias habiles</span>
+                        <span class="input-group-text">dias de atencion</span>
                         @error('delivery_business_days_max')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                 </div>
@@ -100,12 +143,28 @@
                 <p class="text-muted mb-0">La opcion permanecera oculta mientras no exista una direccion completa.</p>
             </div>
             <div class="row g-3 align-items-end">
-                <div class="col-lg-9">
+                <div class="col-lg-6">
                     <label class="form-label" for="pickup_address">Direccion completa de recojo</label>
                     <textarea class="form-control @error('pickup_address') is-invalid @enderror" id="pickup_address" name="pickup_address" rows="2" placeholder="Avenida, numero, distrito y referencia">{{ old('pickup_address', $storeSettings->pickupAddress()) }}</textarea>
                     @error('pickup_address')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
-                <div class="col-lg-3">
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="pickup_preparation_business_days_min">Preparacion minima <span class="required-mark" aria-hidden="true">*</span></label>
+                    <div class="input-group">
+                        <input class="form-control @error('pickup_preparation_business_days_min') is-invalid @enderror" id="pickup_preparation_business_days_min" name="pickup_preparation_business_days_min" type="number" min="1" max="30" value="{{ old('pickup_preparation_business_days_min', $storeSettings->pickupPreparationBusinessDaysMin()) }}" required>
+                        <span class="input-group-text">dias</span>
+                        @error('pickup_preparation_business_days_min')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="pickup_preparation_business_days_max">Preparacion maxima <span class="required-mark" aria-hidden="true">*</span></label>
+                    <div class="input-group">
+                        <input class="form-control @error('pickup_preparation_business_days_max') is-invalid @enderror" id="pickup_preparation_business_days_max" name="pickup_preparation_business_days_max" type="number" min="1" max="30" value="{{ old('pickup_preparation_business_days_max', $storeSettings->pickupPreparationBusinessDaysMax()) }}" required>
+                        <span class="input-group-text">dias</span>
+                        @error('pickup_preparation_business_days_max')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+                <div class="col-lg-2">
                     @if($storeSettings->pickupEnabled())
                         <div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i>Recojo habilitado</div>
                     @else
@@ -121,11 +180,57 @@
     </form>
 </div>
 
+<div class="admin-card p-3 p-lg-4 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h2 class="h5 fw-black mb-1">Calendario de fechas sin atencion</h2>
+            <p class="text-muted small mb-0">Estas fechas no cuentan al calcular entregas ni la preparacion de recojos.</p>
+        </div>
+    </div>
+
+    <form class="row g-2 align-items-end mb-3" method="POST" action="{{ route('admin.settings.non-working-days.store') }}">
+        @csrf
+        <div class="col-sm-5 col-lg-3">
+            <label class="form-label" for="non_working_date">Fecha <span class="required-mark" aria-hidden="true">*</span></label>
+            <input class="form-control @if($errors->nonWorkingDay->has('date')) is-invalid @endif" id="non_working_date" name="date" type="date" min="{{ today()->toDateString() }}" value="{{ old('date') }}" required>
+            @if($errors->nonWorkingDay->has('date'))<div class="invalid-feedback">{{ $errors->nonWorkingDay->first('date') }}</div>@endif
+        </div>
+        <div class="col-sm">
+            <label class="form-label" for="non_working_reason">Motivo</label>
+            <input class="form-control @if($errors->nonWorkingDay->has('reason')) is-invalid @endif" id="non_working_reason" name="reason" maxlength="120" value="{{ old('reason') }}" placeholder="Feriado, inventario o cierre extraordinario">
+            @if($errors->nonWorkingDay->has('reason'))<div class="invalid-feedback">{{ $errors->nonWorkingDay->first('reason') }}</div>@endif
+        </div>
+        <div class="col-sm-auto">
+            <button class="btn btn-vn w-100" type="submit"><i class="bi bi-calendar-plus me-1"></i>Agregar fecha</button>
+        </div>
+    </form>
+
+    @if($nonWorkingDays->isEmpty())
+        <div class="text-muted small py-2">No hay cierres futuros registrados.</div>
+    @else
+        <div class="list-group list-group-flush border-top">
+            @foreach($nonWorkingDays as $nonWorkingDay)
+                <div class="list-group-item px-0 d-flex justify-content-between align-items-center gap-3">
+                    <div>
+                        <strong>{{ $nonWorkingDay->date->format('d/m/Y') }}</strong>
+                        <span class="text-muted ms-2">{{ $nonWorkingDay->reason ?: 'Sin motivo indicado' }}</span>
+                    </div>
+                    <form method="POST" action="{{ route('admin.settings.non-working-days.destroy', $nonWorkingDay) }}">
+                        @csrf
+                        @method('DELETE')
+                        <button class="btn btn-sm btn-outline-danger" type="submit" aria-label="Quitar fecha del calendario" title="Quitar fecha"><i class="bi bi-trash"></i></button>
+                    </form>
+                </div>
+            @endforeach
+        </div>
+    @endif
+</div>
+
 <div class="admin-card p-3">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div>
             <h2 class="h5 fw-black mb-1">Tarifas por distrito</h2>
-            <p class="text-muted small mb-0">Precios iniciales calculados desde San Isidro. Todos son editables.</p>
+            <p class="text-muted small mb-0">Importes finales con IGV incluido, calculados inicialmente desde San Isidro. Una tarifa de S/ 0.00 significa entrega gratuita.</p>
         </div>
         <div class="admin-summary-chips d-flex flex-wrap">
             <span class="admin-summary-chip"><span>Total</span><strong>{{ $districtSummary['total'] }}</strong></span>
@@ -169,7 +274,8 @@
                     <th>Distrito</th>
                     <th>Provincia</th>
                     <th>UBIGEO</th>
-                    <th>Tarifa</th>
+                    <th>Tarifa final</th>
+                    <th>Plazo estimado</th>
                     <th>Estado</th>
                     <th class="text-end">Acciones</th>
                 </tr>
@@ -181,6 +287,15 @@
                         <td>{{ $district->province }}</td>
                         <td><code>{{ $district->ubigeo }}</code></td>
                         <td>S/ {{ number_format((float) $district->shipping_fee, 2) }}</td>
+                        <td>
+                            @if($district->delivery_business_days_min === null)
+                                <span class="small">General: {{ $storeSettings->deliveryWindowLabel() }}</span>
+                            @elseif($district->delivery_business_days_min === $district->delivery_business_days_max)
+                                <span class="small">{{ $district->delivery_business_days_min }} dia(s) de atencion</span>
+                            @else
+                                <span class="small">{{ $district->delivery_business_days_min }} a {{ $district->delivery_business_days_max }} dias de atencion</span>
+                            @endif
+                        </td>
                         <td><x-admin.status-badge :status="$district->is_active ? 'Activo' : 'Inactivo'" /></td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-light" type="button" data-bs-toggle="modal" data-bs-target="#deliveryDistrictModal-{{ $district->id }}" aria-label="Editar tarifa" title="Editar tarifa">
@@ -189,7 +304,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center text-muted py-4">No se encontraron distritos.</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted py-4">No se encontraron distritos.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -200,6 +315,7 @@
 
 @foreach($districts as $district)
     @php($isCurrentDistrict = (int) old('_delivery_district_id') === $district->id)
+    @php($usesDefaultWindow = $isCurrentDistrict ? (bool) old('use_default_delivery_window', true) : $district->delivery_business_days_min === null)
     <div class="modal fade" id="deliveryDistrictModal-{{ $district->id }}" tabindex="-1" aria-labelledby="deliveryDistrictModalLabel-{{ $district->id }}" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -216,7 +332,7 @@
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label" for="shipping_fee_{{ $district->id }}">Tarifa de envio <span class="required-mark" aria-hidden="true">*</span></label>
+                            <label class="form-label" for="shipping_fee_{{ $district->id }}">Tarifa de envio (IGV incluido) <span class="required-mark" aria-hidden="true">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">S/</span>
                                 <input class="form-control @if($isCurrentDistrict && $errors->deliveryDistrict->has('shipping_fee')) is-invalid @endif" id="shipping_fee_{{ $district->id }}" name="shipping_fee" type="number" min="0" max="999.99" step="0.01" value="{{ $isCurrentDistrict ? old('shipping_fee') : $district->shipping_fee }}" required>
@@ -224,6 +340,37 @@
                                     <div class="invalid-feedback">{{ $errors->deliveryDistrict->first('shipping_fee') }}</div>
                                 @endif
                             </div>
+                            <div class="form-text">Ingresa el precio final que vera el cliente. Usa S/ 0.00 para ofrecer entrega gratuita en este distrito.</div>
+                        </div>
+                        <div class="mb-3">
+                            <input type="hidden" name="use_default_delivery_window" value="0">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" id="use_default_delivery_window_{{ $district->id }}" name="use_default_delivery_window" type="checkbox" value="1" data-delivery-window-default @checked($usesDefaultWindow)>
+                                <label class="form-check-label" for="use_default_delivery_window_{{ $district->id }}">Usar plazo general de {{ $storeSettings->deliveryWindowLabel() }}</label>
+                            </div>
+                            <div class="row g-3" data-delivery-window-fields>
+                                <div class="col-6">
+                                    <label class="form-label" for="delivery_business_days_min_{{ $district->id }}">Plazo minimo <span class="required-mark" aria-hidden="true">*</span></label>
+                                    <div class="input-group">
+                                        <input class="form-control @if($isCurrentDistrict && $errors->deliveryDistrict->has('delivery_business_days_min')) is-invalid @endif" id="delivery_business_days_min_{{ $district->id }}" name="delivery_business_days_min" type="number" min="1" max="30" value="{{ $isCurrentDistrict ? old('delivery_business_days_min', $storeSettings->deliveryBusinessDaysMin()) : ($district->delivery_business_days_min ?? $storeSettings->deliveryBusinessDaysMin()) }}">
+                                        <span class="input-group-text">dias</span>
+                                        @if($isCurrentDistrict && $errors->deliveryDistrict->has('delivery_business_days_min'))
+                                            <div class="invalid-feedback">{{ $errors->deliveryDistrict->first('delivery_business_days_min') }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label" for="delivery_business_days_max_{{ $district->id }}">Plazo maximo <span class="required-mark" aria-hidden="true">*</span></label>
+                                    <div class="input-group">
+                                        <input class="form-control @if($isCurrentDistrict && $errors->deliveryDistrict->has('delivery_business_days_max')) is-invalid @endif" id="delivery_business_days_max_{{ $district->id }}" name="delivery_business_days_max" type="number" min="1" max="30" value="{{ $isCurrentDistrict ? old('delivery_business_days_max', $storeSettings->deliveryBusinessDaysMax()) : ($district->delivery_business_days_max ?? $storeSettings->deliveryBusinessDaysMax()) }}">
+                                        <span class="input-group-text">dias</span>
+                                        @if($isCurrentDistrict && $errors->deliveryDistrict->has('delivery_business_days_max'))
+                                            <div class="invalid-feedback">{{ $errors->deliveryDistrict->first('delivery_business_days_max') }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-text">El plazo se convierte en fechas usando los dias y cierres configurados.</div>
                         </div>
                         <input type="hidden" name="is_active" value="0">
                         <div class="form-check form-switch">
@@ -233,7 +380,7 @@
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
-                        <button class="btn btn-vn" type="submit"><i class="bi bi-save me-1"></i>Guardar tarifa</button>
+                        <button class="btn btn-vn" type="submit"><i class="bi bi-save me-1"></i>Guardar distrito</button>
                     </div>
                 </form>
             </div>
@@ -252,4 +399,23 @@
         });
     </script>
 @endif
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-delivery-window-default]').forEach(function (toggle) {
+            var modal = toggle.closest('.modal');
+            var fields = modal ? modal.querySelectorAll('[data-delivery-window-fields] input') : [];
+
+            function syncWindowFields() {
+                fields.forEach(function (field) {
+                    field.disabled = toggle.checked;
+                    field.required = !toggle.checked;
+                });
+            }
+
+            toggle.addEventListener('change', syncWindowFields);
+            syncWindowFields();
+        });
+    });
+</script>
 @endsection

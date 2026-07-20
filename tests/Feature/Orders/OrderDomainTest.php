@@ -8,6 +8,7 @@ use App\Enums\OrderHistoryDomain;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\CustomerAddress;
+use App\Models\NonWorkingDay;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -15,6 +16,7 @@ use App\Models\StockReservation;
 use App\Models\User;
 use App\Support\Orders\InvalidStateTransitionException;
 use App\Support\Orders\OrderStateTransitionService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LogicException;
 use Tests\TestCase;
@@ -22,6 +24,13 @@ use Tests\TestCase;
 class OrderDomainTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_order_relations_are_optional_and_commercial_snapshots_survive_source_changes_and_deletions(): void
     {
@@ -152,6 +161,9 @@ class OrderDomainTest extends TestCase
         $this->assertSame(DeliveryStatus::Delivered, $order->delivery_status);
         $this->assertNotNull($order->paid_at);
         $this->assertNotNull($order->delivery_window_starts_at);
+        $this->assertNotNull($order->delivery_estimated_from);
+        $this->assertNotNull($order->delivery_estimated_to);
+        $this->assertTrue($order->delivery_estimated_from->lessThanOrEqualTo($order->delivery_estimated_to));
         $this->assertNotNull($order->completed_at);
 
         $this->assertDatabaseHas('order_status_histories', [
@@ -194,6 +206,27 @@ class OrderDomainTest extends TestCase
 
         $this->assertSame(OrderStatus::Completed, $order->order_status);
         $this->assertSame(DeliveryStatus::PickedUp, $order->delivery_status);
+    }
+
+    public function test_payment_confirmation_freezes_the_estimated_dates_from_the_current_business_calendar(): void
+    {
+        CarbonImmutable::setTestNow('2026-07-20 10:00:00');
+        NonWorkingDay::factory()->create(['date' => '2026-07-22']);
+        $order = Order::factory()->create([
+            'delivery_business_days_min' => 1,
+            'delivery_business_days_max' => 2,
+        ]);
+
+        $paid = $this->states()->transitionPayment($order, PaymentStatus::Paid);
+
+        $this->assertSame('2026-07-21', $paid->delivery_estimated_from->toDateString());
+        $this->assertSame('2026-07-23', $paid->delivery_estimated_to->toDateString());
+
+        NonWorkingDay::factory()->create(['date' => '2026-07-21']);
+
+        $paid->refresh();
+        $this->assertSame('2026-07-21', $paid->delivery_estimated_from->toDateString());
+        $this->assertSame('2026-07-23', $paid->delivery_estimated_to->toDateString());
     }
 
     public function test_invalid_transitions_are_rejected_without_mutating_state_or_history(): void

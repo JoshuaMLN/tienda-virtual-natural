@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateDeliveryDistrictRequest;
 use App\Http\Requests\Admin\UpdateOperationalSettingsRequest;
 use App\Models\DeliveryDistrict;
+use App\Models\NonWorkingDay;
 use App\Models\Setting;
 use App\Support\Money\Money;
 use App\Support\Settings\StorefrontSettings;
@@ -52,6 +53,10 @@ class OperationalSettingsController extends Controller
                 ->orderBy('province')
                 ->get(),
             'storeSettings' => $settings,
+            'nonWorkingDays' => NonWorkingDay::query()
+                ->whereDate('date', '>=', today())
+                ->orderBy('date')
+                ->get(),
         ]);
     }
 
@@ -63,12 +68,18 @@ class OperationalSettingsController extends Controller
             Setting::CONTACT_WHATSAPP => $validated['contact_whatsapp'],
             Setting::CONTACT_EMAIL => $validated['contact_email'],
             Setting::CONTACT_PHONE => $validated['contact_phone'] ?? '',
-            Setting::BUSINESS_HOURS_WEEKDAYS => $validated['business_hours_weekdays'],
-            Setting::BUSINESS_HOURS_SATURDAY => $validated['business_hours_saturday'] ?? '',
+            Setting::BUSINESS_HOURS_WEEKDAYS_OPEN => $validated['business_hours_weekdays_open'],
+            Setting::BUSINESS_HOURS_WEEKDAYS_CLOSE => $validated['business_hours_weekdays_close'],
+            Setting::BUSINESS_HOURS_SATURDAY_OPEN => $validated['business_hours_saturday_open'] ?? '',
+            Setting::BUSINESS_HOURS_SATURDAY_CLOSE => $validated['business_hours_saturday_close'] ?? '',
+            Setting::BUSINESS_HOURS_SUNDAY_OPEN => $validated['business_hours_sunday_open'] ?? '',
+            Setting::BUSINESS_HOURS_SUNDAY_CLOSE => $validated['business_hours_sunday_close'] ?? '',
             Setting::FREE_SHIPPING_THRESHOLD => Money::fromDecimal($validated['free_shipping_threshold'])->decimal(),
             Setting::STOCK_RESERVATION_MINUTES => (int) $validated['stock_reservation_minutes'],
             Setting::DELIVERY_BUSINESS_DAYS_MIN => (int) $validated['delivery_business_days_min'],
             Setting::DELIVERY_BUSINESS_DAYS_MAX => (int) $validated['delivery_business_days_max'],
+            Setting::PICKUP_PREPARATION_BUSINESS_DAYS_MIN => (int) $validated['pickup_preparation_business_days_min'],
+            Setting::PICKUP_PREPARATION_BUSINESS_DAYS_MAX => (int) $validated['pickup_preparation_business_days_max'],
             Setting::PICKUP_ADDRESS => $validated['pickup_address'] ?? '',
         ]);
 
@@ -80,12 +91,15 @@ class OperationalSettingsController extends Controller
         DeliveryDistrict $deliveryDistrict
     ): RedirectResponse {
         $validated = $request->validated();
+        $usesDefaultWindow = (bool) $validated['use_default_delivery_window'];
 
         $deliveryDistrict->update([
             'shipping_fee' => Money::fromDecimal($validated['shipping_fee'])->decimal(),
+            'delivery_business_days_min' => $usesDefaultWindow ? null : (int) $validated['delivery_business_days_min'],
+            'delivery_business_days_max' => $usesDefaultWindow ? null : (int) $validated['delivery_business_days_max'],
             'is_active' => (bool) $validated['is_active'],
         ]);
 
-        return back()->with('success', "Tarifa de {$deliveryDistrict->district} actualizada.");
+        return back()->with('success', "Tarifa y plazo de {$deliveryDistrict->district} actualizados.");
     }
 }

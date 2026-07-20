@@ -20,6 +20,18 @@ class Setting extends Model
 
     public const BUSINESS_HOURS_SATURDAY = 'business_hours_saturday';
 
+    public const BUSINESS_HOURS_WEEKDAYS_OPEN = 'business_hours_weekdays_open';
+
+    public const BUSINESS_HOURS_WEEKDAYS_CLOSE = 'business_hours_weekdays_close';
+
+    public const BUSINESS_HOURS_SATURDAY_OPEN = 'business_hours_saturday_open';
+
+    public const BUSINESS_HOURS_SATURDAY_CLOSE = 'business_hours_saturday_close';
+
+    public const BUSINESS_HOURS_SUNDAY_OPEN = 'business_hours_sunday_open';
+
+    public const BUSINESS_HOURS_SUNDAY_CLOSE = 'business_hours_sunday_close';
+
     public const FREE_SHIPPING_THRESHOLD = 'free_shipping_threshold';
 
     public const STOCK_RESERVATION_MINUTES = 'stock_reservation_minutes';
@@ -27,6 +39,10 @@ class Setting extends Model
     public const DELIVERY_BUSINESS_DAYS_MIN = 'delivery_business_days_min';
 
     public const DELIVERY_BUSINESS_DAYS_MAX = 'delivery_business_days_max';
+
+    public const PICKUP_PREPARATION_BUSINESS_DAYS_MIN = 'pickup_preparation_business_days_min';
+
+    public const PICKUP_PREPARATION_BUSINESS_DAYS_MAX = 'pickup_preparation_business_days_max';
 
     public const PICKUP_ADDRESS = 'pickup_address';
 

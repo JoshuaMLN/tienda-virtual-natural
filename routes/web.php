@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\LegalDocumentController as AdminLegalDocumentController;
 use App\Http\Controllers\Admin\LegalSettingsController as AdminLegalSettingsController;
+use App\Http\Controllers\Admin\NonWorkingDayController as AdminNonWorkingDayController;
 use App\Http\Controllers\Admin\OperationalSettingsController as AdminOperationalSettingsController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductSettingsController as AdminProductSettingsController;
@@ -146,6 +147,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/configuracion', [AdminOperationalSettingsController::class, 'edit'])->name('settings.edit');
         Route::patch('/configuracion', [AdminOperationalSettingsController::class, 'update'])->name('settings.update');
         Route::patch('/configuracion/distritos/{deliveryDistrict}', [AdminOperationalSettingsController::class, 'updateDistrict'])->name('settings.districts.update');
+        Route::post('/configuracion/dias-no-laborables', [AdminNonWorkingDayController::class, 'store'])->name('settings.non-working-days.store');
+        Route::delete('/configuracion/dias-no-laborables/{nonWorkingDay}', [AdminNonWorkingDayController::class, 'destroy'])->name('settings.non-working-days.destroy');
         Route::get('/legal', [AdminLegalSettingsController::class, 'index'])->name('legal.index');
         Route::patch('/legal/configuracion', [AdminLegalSettingsController::class, 'update'])->name('legal.settings.update');
         Route::post('/legal/documentos', [AdminLegalDocumentController::class, 'store'])->name('legal.documents.store');

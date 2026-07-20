@@ -64,6 +64,9 @@
                     @if($storeSettings->saturdayHours())
                         <li>{{ $storeSettings->saturdayHours() }}</li>
                     @endif
+                    @if($storeSettings->sundayHours())
+                        <li>{{ $storeSettings->sundayHours() }}</li>
+                    @endif
                 </ul>
             </div>
         </div>

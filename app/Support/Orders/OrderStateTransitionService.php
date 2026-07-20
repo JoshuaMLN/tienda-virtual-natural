@@ -10,6 +10,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\Delivery\BusinessDayCalendar;
 use Illuminate\Support\Facades\DB;
 
 class OrderStateTransitionService
@@ -42,6 +43,7 @@ class OrderStateTransitionService
 
     public function __construct(
         private readonly OrderHistoryRecorder $history,
+        private readonly BusinessDayCalendar $calendar,
     ) {}
 
     /** @param array<string, mixed> $metadata */
@@ -154,8 +156,16 @@ class OrderStateTransitionService
             $attributes = ['payment_status' => $target];
 
             if ($target === PaymentStatus::Paid) {
-                $attributes['paid_at'] = now();
-                $attributes['delivery_window_starts_at'] = now();
+                $paidAt = now();
+                $estimatedDates = $this->calendar->estimate(
+                    $locked->delivery_business_days_min,
+                    $locked->delivery_business_days_max,
+                    $paidAt,
+                );
+                $attributes['paid_at'] = $paidAt;
+                $attributes['delivery_window_starts_at'] = $paidAt;
+                $attributes['delivery_estimated_from'] = $estimatedDates->from;
+                $attributes['delivery_estimated_to'] = $estimatedDates->to;
             }
 
             $locked->applyStateMutation($attributes);

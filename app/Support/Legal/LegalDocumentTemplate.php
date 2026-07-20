@@ -34,7 +34,12 @@ class LegalDocumentTemplate
         $address = $this->text($snapshot, 'fiscal_address', 'Domicilio pendiente de definir');
         $email = $this->text($snapshot, 'contact_email', 'Correo pendiente de definir');
         $whatsapp = $this->text($snapshot, 'contact_whatsapp', 'WhatsApp pendiente de definir');
-        $hours = $this->text($snapshot, 'business_hours_weekdays', 'Horario pendiente de definir');
+        $hours = implode('; ', array_filter([
+            $snapshot['business_hours_weekdays'] ?? null,
+            $snapshot['business_hours_saturday'] ?? null,
+            $snapshot['business_hours_sunday'] ?? null,
+        ], fn (mixed $value): bool => is_string($value) && trim($value) !== ''));
+        $hours = $hours !== '' ? $hours : 'Horario pendiente de definir';
         $complaints = $this->text($snapshot, 'complaints_book_url', 'Enlace pendiente de definir');
         $incidentHours = (int) ($snapshot['incident_report_hours'] ?? 48);
         $refundDays = (int) ($snapshot['refund_processing_business_days'] ?? 5);

@@ -12,5 +12,7 @@ final readonly class DeliveryQuote
         public int $baseFeeCents,
         public int $shippingFeeCents,
         public bool $hasFreeShipping,
+        public int $businessDaysMin,
+        public int $businessDaysMax,
     ) {}
 }
