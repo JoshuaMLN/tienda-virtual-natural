@@ -335,19 +335,55 @@ Etapa 4.6 completada:
 
 ## Fase 5: Revalidacion, creacion idempotente y reserva
 
-Estado: Pendiente
+Estado: En progreso (Etapa 5.1 completada; Etapa 5.2 implementada y pendiente de validacion manual)
+
+Reglas cerradas:
+- Ajustar la propuesta a la cantidad disponible, retirar productos agotados u ocultos y no crear pedidos vacios.
+- Aceptar cambios comerciales desde un modal con revalidacion inmediata y repetible; exigir nuevamente los terminos solo ante una nueva version legal.
+- Reserva configurable con 15 minutos por defecto desde el commit exitoso, sin extensiones por recarga o reintento y con expiracion y liberacion exactas.
+- Un solo pedido `pending_payment` con reserva vigente por cliente, con opcion de continuarlo o cancelarlo desde el flujo previo al pago.
+- Limpiar solo lineas confirmadas del carrito, preservar adiciones concurrentes y no restaurar automaticamente pedidos vencidos.
+- Mantener inmutables los snapshots del pedido ante cambios posteriores del catalogo.
+- Reutilizar el mismo pedido para una misma clave idempotente y permitir un intento nuevo solo despues de cancelacion o vencimiento.
 
 Planificado:
-- Deteccion estructurada de cambios de precio, stock, visibilidad y envio.
-- Modal de aceptacion sin volver a rellenar checkout.
-- Transaccion con bloqueos e idempotencia.
-- Creacion de snapshots y reserva auditable.
-- Limpieza segura del carrito.
-- Scheduler de expiracion y liberacion exacta.
-- Pruebas de concurrencia, rollback y doble envio.
+- Etapa 5.1: revalidacion y conflictos. Completada.
+- Etapa 5.2: modal de aceptacion. Implementada; pendiente de validacion manual.
+- Etapa 5.3: creacion transaccional e idempotente.
+- Etapa 5.4: pedido pendiente y cancelacion.
+- Etapa 5.5: expiracion automatica.
+- Etapa 5.6: integracion, pruebas y cierre.
 
 Pendiente:
-- Implementacion completa de la fase.
+- Validacion manual de la Etapa 5.2 y Etapas 5.3 a 5.6.
+
+Etapa 5.1 completada:
+- `CheckoutRevalidationService` compara el snapshot revisado con el carrito canonico, catalogo, tributacion, entrega, importes y terminos vigentes.
+- Resultado tipado con estados `unchanged`, `changed` y `blocked`, referencias anterior y actual, cambios estructurados y lineas concurrentes preservadas.
+- Codigos estables para precio, cantidad, retiro, tributacion, identidad, tarifa, cobertura, envio gratis, fechas, recojo, desglose monetario y version legal.
+- Las cantidades propuestas nunca superan las revisadas; productos o unidades agregados despues permanecen fuera de la propuesta y del futuro pedido.
+- Productos sin stock, ocultos o eliminados se retiran de la propuesta; si no queda ninguno, el resultado bloquea la continuacion.
+- Cobertura o recojo no disponibles devuelven la causa concreta; una nueva version legal bloquea y exige aceptacion en la etapa de comprobante del checkout.
+- El servicio conserva revision, contacto, entrega y datos fiscales, y no crea pedidos, correlativos, reservas, movimientos ni documentos.
+- No se agregaron configuraciones: reutiliza precios, stock, afectacion tributaria, cobertura, tarifas, envio gratis, plazos y documentos legales existentes.
+- 13 pruebas nuevas, 217 aserciones.
+- Regresion de checkout: 68 pruebas, 1005 aserciones.
+- Suite completa: 465 pruebas, 3374 aserciones.
+
+Etapa 5.2 implementada:
+- Endpoint `POST /checkout/revalidar` protegido por sesion, CSRF, autenticacion, rol cliente y correo verificado.
+- Contrato JSON con estados HTTP diferenciados: listo `200`, cambio comercial `409`, bloqueo operativo o legal `422`.
+- Referencia de revision obligatoria y huella de propuesta aceptada para rechazar pestañas obsoletas, datos manipulados y aceptaciones de una propuesta anterior.
+- Aceptacion atomica en sesion de cotizacion y revision vigentes, preservando contacto, entrega, datos fiscales y lineas agregadas concurrentemente al carrito.
+- Modal estatico y accesible con total anterior y actual, cambios comerciales legibles, aviso de lineas preservadas, `Aceptar cambios y continuar` y `Volver al carrito`.
+- Una segunda variacion durante la aceptacion devuelve una nueva propuesta y repite el modal; no avanza silenciosamente.
+- Los cambios de terminos bloquean la aceptacion comercial y llevan al paso de comprobante para una nueva lectura y aceptacion, sin perder los datos completados.
+- La etapa no crea pedidos, correlativos, reservas, movimientos de inventario ni documentos fiscales; esa transaccion permanece en la Etapa 5.3.
+- 10 pruebas nuevas de servicio y HTTP sobre aceptacion, concurrencia entre propuestas, referencias manipuladas, middlewares, contrato visual, terminos y ausencia de efectos de dominio.
+- Pruebas especificas de Etapas 5.1 y 5.2: 23 pruebas, 383 aserciones.
+- Regresion completa de checkout: 78 pruebas, 1171 aserciones.
+- Suite completa: 475 pruebas, 3540 aserciones.
+- `php artisan view:cache`, `node --check public/js/app.js`, build de produccion y Pint: correctos.
 
 ## Fase 6: Pedidos del cliente
 

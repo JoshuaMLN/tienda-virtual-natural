@@ -340,32 +340,74 @@ Criterio de salida:
 
 Objetivo: crear el pedido exactamente una vez con datos vigentes y sin sobreventa bajo concurrencia.
 
-Tareas:
-- Crear un servicio de revalidacion que compare el resumen visto por el cliente con el estado vigente.
-- Detectar cambios de:
-  - precio
-  - cantidad disponible
-  - producto agotado u oculto
-  - tarifa o cobertura
-  - envio gratis
-  - subtotal, IGV y total
-- Devolver un conflicto estructurado con valores anteriores y nuevos sin redirigir al carrito.
-- Mostrar un modal bloqueante con `Aceptar cambios y continuar` y `Volver al carrito`.
-- Preservar direccion, entrega y datos fiscales mientras se resuelve el conflicto.
-- Persistir en el pedido la version de terminos aceptada, su huella, fecha de aceptacion y snapshot historico sin depender del documento activo futuro.
-- Al aceptar, enviar una revision del resumen y volver a validar automaticamente.
-- Repetir el aviso si existe otro cambio concurrente antes de la aceptacion final.
-- En la confirmacion vigente, bloquear productos y crear dentro de una transaccion:
-  - pedido e items
-  - snapshots
-  - historial inicial
-  - reservas y movimientos de inventario
-- Usar una clave de idempotencia por intento de checkout para neutralizar doble click, reintentos HTTP y respuestas perdidas.
-- Limpiar el carrito solo despues del commit exitoso.
-- Programar un comando para vencer reservas y liberar stock exactamente una vez.
-- Mantener precio y stock reservados durante el plazo configurado.
-- Redirigir el pedido creado a una pantalla `pending_payment` preparada para Culqi.
-- Crear pruebas de concurrencia, idempotencia, rollback, expiracion, liberacion y limpieza de carrito.
+Reglas de negocio cerradas:
+- Si la disponibilidad disminuye pero sigue siendo positiva, proponer la cantidad disponible; si el producto queda sin stock u oculto, proponer retirarlo. No crear un pedido si el resultado queda vacio.
+- El modal mostrara valores anteriores y vigentes. Aceptar los cambios ejecutara una nueva validacion y, si sigue vigente, creara el pedido; cualquier cambio concurrente adicional volvera a requerir confirmacion.
+- Los terminos solo requeriran una nueva aceptacion cuando cambie su version legal. Los cambios comerciales se aceptaran expresamente desde el modal sin volver a marcar el checkbox.
+- La reserva durara 15 minutos por defecto, conservara la configuracion administrativa existente y comenzara despues del commit exitoso que crea el pedido.
+- Recargar, cerrar la pagina, perder la respuesta o reintentar el pago no extendera la reserva. Al vencer, pedido y pago quedaran expirados y el stock se liberara exactamente una vez.
+- Cada cliente podra tener un solo pedido `pending_payment` con reserva vigente. Si ya existe, se le enviara a continuarlo o cancelarlo; una reserva vencida se procesara antes de permitir otro intento aunque el scheduler aun no haya corrido.
+- La cancelacion minima de un pedido pendiente formara parte de esta fase para liberar la reserva y desbloquear un nuevo checkout. La Fase 6 la integrara en el historial y detalle del cliente.
+- El carrito se limpiara solo de las lineas confirmadas y conservara adiciones concurrentes realizadas desde otra pestana. Un pedido vencido no restaurara automaticamente productos al carrito.
+- Una vez creado el pedido y reservada la mercaderia, cambios posteriores de precio, categoria, marca o visibilidad no alteraran ni cancelaran automaticamente sus snapshots.
+- La misma clave de idempotencia siempre devolvera el mismo pedido ante doble click, timeout o reintento. Solo un intento nuevo posterior a cancelacion o vencimiento podra usar una clave nueva.
+
+### Etapa 5.1: Revalidacion y conflictos
+
+Estado: Implementada; pendiente de validacion manual.
+
+- Comparar el snapshot revisado con productos, cantidades, precios, impuestos, entrega, importes y terminos vigentes.
+- Proponer cantidades reducidas y retirar productos agotados, ocultos o eliminados sin crear un pedido vacio.
+- Devolver estados `unchanged`, `changed` o `blocked` y cambios estructurados con valores anteriores y actuales.
+- Limitar la propuesta a productos y cantidades ya revisados, preservando fuera del pedido las adiciones concurrentes del carrito.
+- Mantener intactos el snapshot, contacto, entrega y datos fiscales mientras se presenta el resultado.
+- No crear pedidos, correlativos, reservas, movimientos ni documentos fiscales.
+- Cubrir cambios de precio, tributacion, stock, visibilidad, tarifa, cobertura, envio gratis, plazos, importes y version legal.
+
+Criterio de salida:
+- El backend produce una propuesta vigente, determinista y sin efectos de dominio para que la Etapa 5.2 pueda presentar el conflicto.
+
+### Etapa 5.2: Modal de aceptacion
+
+Estado: Completada.
+
+- Crear el endpoint protegido de confirmacion previa y conectar el resultado estructurado al checkout.
+- Mostrar un modal bloqueante con valores anteriores y actuales, `Aceptar cambios y continuar` y `Volver al carrito`.
+- Conservar el formulario y volver a solicitar terminos solamente cuando cambie la version legal.
+- Revalidar al aceptar y repetir el modal si aparece otro cambio concurrente.
+- Exigir la huella de la revision mostrada y la huella exacta de la propuesta aceptada para impedir confirmaciones obsoletas o manipuladas.
+- Reemplazar en una sola escritura de sesion la cotizacion y la revision aceptadas, conservando contacto y datos fiscales.
+- Mantener esta etapa libre de pedidos, correlativos, reservas, movimientos de inventario y documentos fiscales.
+
+Criterio de salida:
+- El checkout presenta y acepta solamente la propuesta comercial vigente, repite el modal ante un segundo cambio y devuelve al paso legal solo si cambiaron los terminos.
+
+### Etapa 5.3: Creacion transaccional e idempotente
+
+- Bloquear productos y crear pedido, items, snapshots, historial, reservas y movimientos dentro de una transaccion.
+- Persistir version, huella, fecha de aceptacion y snapshot historico de los terminos.
+- Usar una clave por intento para neutralizar doble click, reintentos HTTP y respuestas perdidas.
+- Limpiar solo las lineas y cantidades confirmadas despues del commit, conservando adiciones concurrentes.
+- Probar concurrencia, doble envio, rollback y unicidad del pedido.
+
+### Etapa 5.4: Pedido pendiente y cancelacion
+
+- Impedir mas de un pedido `pending_payment` con reserva vigente por cliente.
+- Redirigir a una pantalla previa al pago con contador y opciones para continuar o cancelar.
+- Liberar la reserva exactamente una vez al cancelar y permitir entonces un intento nuevo.
+
+### Etapa 5.5: Expiracion automatica
+
+- Crear un comando idempotente y programarlo en el scheduler.
+- Expirar pedido, pago y reservas vencidas, restaurando stock exactamente una vez.
+- Procesar sincronamente una reserva vencida antes de permitir otro checkout aunque el scheduler aun no haya corrido.
+- Evitar que recargas o reintentos extiendan el plazo configurado.
+
+### Etapa 5.6: Integracion y cierre
+
+- Completar pruebas HTTP, de servicios, concurrencia, seguridad, expiracion y limpieza selectiva.
+- Validar manualmente conflictos, doble envio, pedido pendiente, cancelacion y responsive.
+- Ejecutar suite completa, cache de vistas, build, formato, revision de diff y actualizacion documental.
 
 Criterio de salida:
 - Una confirmacion crea como maximo un pedido, reserva inventario sin sobreventa y nunca obliga a rellenar checkout por cambios concurrentes.
@@ -378,7 +420,7 @@ Tareas:
 - Reemplazar la maqueta de `Mis pedidos` por listado real paginado y filtrable por estado.
 - Crear detalle con items, totales, entrega, datos fiscales, estado y linea de tiempo.
 - Mostrar claramente pedidos pendientes de pago, vencidos, procesando, enviados, entregados y cancelados.
-- Permitir cancelar un pedido `pending_payment` y liberar su reserva una sola vez.
+- Exponer en el historial y detalle la cancelacion segura de pedidos `pending_payment` creada en la Fase 5.
 - Preparar la accion de reintento de pago para Sprint 7 mientras la reserva siga activa.
 - Mostrar las fechas estimadas definitivas solo despues de la confirmacion del pago.
 - Permitir descargar el comprobante desde almacenamiento privado cuando exista.
