@@ -1,4 +1,4 @@
-@props(['checkoutForm', 'delivery'])
+@props(['checkoutForm', 'delivery', 'warnings' => []])
 
 @php
     $checkoutErrors = $errors->getBag('checkout');
@@ -382,6 +382,13 @@
         @endif
 
     </section>
+
+    @if($checkoutErrors->has('quote_reference'))
+        <x-checkout.quote-change-notice
+            :message="$checkoutErrors->first('quote_reference')"
+            :warnings="$warnings"
+        />
+    @endif
 
     <div class="d-flex flex-column flex-sm-row justify-content-end gap-2">
         <button class="btn btn-vn" type="submit" data-checkout-contact-submit>

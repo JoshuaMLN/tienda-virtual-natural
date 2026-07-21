@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Checkout\SaveCheckoutContactAddressRequest;
 use App\Support\Addresses\AddressLimitExceededException;
+use App\Support\Cart\CartService;
 use App\Support\Checkout\CheckoutContactAddressService;
 use App\Support\Checkout\CheckoutDeliveryUnavailableException;
+use App\Support\Checkout\CheckoutQuoteChangedException;
 use App\Support\Checkout\CheckoutReadService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -15,6 +17,7 @@ class CheckoutContactAddressController extends Controller
     public function __construct(
         private readonly CheckoutReadService $checkoutReadService,
         private readonly CheckoutContactAddressService $contactAddressService,
+        private readonly CartService $cartService,
     ) {}
 
     public function __invoke(SaveCheckoutContactAddressRequest $request): RedirectResponse
@@ -35,6 +38,12 @@ class CheckoutContactAddressController extends Controller
                 ->withErrors([
                     'address_choice' => 'La direccion seleccionada ya no esta disponible.',
                 ], 'checkout');
+        } catch (CheckoutQuoteChangedException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'quote_reference' => $exception->getMessage(),
+                ], 'checkout');
         } catch (CheckoutDeliveryUnavailableException $exception) {
             return back()
                 ->withInput()
@@ -42,6 +51,8 @@ class CheckoutContactAddressController extends Controller
                     'delivery_method' => $exception->getMessage(),
                 ], 'checkout');
         }
+
+        $this->cartService->clearWarnings();
 
         return redirect()
             ->route('checkout.index')

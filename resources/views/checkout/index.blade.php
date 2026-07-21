@@ -7,6 +7,8 @@
     $activeStep = $checkoutForm['active_step'];
     $maxStep = $checkoutForm['max_step'];
     $sidebarAmounts = data_get($delivery, 'quote.summary.amounts', $checkout['amounts']);
+    $hasQuoteConflict = ($activeStep === 1 && $errors->getBag('checkout')->has('quote_reference'))
+        || ($activeStep === 2 && $errors->getBag('checkoutReview')->has('quote_reference'));
 @endphp
 <section
     class="container py-5"
@@ -24,16 +26,18 @@
         <p class="text-muted mb-0">Completa tus datos y revisa el pedido antes de continuar al pago.</p>
     </div>
 
-    <div class="alert alert-warning {{ $checkout['warnings'] ? '' : 'd-none' }}" data-cart-warnings role="alert">
-        <div class="d-flex align-items-start justify-content-between gap-3">
-            <div data-cart-warnings-list>
-                @foreach($checkout['warnings'] as $warning)
-                    <div>{{ $warning }}</div>
-                @endforeach
+    @if(! $hasQuoteConflict)
+        <div class="alert alert-warning {{ $checkout['warnings'] ? '' : 'd-none' }}" data-cart-warnings data-checkout-global-warnings role="alert">
+            <div class="d-flex align-items-start justify-content-between gap-3">
+                <div data-cart-warnings-list>
+                    @foreach($checkout['warnings'] as $warning)
+                        <div>{{ $warning }}</div>
+                    @endforeach
+                </div>
+                <button class="btn-close flex-shrink-0" type="button" data-cart-warnings-clear aria-label="Cerrar aviso"></button>
             </div>
-            <button class="btn-close flex-shrink-0" type="button" data-cart-warnings-clear aria-label="Cerrar aviso"></button>
         </div>
-    </div>
+    @endif
 
     <x-checkout.progress :active-step="$activeStep" :max-step="$maxStep" />
 
@@ -68,11 +72,18 @@
                     </div>
                 </div>
 
-                <x-checkout.contact-address-form :checkout-form="$checkoutForm" :delivery="$delivery" />
+                <x-checkout.contact-address-form
+                    :checkout-form="$checkoutForm"
+                    :delivery="$delivery"
+                    :warnings="$checkout['warnings']"
+                />
             </div>
 
             <div class="checkout-stage" data-checkout-stage="2" @if($activeStep !== 2) hidden @endif>
-                <x-checkout.fiscal-review-form :checkout-form="$checkoutForm" />
+                <x-checkout.fiscal-review-form
+                    :checkout-form="$checkoutForm"
+                    :warnings="$checkout['warnings']"
+                />
             </div>
 
             <div class="checkout-stage" data-checkout-stage="3" @if($activeStep !== 3) hidden @endif>
@@ -87,10 +98,30 @@
                             <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
                             Volver al comprobante
                         </a>
+                        <form
+                            method="POST"
+                            action="{{ route('checkout.revalidate') }}"
+                            data-checkout-revalidation-form
+                            data-checkout-revalidation-url="{{ route('checkout.revalidate') }}"
+                        >
+                            @csrf
+                            <input
+                                type="hidden"
+                                name="review_reference"
+                                value="{{ data_get($checkoutForm, 'review.reference') }}"
+                                data-checkout-review-reference
+                            >
+                            <button class="btn btn-vn" type="submit" data-checkout-revalidation-submit>
+                                <span>Confirmar pedido y pagar</span>
+                                <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+                            </button>
+                        </form>
                     </div>
                 </section>
             </div>
         </div>
     </div>
 </section>
+
+<x-checkout.revalidation-modal />
 @endsection

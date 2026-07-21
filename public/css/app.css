@@ -856,6 +856,100 @@ a {
     justify-content: center;
 }
 
+.checkout-revalidation-modal {
+    border: 0;
+    border-radius: 8px;
+    box-shadow: 0 20px 50px rgba(30, 43, 32, .18);
+    overflow: hidden;
+}
+
+.checkout-revalidation-modal .modal-header {
+    background: #fff8ec;
+    border-bottom-color: #f1dfbd;
+    gap: .8rem;
+}
+
+.checkout-revalidation-icon {
+    align-items: center;
+    background: #fff0cf;
+    border-radius: 50%;
+    color: #9a5a00;
+    display: inline-flex;
+    flex: 0 0 38px;
+    font-size: 1.1rem;
+    height: 38px;
+    justify-content: center;
+}
+
+.checkout-revalidation-modal.is-blocked .modal-header {
+    background: #fff0f0;
+    border-bottom-color: #f2cece;
+}
+
+.checkout-revalidation-modal.is-blocked .checkout-revalidation-icon {
+    background: #fbdcdc;
+    color: #a72b2b;
+}
+
+.checkout-revalidation-totals {
+    align-items: center;
+    background: #f7f9f5;
+    border: 1px solid var(--vn-line);
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    padding: .9rem 1rem;
+}
+
+.checkout-revalidation-totals > div {
+    min-width: 0;
+}
+
+.checkout-revalidation-totals > div:last-child {
+    text-align: right;
+}
+
+.checkout-revalidation-totals span,
+.checkout-revalidation-totals strong {
+    display: block;
+}
+
+.checkout-revalidation-totals span {
+    color: var(--vn-muted);
+    font-size: .78rem;
+}
+
+.checkout-revalidation-totals strong {
+    font-size: 1.05rem;
+}
+
+.checkout-revalidation-changes {
+    display: grid;
+    gap: .65rem;
+    list-style: none;
+    padding: 0;
+}
+
+.checkout-revalidation-changes li {
+    align-items: flex-start;
+    border-top: 1px solid var(--vn-line);
+    display: flex;
+    gap: .65rem;
+    padding-top: .65rem;
+}
+
+.checkout-revalidation-changes li::before {
+    color: var(--vn-green-700);
+    content: "\F26A";
+    flex: 0 0 auto;
+    font-family: "bootstrap-icons";
+    margin-top: .05rem;
+}
+
+.checkout-revalidation-actions {
+    justify-content: space-between;
+}
+
 .checkout-coverage-note {
     align-items: flex-start;
     background: #eef7e9;
@@ -876,6 +970,80 @@ a {
     display: block;
     font-size: .875rem;
     margin-top: .15rem;
+}
+
+.checkout-quote-notice {
+    border: 1px solid #efd39e;
+    border-left: 4px solid #b96a00;
+    padding: 1rem;
+}
+
+.checkout-quote-notice-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: .75rem;
+}
+
+.checkout-quote-notice-icon {
+    align-items: center;
+    background: #ffe8b8;
+    border-radius: 50%;
+    color: #925100;
+    display: inline-flex;
+    flex: 0 0 36px;
+    height: 36px;
+    justify-content: center;
+}
+
+.checkout-quote-notice-details {
+    border-top: 1px solid #e7c988;
+    margin-left: 3rem;
+    margin-top: .85rem;
+    padding-top: .8rem;
+}
+
+.checkout-quote-change-list {
+    display: grid;
+    gap: .45rem;
+    list-style: none;
+    padding-left: 0;
+}
+
+.checkout-quote-change-list li {
+    padding-left: 1.25rem;
+    position: relative;
+}
+
+.checkout-quote-change-list li::before {
+    color: #925100;
+    content: "\F26A";
+    font-family: "bootstrap-icons";
+    left: 0;
+    position: absolute;
+    top: .05rem;
+}
+
+.checkout-quote-more summary {
+    align-items: center;
+    color: #744300;
+    cursor: pointer;
+    display: inline-flex;
+    font-size: .875rem;
+    font-weight: 700;
+    gap: .4rem;
+    list-style: none;
+}
+
+.checkout-quote-more summary::-webkit-details-marker {
+    display: none;
+}
+
+.checkout-quote-more summary i {
+    transition: transform .15s ease;
+}
+
+.checkout-quote-more[open] summary i {
+    transform: rotate(180deg);
 }
 
 .checkout-section-heading {
@@ -1193,6 +1361,14 @@ a {
         width: 100%;
     }
 
+    .checkout-stage-actions form {
+        width: 100%;
+    }
+
+    .checkout-revalidation-actions .btn {
+        width: 100%;
+    }
+
     .checkout-delivery-options {
         grid-template-columns: 1fr;
     }
@@ -1228,6 +1404,10 @@ a {
     .checkout-new-address-panel {
         border-left: 0;
         padding-left: 0;
+    }
+
+    .checkout-quote-notice-details {
+        margin-left: 0;
     }
 }
 

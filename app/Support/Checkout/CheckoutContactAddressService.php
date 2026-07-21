@@ -77,8 +77,8 @@ class CheckoutContactAddressService
     private function assertAcceptedQuote(CheckoutDeliveryResult $delivery, string $reference): void
     {
         if (! hash_equals($delivery->snapshot()->fingerprint(), $reference)) {
-            throw new CheckoutDeliveryUnavailableException(
-                'La cotizacion cambio mientras completabas el formulario. Revisa el total actualizado y confirma nuevamente.',
+            throw new CheckoutQuoteChangedException(
+                'El total o las condiciones de tu compra cambiaron mientras completabas el formulario. Actualizamos la informacion; revisa el resumen y presiona Continuar nuevamente.',
             );
         }
     }

@@ -485,11 +485,25 @@ class CheckoutReviewTest extends TestCase
         $oldReference = session('checkout.draft.delivery_quote.fingerprint');
         $product->update(['price' => '79.00']);
 
-        $this->from(route('checkout.index'))
+        $response = $this->from(route('checkout.index'))
+            ->followingRedirects()
             ->post(route('checkout.review'), $this->receiptPayload())
-            ->assertRedirect(route('checkout.index'))
-            ->assertSessionHasErrors(['review'], null, 'checkoutReview')
-            ->assertSessionHasInput('receipt_first_names', 'Maria Fernanda');
+            ->assertOk()
+            ->assertSee('data-checkout-quote-conflict', false)
+            ->assertDontSee('data-checkout-global-warnings', false)
+            ->assertSee('Detalles de los cambios')
+            ->assertSee($product->name.': su precio cambio')
+            ->assertSeeInOrder([
+                'Actualizamos tu compra',
+                'El total o las condiciones de tu compra cambiaron',
+                'Detalles de los cambios',
+                'Continuar al pago',
+            ]);
+
+        $this->assertStringContainsString(
+            'value="Maria Fernanda"',
+            $response->getContent(),
+        );
 
         $this->assertNull(session('checkout.draft.review'));
         $this->assertSame(
@@ -504,6 +518,7 @@ class CheckoutReviewTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertSessionHas('status', 'checkout-reviewed');
 
+        $this->assertSame([], app(CartService::class)->get()->warnings);
         $this->assertNoCheckoutDomainRecords();
     }
 

@@ -35,8 +35,8 @@ class CheckoutReviewService
         if (! hash_equals($draft->deliveryQuote->fingerprint(), $currentDelivery->fingerprint())) {
             $this->draftStore->replaceDeliveryQuote($user, $currentDelivery);
 
-            throw new CheckoutReviewException(
-                'La cotizacion cambio mientras completabas los datos fiscales. Revisa el resumen actualizado y vuelve a revisar el pedido.',
+            throw new CheckoutQuoteChangedException(
+                'El total o las condiciones de tu compra cambiaron mientras completabas los datos fiscales. Actualizamos la informacion; revisa el resumen y presiona Continuar al pago nuevamente.',
             );
         }
 

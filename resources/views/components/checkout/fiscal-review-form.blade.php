@@ -1,4 +1,4 @@
-@props(['checkoutForm'])
+@props(['checkoutForm', 'warnings' => []])
 
 @php
     $reviewErrors = $errors->getBag('checkoutReview');
@@ -319,6 +319,15 @@
                     <strong>Revision completada</strong>
                     <span>Los datos e importes mostrados estan listos para el siguiente paso.</span>
                 </div>
+            </div>
+        @endif
+
+        @if($reviewErrors->has('quote_reference'))
+            <div class="mt-3">
+                <x-checkout.quote-change-notice
+                    :message="$reviewErrors->first('quote_reference')"
+                    :warnings="$warnings"
+                />
             </div>
         @endif
 

@@ -30,6 +30,7 @@ use App\Http\Controllers\CheckoutContactAddressController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CheckoutDeliveryQuoteController;
 use App\Http\Controllers\CheckoutFiscalController;
+use App\Http\Controllers\CheckoutRevalidationController;
 use App\Http\Controllers\CheckoutReviewController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LegalDocumentController;
@@ -67,6 +68,8 @@ Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'customer'])->
             ->name('fiscal.store');
         Route::post('/revisar', CheckoutReviewController::class)
             ->name('review');
+        Route::post('/revalidar', CheckoutRevalidationController::class)
+            ->name('revalidate');
         Route::view('/exitoso', 'checkout.success')->name('success');
         Route::view('/fallido', 'checkout.failed')->name('failed');
         Route::view('/pendiente', 'checkout.pending')->name('pending');

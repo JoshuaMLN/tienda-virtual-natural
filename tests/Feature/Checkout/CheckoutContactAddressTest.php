@@ -425,7 +425,7 @@ class CheckoutContactAddressTest extends TestCase
                 'quote_reference' => $quoteReference,
             ]))
             ->assertRedirect(route('checkout.index'))
-            ->assertSessionHasErrors(['delivery_method'], null, 'checkout');
+            ->assertSessionHasErrors(['quote_reference'], null, 'checkout');
 
         $this->assertDatabaseCount('customer_addresses', 0);
         $this->assertNull(session('checkout.draft'));
@@ -445,6 +445,7 @@ class CheckoutContactAddressTest extends TestCase
         $product->update(['price' => '69.00']);
 
         $this->from(route('checkout.index'))
+            ->followingRedirects()
             ->post(route('checkout.contact-address.store'), [
                 'contact_name' => 'Maria Perez',
                 'contact_phone' => '987654321',
@@ -452,11 +453,113 @@ class CheckoutContactAddressTest extends TestCase
                 'address_choice' => 'address:'.$address->id,
                 'quote_reference' => $quoteReference,
             ])
-            ->assertRedirect(route('checkout.index'))
-            ->assertSessionHasErrors(['delivery_method'], null, 'checkout');
+            ->assertOk()
+            ->assertSee('data-checkout-quote-conflict', false)
+            ->assertDontSee('data-checkout-global-warnings', false)
+            ->assertSee('Detalles de los cambios')
+            ->assertSee($product->name.': su precio cambio de S/ 59.00 a S/ 69.00.')
+            ->assertSeeInOrder([
+                'Actualizamos tu compra',
+                'El total o las condiciones de tu compra cambiaron',
+                'Detalles de los cambios',
+                'Continuar al comprobante',
+            ]);
 
         $this->assertNull(session('checkout.draft'));
         $this->assertDatabaseCount('customer_addresses', 1);
+        $this->assertNoCheckoutDomainRecords();
+    }
+
+    public function test_quote_conflict_groups_additional_cart_changes_inside_the_same_notice(): void
+    {
+        $user = User::factory()->create();
+        $address = CustomerAddress::factory()->for($user)->default()->create();
+        $products = [$this->withCart($user)];
+
+        foreach (range(2, 5) as $index) {
+            $product = Product::factory()->create([
+                'name' => 'Producto actualizado '.$index,
+                'price' => '20.00',
+                'stock' => 20,
+            ]);
+            app(CartService::class)->add($product, 1);
+            $products[] = $product;
+        }
+
+        $quoteReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $address->id,
+        );
+
+        foreach ($products as $product) {
+            $product->update(['price' => '25.00']);
+        }
+
+        $response = $this->from(route('checkout.index'))
+            ->followingRedirects()
+            ->post(route('checkout.contact-address.store'), [
+                'contact_name' => 'Maria Perez',
+                'contact_phone' => '987654321',
+                'delivery_method' => DeliveryMethod::HomeDelivery->value,
+                'address_choice' => 'address:'.$address->id,
+                'quote_reference' => $quoteReference,
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertSee('data-checkout-quote-conflict', false)
+            ->assertSee('checkout-quote-more', false)
+            ->assertSee('Ver 2 cambios mas')
+            ->assertDontSee('data-checkout-global-warnings', false);
+
+        foreach ($products as $product) {
+            $response->assertSee($product->name.': su precio cambio');
+        }
+
+        $this->assertNull(session('checkout.draft'));
+        $this->assertNoCheckoutDomainRecords();
+    }
+
+    public function test_accepting_the_current_quote_clears_acknowledged_cart_warnings(): void
+    {
+        $user = User::factory()->create();
+        $address = CustomerAddress::factory()->for($user)->default()->create();
+        $product = $this->withCart($user);
+        $staleReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $address->id,
+        );
+        $product->update(['price' => '69.00']);
+        $payload = [
+            'contact_name' => 'Maria Perez',
+            'contact_phone' => '987654321',
+            'delivery_method' => DeliveryMethod::HomeDelivery->value,
+            'address_choice' => 'address:'.$address->id,
+        ];
+
+        $this->from(route('checkout.index'))
+            ->post(route('checkout.contact-address.store'), [
+                ...$payload,
+                'quote_reference' => $staleReference,
+            ])
+            ->assertSessionHasErrors(['quote_reference'], null, 'checkout');
+
+        $this->assertNotEmpty(app(CartService::class)->get()->warnings);
+        $currentReference = $this->quoteReference(
+            DeliveryMethod::HomeDelivery,
+            addressId: $address->id,
+        );
+
+        $this->post(route('checkout.contact-address.store'), [
+            ...$payload,
+            'quote_reference' => $currentReference,
+        ])
+            ->assertRedirect(route('checkout.index'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'checkout-contact-address-saved');
+
+        $this->assertSame([], app(CartService::class)->get()->warnings);
+        $this->assertNotNull(session('checkout.draft'));
         $this->assertNoCheckoutDomainRecords();
     }
 
@@ -481,7 +584,7 @@ class CheckoutContactAddressTest extends TestCase
                 'quote_reference' => $quoteReference,
             ])
             ->assertRedirect(route('checkout.index'))
-            ->assertSessionHasErrors(['delivery_method'], null, 'checkout');
+            ->assertSessionHasErrors(['quote_reference'], null, 'checkout');
 
         $this->assertDatabaseHas('cart_items', [
             'product_id' => $product->id,

@@ -218,4 +218,45 @@ class CheckoutDraftStore
 
         return $updated;
     }
+
+    public function putRevalidatedReview(
+        User $user,
+        CheckoutDeliverySnapshot $deliveryQuote,
+        CheckoutReviewSnapshot $review,
+        string $expectedReviewReference,
+    ): ?CheckoutDraft {
+        $draft = $this->get($user);
+
+        if (
+            $draft === null
+            || $draft->review === null
+            || $draft->fiscal === null
+            || ! hash_equals($draft->review->fingerprint(), $expectedReviewReference)
+            || $draft->deliveryMethod !== $deliveryQuote->method
+            || $draft->addressId !== $deliveryQuote->addressId
+            || $review->userId !== $draft->userId
+            || $review->contactName !== $draft->contactName
+            || $review->customerEmail !== $user->email
+            || $review->contactPhone !== $draft->contactPhone
+            || ! hash_equals($review->deliveryQuoteReference, $deliveryQuote->fingerprint())
+            || $review->fiscal->toArray() !== $draft->fiscal->toArray()
+        ) {
+            return null;
+        }
+
+        $updated = new CheckoutDraft(
+            userId: $draft->userId,
+            contactName: $draft->contactName,
+            contactPhone: $draft->contactPhone,
+            addressId: $draft->addressId,
+            deliveryMethod: $draft->deliveryMethod,
+            deliveryQuote: $deliveryQuote,
+            fiscal: $draft->fiscal,
+            review: $review,
+        );
+
+        $this->session->put(self::SESSION_KEY, $updated->toArray());
+
+        return $updated;
+    }
 }

@@ -686,6 +686,216 @@ document.querySelectorAll('[data-checkout-fiscal-form]').forEach(function (form)
     syncFiscalType();
 });
 
+document.querySelectorAll('[data-checkout-revalidation-form]').forEach(function (form) {
+    const modalElement = document.querySelector('[data-checkout-revalidation-modal]');
+    const submitButton = form.querySelector('[data-checkout-revalidation-submit]');
+    const reviewReferenceInput = form.querySelector('[data-checkout-review-reference]');
+    const acceptButton = modalElement?.querySelector('[data-checkout-revalidation-accept]');
+    const reviewButton = modalElement?.querySelector('[data-checkout-revalidation-review]');
+    const backButton = modalElement?.querySelector('[data-checkout-revalidation-back]');
+    const title = modalElement?.querySelector('[data-checkout-revalidation-title]');
+    const message = modalElement?.querySelector('[data-checkout-revalidation-message]');
+    const totals = modalElement?.querySelector('[data-checkout-revalidation-totals]');
+    const previousTotal = modalElement?.querySelector('[data-checkout-revalidation-previous-total]');
+    const currentTotal = modalElement?.querySelector('[data-checkout-revalidation-current-total]');
+    const changesWrapper = modalElement?.querySelector('[data-checkout-revalidation-changes-wrapper]');
+    const changesList = modalElement?.querySelector('[data-checkout-revalidation-changes]');
+    const preservedNotice = modalElement?.querySelector('[data-checkout-revalidation-preserved]');
+    let proposalReference = '';
+    let submitting = false;
+
+    function formatMoney(cents) {
+        const amount = Number(cents);
+
+        return Number.isFinite(amount)
+            ? new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(amount / 100)
+            : 'No disponible';
+    }
+
+    function formatDate(value) {
+        if (!value) return '';
+
+        const date = new Date(value + 'T12:00:00');
+        if (Number.isNaN(date.getTime())) return value;
+
+        return new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'long' }).format(date);
+    }
+
+    function primaryChanges(changes) {
+        const amountCodes = new Set([
+            'products_subtotal_changed',
+            'discount_changed',
+            'shipping_net_value_changed',
+            'shipping_tax_changed',
+            'taxable_value_changed',
+            'exempt_value_changed',
+            'unaffected_value_changed',
+            'net_value_changed',
+            'tax_changed',
+            'total_changed',
+        ]);
+        const hasShippingFeeChange = changes.some(function (change) {
+            return change.code === 'shipping_fee_changed';
+        });
+
+        return changes.filter(function (change) {
+            if (amountCodes.has(change.code)) return false;
+            if (change.code === 'delivery_base_fee_changed' && hasShippingFeeChange) return false;
+
+            return true;
+        });
+    }
+
+    function changeDescription(change) {
+        const productName = change.product_name || 'Producto';
+
+        switch (change.code) {
+            case 'product_removed':
+                return productName + ': ya no esta disponible y se retirara de este pedido.';
+            case 'product_quantity_reduced':
+                return productName + ': solicitaste ' + change.previous + ', ahora hay ' + change.current + ' unidades disponibles.';
+            case 'product_price_changed':
+                return productName + ': ' + formatMoney(change.previous) + ' antes, ' + formatMoney(change.current) + ' ahora.';
+            case 'product_tax_changed':
+                return productName + ': se actualizo su condicion tributaria.';
+            case 'product_identity_changed':
+                return productName + ': se actualizaron sus datos comerciales.';
+            case 'delivery_unavailable':
+                return change.current?.reason || 'La modalidad de entrega ya no esta disponible.';
+            case 'delivery_base_fee_changed':
+            case 'shipping_fee_changed':
+                return 'Envio: ' + formatMoney(change.previous) + ' antes, ' + formatMoney(change.current) + ' ahora.';
+            case 'free_shipping_changed':
+                return change.current ? 'Tu pedido ahora tiene envio gratis.' : 'Tu pedido ya no cumple la condicion de envio gratis.';
+            case 'delivery_estimate_changed':
+                return 'Nueva fecha estimada: del ' + formatDate(change.current?.estimated_from) + ' al ' + formatDate(change.current?.estimated_to) + '.';
+            case 'pickup_details_changed':
+                return 'Se actualizaron la direccion o las condiciones de recojo.';
+            case 'delivery_details_changed':
+                return 'Se actualizaron los datos de la entrega seleccionada.';
+            case 'terms_changed':
+                return 'Los terminos y condiciones fueron actualizados y necesitan una nueva aceptacion.';
+            default:
+                return change.label || 'Se actualizo una condicion de tu pedido.';
+        }
+    }
+
+    function setButtonBusy(button, busy, busyLabel, idleLabel) {
+        if (!button) return;
+
+        button.disabled = busy;
+        const label = button.querySelector('span');
+        if (label) label.textContent = busy ? busyLabel : idleLabel;
+    }
+
+    function renderModal(data, responseData) {
+        if (!modalElement || !window.bootstrap) return;
+
+        const blocked = !data || data.status === 'blocked';
+        const visibleChanges = primaryChanges(data?.changes || []);
+        proposalReference = data?.proposal_reference || '';
+
+        modalElement.querySelector('.modal-content')?.classList.toggle('is-blocked', blocked);
+        if (title) title.textContent = blocked ? 'Necesitamos revisar tu checkout' : 'Revisa los cambios de tu pedido';
+        if (message) message.textContent = responseData.message || 'El checkout cambio antes de continuar.';
+
+        totals?.classList.toggle('d-none', !data?.previous);
+        if (previousTotal) previousTotal.textContent = formatMoney(data?.previous?.amounts?.total_cents);
+        if (currentTotal) currentTotal.textContent = formatMoney(data?.current?.amounts?.total_cents);
+
+        changesWrapper?.classList.toggle('d-none', visibleChanges.length === 0);
+        if (changesList) {
+            changesList.replaceChildren();
+            visibleChanges.forEach(function (change) {
+                const item = document.createElement('li');
+                item.textContent = changeDescription(change);
+                changesList.appendChild(item);
+            });
+        }
+
+        const preserved = data?.preserved_cart_items || [];
+        preservedNotice?.classList.toggle('d-none', preserved.length === 0);
+        if (preservedNotice && preserved.length > 0) {
+            preservedNotice.textContent = 'Los productos o unidades agregados despues de tu revision permanecen en el carrito y no se incluiran en este pedido.';
+        }
+
+        if (reviewReferenceInput && data?.review_reference) {
+            reviewReferenceInput.value = data.review_reference;
+        }
+
+        const requiresReview = Boolean(data?.requires_terms_acceptance || (!data && responseData.reload_url));
+        const canAccept = Boolean(data?.requires_confirmation && data?.can_continue && proposalReference);
+        acceptButton?.classList.toggle('d-none', !canAccept);
+        reviewButton?.classList.toggle('d-none', !requiresReview);
+
+        if (reviewButton && requiresReview) {
+            reviewButton.href = responseData.redirect_url || responseData.reload_url || form.action;
+            reviewButton.textContent = data?.requires_terms_acceptance ? 'Revisar terminos' : 'Recargar checkout';
+        }
+
+        if (backButton && responseData.redirect_url && !data?.requires_terms_acceptance) {
+            backButton.href = responseData.redirect_url;
+        }
+
+        window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
+    }
+
+    async function revalidate(acceptedReference) {
+        if (submitting) return;
+
+        submitting = true;
+        form.setAttribute('aria-busy', 'true');
+        setButtonBusy(submitButton, true, 'Validando...', 'Confirmar pedido y pagar');
+        setButtonBusy(acceptButton, true, 'Validando...', 'Aceptar cambios y continuar');
+
+        try {
+            const response = await fetch(form.dataset.checkoutRevalidationUrl || form.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                },
+                body: JSON.stringify({
+                    review_reference: reviewReferenceInput?.value || '',
+                    accepted_proposal_reference: acceptedReference || null,
+                }),
+            });
+            const responseData = await response.json();
+
+            if (response.ok) {
+                if (reviewReferenceInput && responseData.revalidation?.review_reference) {
+                    reviewReferenceInput.value = responseData.revalidation.review_reference;
+                }
+                window.bootstrap?.Modal.getOrCreateInstance(modalElement)?.hide();
+                showCartToast(responseData.message || 'Tu pedido fue revisado y sigue vigente.', 'success');
+                return;
+            }
+
+            renderModal(responseData.revalidation, responseData);
+        } catch (error) {
+            renderModal(null, {
+                message: 'No pudimos verificar tu pedido. Comprueba tu conexion y vuelve a intentarlo.',
+                reload_url: window.location.href,
+            });
+        } finally {
+            submitting = false;
+            form.removeAttribute('aria-busy');
+            setButtonBusy(submitButton, false, 'Validando...', 'Confirmar pedido y pagar');
+            setButtonBusy(acceptButton, false, 'Validando...', 'Aceptar cambios y continuar');
+        }
+    }
+
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        revalidate(null);
+    });
+
+    acceptButton?.addEventListener('click', function () {
+        revalidate(proposalReference);
+    });
+});
+
 document.querySelectorAll('[data-checkout-page]').forEach(function (page) {
     const activeStage = page.querySelector('[data-checkout-stage]:not([hidden])');
     const errorTarget = activeStage?.querySelector('.is-invalid:not([disabled]), [data-checkout-error]');
