@@ -354,7 +354,7 @@ Reglas de negocio cerradas:
 
 ### Etapa 5.1: Revalidacion y conflictos
 
-Estado: Implementada; pendiente de validacion manual.
+Estado: Completada.
 
 - Comparar el snapshot revisado con productos, cantidades, precios, impuestos, entrega, importes y terminos vigentes.
 - Proponer cantidades reducidas y retirar productos agotados, ocultos o eliminados sin crear un pedido vacio.
@@ -384,6 +384,8 @@ Criterio de salida:
 
 ### Etapa 5.3: Creacion transaccional e idempotente
 
+Estado: Completada.
+
 - Bloquear productos y crear pedido, items, snapshots, historial, reservas y movimientos dentro de una transaccion.
 - Persistir version, huella, fecha de aceptacion y snapshot historico de los terminos.
 - Usar una clave por intento para neutralizar doble click, reintentos HTTP y respuestas perdidas.
@@ -392,22 +394,40 @@ Criterio de salida:
 
 ### Etapa 5.4: Pedido pendiente y cancelacion
 
+Estado: Completada.
+
 - Impedir mas de un pedido `pending_payment` con reserva vigente por cliente.
 - Redirigir a una pantalla previa al pago con contador y opciones para continuar o cancelar.
 - Liberar la reserva exactamente una vez al cancelar y permitir entonces un intento nuevo.
+- Respaldar la exclusividad con una ranura nullable unica por cliente, liberada en la misma transicion al pagar, cancelar, vencer o procesar el pedido.
+- Mantener los productos de un pedido cancelado fuera del carrito; cualquier carrito creado en paralelo permanece intacto.
+- Conservar en esta etapa la accion real de seguir comprando; la continuacion hacia el proveedor de pago se conectara en el Sprint 7 sin simular pagos.
 
 ### Etapa 5.5: Expiracion automatica
+
+Estado: Completada.
 
 - Crear un comando idempotente y programarlo en el scheduler.
 - Expirar pedido, pago y reservas vencidas, restaurando stock exactamente una vez.
 - Procesar sincronamente una reserva vencida antes de permitir otro checkout aunque el scheduler aun no haya corrido.
 - Evitar que recargas o reintentos extiendan el plazo configurado.
+- Reconciliar con la hora del servidor cuando el contador llegue a cero y redirigir al carrito con un aviso persistente.
+- Ejecutar `schedule:work` dentro del comando de desarrollo y dejar el cron de produccion como requisito de despliegue.
 
 ### Etapa 5.6: Integracion y cierre
 
+Estado: Completada.
+
 - Completar pruebas HTTP, de servicios, concurrencia, seguridad, expiracion y limpieza selectiva.
+- Evitar que un reintento idempotente tardio elimine el borrador de un checkout nuevo del mismo cliente.
 - Validar manualmente conflictos, doble envio, pedido pendiente, cancelacion y responsive.
 - Ejecutar suite completa, cache de vistas, build, formato, revision de diff y actualizacion documental.
+- Documentar la ejecucion local y productiva del scheduler que libera reservas vencidas.
+
+Avance verificado:
+- Auditoria automatizada, regresion transversal, suite completa, build y revision tecnica aprobados.
+- Validacion manual final de la experiencia y los recorridos criticos aprobada.
+- Guia operativa de produccion creada con entorno, Brevo, Google OAuth, scheduler, worker, almacenamiento, seguridad, backups y actualizaciones.
 
 Criterio de salida:
 - Una confirmacion crea como maximo un pedido, reserva inventario sin sobreventa y nunca obliga a rellenar checkout por cambios concurrentes.

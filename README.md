@@ -4,8 +4,9 @@ Ecommerce de productos naturales desarrollado con Laravel. Incluye catalogo
 publico, administracion de productos e inventario, carrito de compras persistente
 y una cuenta real para clientes.
 
-Los Sprints 0 al 5 estan completados. El siguiente bloque de desarrollo es el
-Sprint 6, enfocado en checkout, entregas y pedidos reales.
+Los Sprints 0 al 5 estan completados. El Sprint 6 esta en desarrollo y ya
+incluye seguridad administrativa, configuracion de entrega, checkout real y
+creacion de pedidos pendientes con reserva de inventario.
 
 ## Funcionalidades implementadas
 
@@ -20,9 +21,11 @@ Sprint 6, enfocado en checkout, entregas y pedidos reales.
 
 ### Administracion
 
+- Acceso administrativo separado y protegido por rol.
 - Administracion de categorias, marcas, productos e imagenes.
 - Inventario, movimientos de stock, alertas y dashboard administrativo.
 - Configuracion de umbrales de stock por producto y visibilidad publica.
+- Configuracion operativa, legal, de recojo y tarifas para Lima y Callao.
 
 ### Clientes y cuenta
 
@@ -34,13 +37,17 @@ Sprint 6, enfocado en checkout, entregas y pedidos reales.
 - Direcciones guardadas para Lima Metropolitana y Callao con UBIGEO canonico.
 - Menu de cuenta responsive y cierre de sesion con confirmacion.
 - Checkout protegido para clientes autenticados con correo verificado.
+- Checkout por etapas con contacto, entrega, comprobante y terminos versionados.
+- Revalidacion de precio, stock, cobertura y tarifa antes de confirmar.
+- Pedidos idempotentes con reserva temporal, cancelacion y vencimiento automatico.
 
 ## Alcance actual
 
-El acceso a checkout ya exige una identidad verificada, pero la creacion de
-pedidos, tarifas de envio, recojo, pagos con Culqi, cupones y promociones se
-implementaran en los siguientes sprints. Las vistas de resultado de pago son
-todavia una base visual y no representan transacciones reales.
+El checkout ya crea pedidos pendientes y reserva inventario, pero todavia no
+realiza cobros. El historial del cliente, la gestion administrativa de pedidos
+y comprobantes se completaran en las siguientes fases del Sprint 6. Los pagos
+con Culqi corresponden al Sprint 7; cupones y promociones quedan para sprints
+posteriores.
 
 ## Tecnologias
 
@@ -95,7 +102,37 @@ Inicia el entorno local:
 composer run dev
 ```
 
-La aplicacion estara disponible normalmente en `http://127.0.0.1:8000`.
+Este comando inicia el servidor, la cola, el scheduler, los logs y Vite. La
+aplicacion estara disponible normalmente en `http://127.0.0.1:8000`.
+
+## Scheduler
+
+El vencimiento de pedidos pendientes depende del scheduler de Laravel. Para
+ejecutarlo de forma aislada durante desarrollo:
+
+```bash
+php artisan schedule:work
+```
+
+Tambien puedes procesar manualmente un lote para diagnostico:
+
+```bash
+php artisan orders:expire-pending --batch=100
+```
+
+En produccion configura una unica entrada cron que ejecute el scheduler cada
+minuto desde la raiz del proyecto:
+
+```cron
+* * * * * cd /ruta/al/proyecto && php artisan schedule:run >> /dev/null 2>&1
+```
+
+En despliegues con varios servidores, el comando debe ejecutarse desde un solo
+nodo de scheduler. La expiracion tambien se reconcilia al entrar al checkout o
+abrir un pedido vencido, pero esa proteccion no reemplaza el cron.
+
+La configuracion completa de entorno, Brevo, Google OAuth, servidor web, colas,
+seguridad y backups esta en [Despliegue en produccion](docs/DEPLOYMENT.md).
 
 ## Configuracion de servicios
 
@@ -140,14 +177,15 @@ php artisan view:cache
 php vendor/bin/pint --test
 ```
 
-Al cierre del Sprint 5, la suite completa registra `267 tests` y
-`1464 assertions`.
+La cantidad vigente de pruebas y aserciones se registra en el estado del Sprint
+6 despues de cada fase.
 
 ## Documentacion
 
 - [Roadmap general](docs/SPRINTS.md)
-- [Roadmap del Sprint 5](docs/SPRINT_5_ROADMAP.md)
-- [Estado del Sprint 5](docs/SPRINT_5_STATUS.md)
+- [Roadmap del Sprint 6](docs/SPRINT_6_ROADMAP.md)
+- [Estado del Sprint 6](docs/SPRINT_6_STATUS.md)
+- [Despliegue en produccion](docs/DEPLOYMENT.md)
 
 Los roadmaps y estados de los sprints anteriores tambien se encuentran en
 [`docs/`](docs/).

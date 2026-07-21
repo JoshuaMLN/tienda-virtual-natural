@@ -1,6 +1,6 @@
 # Sprint 6 - Estado
 
-Fecha: 2026-07-16
+Fecha: 2026-07-21
 
 Estado: En progreso
 
@@ -335,7 +335,7 @@ Etapa 4.6 completada:
 
 ## Fase 5: Revalidacion, creacion idempotente y reserva
 
-Estado: En progreso (Etapa 5.1 completada; Etapa 5.2 implementada y pendiente de validacion manual)
+Estado: Completada
 
 Reglas cerradas:
 - Ajustar la propuesta a la cantidad disponible, retirar productos agotados u ocultos y no crear pedidos vacios.
@@ -348,14 +348,14 @@ Reglas cerradas:
 
 Planificado:
 - Etapa 5.1: revalidacion y conflictos. Completada.
-- Etapa 5.2: modal de aceptacion. Implementada; pendiente de validacion manual.
-- Etapa 5.3: creacion transaccional e idempotente.
-- Etapa 5.4: pedido pendiente y cancelacion.
-- Etapa 5.5: expiracion automatica.
-- Etapa 5.6: integracion, pruebas y cierre.
+- Etapa 5.2: modal de aceptacion. Completada.
+- Etapa 5.3: creacion transaccional e idempotente. Completada.
+- Etapa 5.4: pedido pendiente y cancelacion. Completada.
+- Etapa 5.5: expiracion automatica. Completada.
+- Etapa 5.6: integracion, pruebas y cierre. Completada.
 
 Pendiente:
-- Validacion manual de la Etapa 5.2 y Etapas 5.3 a 5.6.
+- Ninguno. Las seis etapas de la Fase 5 estan completadas.
 
 Etapa 5.1 completada:
 - `CheckoutRevalidationService` compara el snapshot revisado con el carrito canonico, catalogo, tributacion, entrega, importes y terminos vigentes.
@@ -384,6 +384,71 @@ Etapa 5.2 implementada:
 - Regresion completa de checkout: 78 pruebas, 1171 aserciones.
 - Suite completa: 475 pruebas, 3540 aserciones.
 - `php artisan view:cache`, `node --check public/js/app.js`, build de produccion y Pint: correctos.
+
+Etapa 5.3 implementada:
+- Nuevo endpoint protegido `POST /checkout/confirmar`; `POST /checkout/revalidar` conserva su contrato puro y sigue sin crear efectos de dominio.
+- `CheckoutOrderCreationService` coordina revalidacion final, bloqueo del cliente, documentos legales, productos y direccion, creacion del pedido y reserva de todas las lineas en una sola transaccion.
+- Pedido, correlativo anual, items, snapshots comerciales y fiscales, historial inicial, reservas, movimientos de inventario y vencimiento compartido se confirman o revierten juntos.
+- Clave UUID por intento y referencia unica de revision persistidas en `orders`; indices unicos de base de datos y bloqueo por cliente neutralizan doble click, reintentos, respuestas perdidas y confirmaciones concurrentes.
+- Una misma clave devuelve el mismo pedido sin consumir otro correlativo, descontar stock ni limpiar el carrito nuevamente.
+- Version, huella, fecha de aceptacion y snapshot completo de los terminos quedan congelados en el pedido; la referencia al documento es opcional y usa `nullOnDelete` sin destruir el historico.
+- Datos de contacto, entrega o recojo, comprobante, importes en centimos, tributacion e imagen y presentacion de cada producto se copian desde los snapshots validados, sin confiar en importes enviados por el navegador.
+- La reserva usa `stock_reservation_minutes`, con 20 minutos en las pruebas y 15 minutos como valor operativo predeterminado, sin extenderse por reintentos.
+- La limpieza posterior se ejecuta en una segunda transaccion marcada con `cart_cleaned_at`: resta solo cantidades confirmadas y conserva productos o unidades agregados desde otra pestana.
+- Redireccion privada inicial a `/checkout/pedidos/{codigo}/pendiente` con pedido, total y vencimiento reales; contador, continuidad y cancelacion corresponden a la Etapa 5.4.
+- Migracion `2026_07_21_000100_add_checkout_confirmation_to_orders_table` aplicada.
+- 9 pruebas nuevas para creacion completa, recojo, domicilio, factura, snapshots, referencia legal opcional, idempotencia, restricciones unicas, cambios aceptados, rollback intermedio, concurrencia paralela, carrito concurrente, autorizacion y privacidad.
+- Suite completa: 486 pruebas, 3719 aserciones.
+
+Etapa 5.3 validada:
+- El usuario completo satisfactoriamente las validaciones manuales indicadas para creacion, idempotencia, privacidad y responsive.
+
+Etapa 5.4 implementada:
+- Nueva columna `pending_payment_owner_id`, nullable, con clave foranea e indice unico: la base de datos impide que dos solicitudes concurrentes reclamen la ranura pendiente del mismo cliente.
+- La migracion conserva pedidos existentes y asigna una sola ranura a cada cliente que ya tenga un pedido pendiente con reserva activa.
+- `PendingCheckoutOrderService` localiza el pedido bloqueante, conserva compatibilidad con reservas previas a la migracion y coordina una cancelacion transaccional e idempotente.
+- Entrar nuevamente a `/checkout` o confirmar con una clave distinta redirige al pedido pendiente sin crear correlativos, reservas o movimientos adicionales, ni limpiar el nuevo carrito o su borrador.
+- La ranura se libera en la misma transicion cuando pedido o pago abandonan su ciclo pendiente; cancelar restaura el stock exactamente una vez y no repone productos en el carrito.
+- Pantalla privada con pedido, total, cantidades, vencimiento y contador ajustado con hora de servidor, mas acciones reales para seguir comprando o cancelar mediante modal de confirmacion.
+- Nuevo endpoint `DELETE /checkout/pedidos/{codigo}/cancelar`, protegido por sesion, CSRF, rol cliente, correo verificado y comprobacion de propietario.
+- La cancelacion rechaza pagos ya confirmados, registra al cliente como actor y conserva inmutables los historiales y snapshots.
+- Migracion `2026_07_21_000200_add_pending_payment_owner_to_orders_table` aplicada.
+- 7 pruebas nuevas y 81 aserciones adicionales sobre redireccion, segundo intento, carrito preservado, privacidad, metodo HTTP, contador, cancelacion repetida, pago confirmado, relaciones, unicidad y concurrencia de ocho procesos.
+- Suite completa: 493 pruebas, 3800 aserciones.
+
+Etapa 5.4 validada:
+- El usuario aprobo contador, redireccion al pedido pendiente, carrito preservado, cancelacion, liberacion de stock y responsive.
+
+Etapa 5.5 implementada:
+- `PendingCheckoutOrderExpirationService` concentra el reloj de servidor, bloqueo de pedido, reconciliacion por cliente, cierre idempotente y procesamiento por lotes.
+- Al vencer, las reservas pasan a `expired`, pedido y pago pasan a `expired`, la ranura pendiente se libera y cada cantidad vuelve al inventario exactamente una vez.
+- El comando `orders:expire-pending` acepta lotes de 1 a 1000 pedidos y se ejecuta cada minuto con `withoutOverlapping(5)`.
+- `composer run dev` inicia tambien `php artisan schedule:work`; produccion debera ejecutar el scheduler de Laravel mediante cron durante el despliegue.
+- Entrar al checkout o confirmar un pedido reconcilia primero cualquier reserva vencida, incluso cuando el scheduler todavia no la proceso.
+- La pantalla pendiente usa la hora entregada por el servidor; al llegar a cero llama al endpoint protegido de vencimiento, reintenta fallos de red y redirige al carrito con un aviso persistente.
+- Abrir directamente una pantalla pendiente ya vencida tambien procesa el cierre antes de mostrar informacion obsoleta.
+- El carrito no se repone al vencer y la fecha original de reserva nunca se extiende por recargas, reintentos, comando o reconciliacion.
+- 9 pruebas nuevas y 89 aserciones adicionales sobre limite exacto, idempotencia, lotes, scheduler, opcion invalida, hora de servidor, privacidad, middleware, checkout sincronico y nuevo pedido posterior.
+- Regresion de checkout y dominio: 125 pruebas, 1726 aserciones.
+- Suite completa: 502 pruebas, 3889 aserciones.
+
+Etapa 5.5 validada:
+- El usuario aprobo manualmente el vencimiento por contador y scheduler, la liberacion exacta de stock, los avisos, el nuevo checkout posterior y el comportamiento responsive.
+
+Etapa 5.6 implementada:
+- Auditoria transversal de rutas, autorizacion, idempotencia, concurrencia, limpieza selectiva, reservas, cancelacion, expiracion y scheduler.
+- La limpieza del borrador ahora exige que su huella coincida con la revision que creo el pedido; un reintento tardio de una clave antigua no borra un checkout nuevo.
+- Prueba de regresion para reintento idempotente posterior a cancelacion, conservando el nuevo borrador, su carrito y el unico pedido original.
+- README y `docs/DEPLOYMENT.md` actualizados con el alcance real del Sprint 6, configuracion productiva, Brevo, Google OAuth, scheduler, worker, seguridad, backups y actualizaciones.
+- Regresion transversal de checkout, pedidos, inventario, carrito e impuestos: 177 pruebas, 2029 aserciones.
+- Suite completa: 503 pruebas, 3904 aserciones.
+- `php artisan migrate:status`: todas las migraciones aplicadas hasta el lote 20.
+- `php artisan schedule:list`: vencimiento de pedidos registrado cada minuto.
+- `php artisan view:cache`, `node --check public/js/app.js`, build de produccion, Composer y Pint sobre todos los PHP de la Fase 5: correctos.
+- El Pint global conserva deuda previa en siete archivos no modificados por esta fase; no afecta la suite ni se mezclo con este cierre.
+
+Etapa 5.6 validada:
+- El usuario aprobo el cierre funcional y manual de la etapa. La Fase 5 queda completada con sus seis etapas.
 
 ## Fase 6: Pedidos del cliente
 
