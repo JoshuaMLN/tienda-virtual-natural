@@ -11,6 +11,7 @@ use App\Support\Geography\LimaCallaoUbigeoCatalog;
 use App\Support\Legal\LegalDocumentService;
 use App\Support\Money\Money;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class CheckoutFormDataService
 {
@@ -78,6 +79,7 @@ class CheckoutFormDataService
                 'terms_document_version' => $review->termsDocumentVersion,
                 'legal_is_current' => $terms !== null && $review->accepts($terms),
             ] : null,
+            'confirmation_attempt_key' => (string) Str::uuid(),
             'address_count' => $addresses->count(),
             'address_limit' => CustomerAddressService::MAX_ADDRESSES,
             'can_create_address' => $addresses->count() < CustomerAddressService::MAX_ADDRESSES,

@@ -102,6 +102,25 @@ class CheckoutDraftStore
         );
     }
 
+    public function clear(User $user): void
+    {
+        $draft = $this->get($user);
+
+        if ($draft === null || $draft->userId === (int) $user->getKey()) {
+            $this->session->forget(self::SESSION_KEY);
+        }
+    }
+
+    public function clearIfReviewMatches(User $user, string $reviewReference): void
+    {
+        $draft = $this->get($user);
+
+        if ($draft?->review !== null
+            && hash_equals($draft->review->fingerprint(), $reviewReference)) {
+            $this->session->forget(self::SESSION_KEY);
+        }
+    }
+
     public function put(
         User $user,
         string $contactName,

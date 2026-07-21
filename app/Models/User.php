@@ -78,6 +78,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(Order::class);
     }
 
+    public function pendingCheckoutOrder(): HasOne
+    {
+        return $this->hasOne(Order::class, 'pending_payment_owner_id');
+    }
+
     public function orderStatusHistories(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class, 'actor_id');

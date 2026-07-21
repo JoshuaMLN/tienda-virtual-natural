@@ -20,9 +20,9 @@ final readonly class CheckoutReadService
         return $this->summarize($this->currentCart());
     }
 
-    public function currentCart(): Cart
+    public function currentCart(bool $lockProductsForUpdate = false): Cart
     {
-        return $this->cartService->get();
+        return $this->cartService->get($lockProductsForUpdate);
     }
 
     public function summarize(Cart $cart): ?CheckoutSummary

@@ -120,7 +120,7 @@ final readonly class CheckoutReviewSnapshot
             && hash_equals($this->termsContentFingerprint, self::contentFingerprint($terms));
     }
 
-    private static function contentFingerprint(LegalDocument $terms): string
+    public static function contentFingerprint(LegalDocument $terms): string
     {
         return hash('sha256', json_encode([
             'id' => (int) $terms->getKey(),

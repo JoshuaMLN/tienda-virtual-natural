@@ -26,10 +26,14 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\CheckoutConfirmationController;
 use App\Http\Controllers\CheckoutContactAddressController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CheckoutDeliveryQuoteController;
 use App\Http\Controllers\CheckoutFiscalController;
+use App\Http\Controllers\CheckoutPendingOrderCancellationController;
+use App\Http\Controllers\CheckoutPendingOrderController;
+use App\Http\Controllers\CheckoutPendingOrderExpirationController;
 use App\Http\Controllers\CheckoutRevalidationController;
 use App\Http\Controllers\CheckoutReviewController;
 use App\Http\Controllers\HomeController;
@@ -70,9 +74,17 @@ Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'customer'])->
             ->name('review');
         Route::post('/revalidar', CheckoutRevalidationController::class)
             ->name('revalidate');
+        Route::post('/confirmar', CheckoutConfirmationController::class)
+            ->name('confirm');
+        Route::get('/pedidos/{order:code}/pendiente', CheckoutPendingOrderController::class)
+            ->name('order.pending');
+        Route::delete('/pedidos/{order:code}/cancelar', CheckoutPendingOrderCancellationController::class)
+            ->name('order.cancel');
+        Route::post('/pedidos/{order:code}/vencimiento', CheckoutPendingOrderExpirationController::class)
+            ->name('order.expire');
         Route::view('/exitoso', 'checkout.success')->name('success');
         Route::view('/fallido', 'checkout.failed')->name('failed');
-        Route::view('/pendiente', 'checkout.pending')->name('pending');
+        Route::redirect('/pendiente', '/mi-cuenta/pedidos')->name('pending');
     });
 });
 

@@ -1614,6 +1614,67 @@ a {
     min-height: calc(100vh - 92px);
 }
 
+.pending-order-card {
+    max-width: 620px;
+}
+
+.reservation-countdown-value {
+    color: var(--vn-green-900);
+    display: inline-block;
+    font-size: 3rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    min-width: 8ch;
+}
+
+.reservation-countdown.is-expired .reservation-countdown-value {
+    color: #b42318;
+}
+
+.pending-order-summary {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pending-order-summary div {
+    min-width: 0;
+}
+
+.pending-order-summary dt {
+    color: var(--vn-muted);
+    font-size: .78rem;
+    margin-bottom: .2rem;
+}
+
+.pending-order-summary dd {
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+}
+
+.pending-order-actions {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pending-order-actions .btn {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+}
+
+@media (max-width: 575.98px) {
+    .reservation-countdown-value {
+        font-size: 2.25rem;
+    }
+
+    .pending-order-summary,
+    .pending-order-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
 .status-icon {
     align-items: center;
     border-radius: 50%;

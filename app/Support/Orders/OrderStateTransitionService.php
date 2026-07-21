@@ -59,6 +59,10 @@ class OrderStateTransitionService
             $current = $locked->order_status;
 
             if ($current === $target) {
+                if ($target !== OrderStatus::PendingPayment) {
+                    $locked->releasePendingPaymentSlot();
+                }
+
                 return $locked;
             }
 
@@ -109,6 +113,10 @@ class OrderStateTransitionService
                 $attributes['completed_at'] = now();
             }
 
+            if ($target !== OrderStatus::PendingPayment) {
+                $attributes['pending_payment_owner_id'] = null;
+            }
+
             $locked->applyStateMutation($attributes);
             $this->history->record($locked, OrderHistoryDomain::Order, $current->value, $target->value, $actor, $reason, $metadata);
 
@@ -129,6 +137,10 @@ class OrderStateTransitionService
             $current = $locked->payment_status;
 
             if ($current === $target) {
+                if (in_array($target, [PaymentStatus::Paid, PaymentStatus::Expired, PaymentStatus::Refunded], true)) {
+                    $locked->releasePendingPaymentSlot();
+                }
+
                 return $locked;
             }
 
@@ -166,6 +178,10 @@ class OrderStateTransitionService
                 $attributes['delivery_window_starts_at'] = $paidAt;
                 $attributes['delivery_estimated_from'] = $estimatedDates->from;
                 $attributes['delivery_estimated_to'] = $estimatedDates->to;
+            }
+
+            if (in_array($target, [PaymentStatus::Paid, PaymentStatus::Expired, PaymentStatus::Refunded], true)) {
+                $attributes['pending_payment_owner_id'] = null;
             }
 
             $locked->applyStateMutation($attributes);

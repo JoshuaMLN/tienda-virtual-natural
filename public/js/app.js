@@ -690,6 +690,7 @@ document.querySelectorAll('[data-checkout-revalidation-form]').forEach(function 
     const modalElement = document.querySelector('[data-checkout-revalidation-modal]');
     const submitButton = form.querySelector('[data-checkout-revalidation-submit]');
     const reviewReferenceInput = form.querySelector('[data-checkout-review-reference]');
+    const idempotencyKeyInput = form.querySelector('[data-checkout-idempotency-key]');
     const acceptButton = modalElement?.querySelector('[data-checkout-revalidation-accept]');
     const reviewButton = modalElement?.querySelector('[data-checkout-revalidation-review]');
     const backButton = modalElement?.querySelector('[data-checkout-revalidation-back]');
@@ -858,12 +859,18 @@ document.querySelectorAll('[data-checkout-revalidation-form]').forEach(function 
                 },
                 body: JSON.stringify({
                     review_reference: reviewReferenceInput?.value || '',
+                    idempotency_key: idempotencyKeyInput?.value || '',
                     accepted_proposal_reference: acceptedReference || null,
                 }),
             });
             const responseData = await response.json();
 
             if (response.ok) {
+                if (responseData.redirect_url) {
+                    window.location.assign(responseData.redirect_url);
+                    return;
+                }
+
                 if (reviewReferenceInput && responseData.revalidation?.review_reference) {
                     reviewReferenceInput.value = responseData.revalidation.review_reference;
                 }
@@ -894,6 +901,90 @@ document.querySelectorAll('[data-checkout-revalidation-form]').forEach(function 
     acceptButton?.addEventListener('click', function () {
         revalidate(proposalReference);
     });
+});
+
+document.querySelectorAll('[data-reservation-countdown]').forEach(function (countdown) {
+    const value = countdown.querySelector('[data-reservation-countdown-value]');
+    const status = countdown.querySelector('[data-reservation-countdown-status]');
+    const expirationUrl = countdown.dataset.expirationUrl || '';
+    let expiresAt = Date.parse(countdown.dataset.expiresAt || '');
+    let serverNow = Date.parse(countdown.dataset.serverNow || '');
+    let startedAt = Date.now();
+    let timer = null;
+    let expirationRequested = false;
+
+    if (!value || !expirationUrl || !Number.isFinite(expiresAt) || !Number.isFinite(serverNow)) return;
+
+    function restart(responseData) {
+        const updatedExpiration = Date.parse(responseData.reservation_expires_at || '');
+        const updatedServerNow = Date.parse(responseData.server_now || '');
+
+        if (Number.isFinite(updatedExpiration)) expiresAt = updatedExpiration;
+        if (Number.isFinite(updatedServerNow)) serverNow = updatedServerNow;
+        startedAt = Date.now();
+        expirationRequested = false;
+        countdown.classList.remove('is-expired');
+        timer = window.setInterval(render, 1000);
+        render();
+    }
+
+    async function requestExpiration() {
+        if (expirationRequested) return;
+
+        expirationRequested = true;
+        if (timer !== null) window.clearInterval(timer);
+        if (status) status.textContent = 'Estamos liberando la reserva vencida...';
+
+        try {
+            const response = await fetch(expirationUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                },
+            });
+            const responseData = await response.json();
+
+            if (responseData.redirect_url) {
+                window.location.assign(responseData.redirect_url);
+                return;
+            }
+
+            if (response.status === 409) {
+                if (status) status.textContent = responseData.message || 'La reserva todavia sigue vigente.';
+                window.setTimeout(function () { restart(responseData); }, 1000);
+                return;
+            }
+
+            throw new Error(responseData.message || 'No se pudo actualizar el pedido.');
+        } catch (error) {
+            if (status) status.textContent = 'No pudimos actualizar el pedido. Volveremos a intentarlo en unos segundos.';
+            window.setTimeout(function () {
+                expirationRequested = false;
+                requestExpiration();
+            }, 5000);
+        }
+    }
+
+    function render() {
+        const estimatedServerNow = serverNow + (Date.now() - startedAt);
+        const remainingSeconds = Math.max(0, Math.ceil((expiresAt - estimatedServerNow) / 1000));
+        const hours = Math.floor(remainingSeconds / 3600);
+        const minutes = Math.floor((remainingSeconds % 3600) / 60);
+        const seconds = remainingSeconds % 60;
+
+        value.textContent = [hours, minutes, seconds]
+            .map(function (part) { return String(part).padStart(2, '0'); })
+            .join(':');
+
+        if (remainingSeconds > 0) return;
+
+        countdown.classList.add('is-expired');
+        requestExpiration();
+    }
+
+    render();
+    if (!expirationRequested) timer = window.setInterval(render, 1000);
 });
 
 document.querySelectorAll('[data-checkout-page]').forEach(function (page) {

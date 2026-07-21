@@ -28,7 +28,10 @@ class Order extends Model
 
     protected $fillable = [
         'user_id',
+        'pending_payment_owner_id',
         'customer_address_id',
+        'checkout_idempotency_key',
+        'checkout_review_reference',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -53,6 +56,11 @@ class Order extends Model
         'fiscal_business_name',
         'fiscal_address',
         'fiscal_email',
+        'terms_document_id',
+        'terms_document_version',
+        'terms_content_fingerprint',
+        'terms_accepted_at',
+        'terms_snapshot',
         'products_subtotal_cents',
         'discount_cents',
         'shipping_fee_cents',
@@ -111,7 +119,21 @@ class Order extends Model
             'cancelled_at',
             'expired_at',
             'completed_at',
+            'pending_payment_owner_id',
         ]);
+    }
+
+    /** @internal Used when a pending-payment lifecycle is closed. */
+    public function releasePendingPaymentSlot(): void
+    {
+        if ($this->pending_payment_owner_id === null) {
+            return;
+        }
+
+        $this->applyLifecycleMutation(
+            ['pending_payment_owner_id' => null],
+            ['pending_payment_owner_id'],
+        );
     }
 
     /** @internal Used by the transactional reservation service. */
@@ -120,6 +142,15 @@ class Order extends Model
         $this->applyLifecycleMutation(
             ['reservation_expires_at' => $expiresAt],
             ['reservation_expires_at'],
+        );
+    }
+
+    /** @internal Used by the checkout cart cleanup coordinator. */
+    public function markCartCleaned(?\DateTimeInterface $cleanedAt = null): void
+    {
+        $this->applyLifecycleMutation(
+            ['cart_cleaned_at' => $cleanedAt ?? now()],
+            ['cart_cleaned_at'],
         );
     }
 
@@ -149,9 +180,19 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function pendingPaymentOwner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'pending_payment_owner_id');
+    }
+
     public function customerAddress(): BelongsTo
     {
         return $this->belongsTo(CustomerAddress::class);
+    }
+
+    public function termsDocument(): BelongsTo
+    {
+        return $this->belongsTo(LegalDocument::class, 'terms_document_id');
     }
 
     public function items(): HasMany
@@ -191,6 +232,11 @@ class Order extends Model
         return [
             'sequence_year' => 'integer',
             'sequence_number' => 'integer',
+            'pending_payment_owner_id' => 'integer',
+            'terms_document_version' => 'integer',
+            'terms_accepted_at' => 'datetime',
+            'terms_snapshot' => 'array',
+            'cart_cleaned_at' => 'datetime',
             'order_status' => OrderStatus::class,
             'payment_status' => PaymentStatus::class,
             'delivery_status' => DeliveryStatus::class,

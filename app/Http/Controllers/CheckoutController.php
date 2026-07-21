@@ -7,6 +7,7 @@ use App\Support\Cart\CartService;
 use App\Support\Checkout\CheckoutDeliveryService;
 use App\Support\Checkout\CheckoutFormDataService;
 use App\Support\Checkout\CheckoutReadService;
+use App\Support\Checkout\PendingCheckoutOrderExpirationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\ViewErrorBag;
@@ -20,10 +21,26 @@ class CheckoutController extends Controller
         private readonly CheckoutFormDataService $checkoutFormDataService,
         private readonly CheckoutDeliveryService $checkoutDeliveryService,
         private readonly CartService $cartService,
+        private readonly PendingCheckoutOrderExpirationService $expirations,
     ) {}
 
     public function __invoke(ShowCheckoutRequest $request): Response|RedirectResponse
     {
+        $reconciliation = $this->expirations->reconcileFor($request->user());
+
+        if ($reconciliation->expiredOrderCodes !== []) {
+            $request->session()->flash(
+                'checkout_notice',
+                count($reconciliation->expiredOrderCodes) === 1
+                    ? "El pedido {$reconciliation->expiredOrderCodes[0]} vencio y su reserva de stock fue liberada."
+                    : 'Tus pedidos pendientes vencidos fueron cerrados y sus reservas de stock fueron liberadas.',
+            );
+        }
+
+        if ($reconciliation->pendingOrder !== null) {
+            return redirect()->route('checkout.order.pending', $reconciliation->pendingOrder->code);
+        }
+
         $checkout = $this->checkoutReadService->current();
 
         if ($checkout === null) {

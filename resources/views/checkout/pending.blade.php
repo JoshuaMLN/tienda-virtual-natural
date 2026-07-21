@@ -5,19 +5,82 @@
 @section('content')
 <section class="status-page d-flex align-items-center py-5">
     <div class="container">
-        <div class="checkout-card p-4 p-lg-5 mx-auto text-center" style="max-width: 560px;">
+        <div class="checkout-card pending-order-card p-4 p-lg-5 mx-auto text-center">
             <span class="status-icon status-pending mb-4"><i class="bi bi-clock"></i></span>
-            <h1 class="section-title text-warning">Pago en verificacion</h1>
-            <p>Tu pago esta siendo verificado.</p>
-            <div class="checkout-card p-3 my-4 bg-vn-soft">
-                <span class="small text-muted">Numero de pedido</span>
-                <h2 class="h4 fw-black">VN-2024-000123</h2>
-                <p class="small mb-0">Estamos verificando tu pago con Culqi a traves del webhook.</p>
+            <h1 class="section-title text-warning">Pedido pendiente de pago</h1>
+            <p>Reservamos tus productos mientras completas el pago.</p>
+
+            <div
+                class="reservation-countdown border-top border-bottom py-4 my-4"
+                data-reservation-countdown
+                data-expires-at="{{ $order->reservation_expires_at?->toAtomString() }}"
+                data-server-now="{{ $serverNow }}"
+                data-expiration-url="{{ route('checkout.order.expire', $order->code) }}"
+            >
+                <span class="small text-muted d-block mb-2">Tiempo restante de la reserva</span>
+                <strong class="reservation-countdown-value" data-reservation-countdown-value role="timer">00:00:00</strong>
+                <span class="small text-muted d-block mt-2" data-reservation-countdown-status aria-live="polite">
+                    Vence el {{ $order->reservation_expires_at?->translatedFormat('d \d\e F \d\e Y, H:i') }}
+                </span>
             </div>
-            <div class="alert alert-warning text-start small">Este proceso puede tardar unos minutos. No es necesario que realices otra compra.</div>
-            <a class="btn btn-warning w-100 text-white fw-bold" href="{{ route('account.orders') }}">Consultar estado del pedido</a>
-            <a class="btn btn-link text-vn-green mt-2" href="{{ route('account.orders') }}">Ir a mis pedidos</a>
+
+            <dl class="pending-order-summary text-start mb-4">
+                <div>
+                    <dt>Numero de pedido</dt>
+                    <dd class="fw-black">{{ $order->code }}</dd>
+                </div>
+                <div>
+                    <dt>Productos</dt>
+                    <dd>{{ $productCount }} ({{ $totalQuantity }} {{ $totalQuantity === 1 ? 'unidad' : 'unidades' }})</dd>
+                </div>
+                <div>
+                    <dt>Total</dt>
+                    <dd class="fw-black">{{ $formattedTotal }}</dd>
+                </div>
+            </dl>
+
+            <div class="alert alert-warning text-start small d-flex gap-2 align-items-start">
+                <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+                <span>El plazo no se extiende al recargar la pagina. Cuando termine, liberaremos los productos automaticamente.</span>
+            </div>
+
+            <div class="pending-order-actions">
+                <a class="btn btn-vn" href="{{ route('shop.index') }}">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    Seguir comprando
+                </a>
+                <button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#cancelPendingOrderModal">
+                    <i class="bi bi-x-circle" aria-hidden="true"></i>
+                    Cancelar pedido
+                </button>
+            </div>
         </div>
     </div>
 </section>
+
+<div class="modal fade" id="cancelPendingOrderModal" tabindex="-1" aria-labelledby="cancelPendingOrderTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="cancelPendingOrderTitle">Cancelar pedido {{ $order->code }}</h2>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">La reserva se liberara y este pedido quedara cancelado.</p>
+                <p class="small text-muted mb-0">Los productos no volveran automaticamente a tu carrito.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Conservar pedido</button>
+                <form method="POST" action="{{ route('checkout.order.cancel', $order->code) }}">
+                    @csrf
+                    @method('DELETE')
+                    <button class="btn btn-danger" type="submit">
+                        <i class="bi bi-x-circle" aria-hidden="true"></i>
+                        Si, cancelar pedido
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection

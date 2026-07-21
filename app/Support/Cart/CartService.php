@@ -14,7 +14,7 @@ class CartService
         private readonly InventoryService $inventoryService,
     ) {}
 
-    public function get(): Cart
+    public function get(bool $lockProductsForUpdate = false): Cart
     {
         $storedItems = $this->storage->all();
 
@@ -23,11 +23,17 @@ class CartService
         }
 
         $priceReferences = $this->storage->priceReferences();
-        $products = Product::query()
+        $productsQuery = Product::query()
             ->with(['category', 'brand', 'primaryImage'])
             ->active()
             ->whereKey(array_keys($storedItems))
-            ->get()
+            ->orderBy('products.id');
+
+        if ($lockProductsForUpdate) {
+            $productsQuery->lockForUpdate();
+        }
+
+        $products = $productsQuery->get()
             ->keyBy('id');
 
         $items = collect();

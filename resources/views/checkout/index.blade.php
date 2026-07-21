@@ -100,9 +100,9 @@
                         </a>
                         <form
                             method="POST"
-                            action="{{ route('checkout.revalidate') }}"
+                            action="{{ route('checkout.confirm') }}"
                             data-checkout-revalidation-form
-                            data-checkout-revalidation-url="{{ route('checkout.revalidate') }}"
+                            data-checkout-revalidation-url="{{ route('checkout.confirm') }}"
                         >
                             @csrf
                             <input
@@ -110,6 +110,12 @@
                                 name="review_reference"
                                 value="{{ data_get($checkoutForm, 'review.reference') }}"
                                 data-checkout-review-reference
+                            >
+                            <input
+                                type="hidden"
+                                name="idempotency_key"
+                                value="{{ $checkoutForm['confirmation_attempt_key'] }}"
+                                data-checkout-idempotency-key
                             >
                             <button class="btn btn-vn" type="submit" data-checkout-revalidation-submit>
                                 <span>Confirmar pedido y pagar</span>

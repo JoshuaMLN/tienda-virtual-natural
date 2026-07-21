@@ -24,6 +24,7 @@ class CheckoutRevalidationService
     public function revalidate(
         User $user,
         ?string $expectedReviewReference = null,
+        bool $lockForUpdate = false,
     ): CheckoutRevalidationResult {
         $draft = $this->draftStore->get($user);
 
@@ -44,7 +45,7 @@ class CheckoutRevalidationService
         }
 
         $previous = $draft->deliveryQuote;
-        $currentCart = $this->checkoutReadService->currentCart();
+        $currentCart = $this->checkoutReadService->currentCart($lockForUpdate);
         [$scopedCart, $preservedCartItems] = $this->scopeCart($currentCart, $previous->items);
         $currentCheckout = $this->checkoutReadService->summarize($scopedCart);
         $current = null;
@@ -54,7 +55,12 @@ class CheckoutRevalidationService
             try {
                 $current = match ($draft->deliveryMethod) {
                     DeliveryMethod::HomeDelivery => $draft->addressId !== null
-                        ? $this->deliveryService->homeForAddress($user, $draft->addressId, $currentCheckout)->snapshot()
+                        ? $this->deliveryService->homeForAddress(
+                            $user,
+                            $draft->addressId,
+                            $currentCheckout,
+                            $lockForUpdate,
+                        )->snapshot()
                         : null,
                     DeliveryMethod::Pickup => $this->deliveryService->pickup($currentCheckout)->snapshot(),
                 };

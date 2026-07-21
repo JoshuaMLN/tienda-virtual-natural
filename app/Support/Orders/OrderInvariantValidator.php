@@ -28,9 +28,86 @@ class OrderInvariantValidator
     public function validate(array $order, array $items): void
     {
         $this->validateInitialStates($order);
+        $this->validatePendingPaymentOwner($order);
         $this->validateCustomerAndDelivery($order);
         $this->validateFiscalRequest($order);
+        $this->validateCheckoutSnapshot($order);
         $this->validateAmounts($order, $items);
+    }
+
+    /** @param array<string, mixed> $order */
+    private function validatePendingPaymentOwner(array $order): void
+    {
+        if (! array_key_exists('pending_payment_owner_id', $order)) {
+            return;
+        }
+
+        if (! is_int($order['pending_payment_owner_id'])
+            || $order['pending_payment_owner_id'] < 1
+            || (int) ($order['user_id'] ?? 0) !== $order['pending_payment_owner_id']) {
+            throw new DomainException('La reserva de checkout debe pertenecer al mismo cliente del pedido.');
+        }
+    }
+
+    /** @param array<string, mixed> $order */
+    private function validateCheckoutSnapshot(array $order): void
+    {
+        $fields = [
+            'checkout_idempotency_key',
+            'checkout_review_reference',
+            'terms_document_id',
+            'terms_document_version',
+            'terms_content_fingerprint',
+            'terms_accepted_at',
+            'terms_snapshot',
+        ];
+        $present = array_filter($fields, fn (string $field): bool => array_key_exists($field, $order));
+
+        if ($present === []) {
+            return;
+        }
+
+        if (count($present) !== count($fields)) {
+            throw new DomainException('El snapshot de confirmacion del checkout debe guardarse completo.');
+        }
+
+        if (! is_string($order['checkout_idempotency_key'])
+            || preg_match('/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/', $order['checkout_idempotency_key']) !== 1
+            || ! is_string($order['checkout_review_reference'])
+            || preg_match('/^[a-f0-9]{64}$/', $order['checkout_review_reference']) !== 1
+            || ! is_int($order['terms_document_id'])
+            || $order['terms_document_id'] < 1
+            || ! is_int($order['terms_document_version'])
+            || $order['terms_document_version'] < 1
+            || ! is_string($order['terms_content_fingerprint'])
+            || preg_match('/^[a-f0-9]{64}$/', $order['terms_content_fingerprint']) !== 1
+            || ! $order['terms_accepted_at'] instanceof \DateTimeInterface
+            || ! is_array($order['terms_snapshot'])
+            || trim((string) ($order['terms_snapshot']['body'] ?? '')) === '') {
+            throw new DomainException('El snapshot de confirmacion del checkout no es valido.');
+        }
+
+        $snapshot = $order['terms_snapshot'];
+        $snapshotPayload = [
+            'id' => (int) ($snapshot['document_id'] ?? 0),
+            'type' => (string) ($snapshot['type'] ?? ''),
+            'version' => (int) ($snapshot['version'] ?? 0),
+            'title' => (string) ($snapshot['title'] ?? ''),
+            'body' => (string) ($snapshot['body'] ?? ''),
+            'published_at' => $snapshot['published_at'] ?? null,
+        ];
+        $snapshotFingerprint = hash('sha256', json_encode(
+            $snapshotPayload,
+            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+        ));
+
+        if ($snapshotPayload['id'] !== $order['terms_document_id']
+            || $snapshotPayload['version'] !== $order['terms_document_version']
+            || $snapshotPayload['type'] !== 'terms'
+            || $snapshotPayload['title'] === ''
+            || ! hash_equals($order['terms_content_fingerprint'], $snapshotFingerprint)) {
+            throw new DomainException('La huella legal no coincide con el snapshot de terminos.');
+        }
     }
 
     /** @param array<string, mixed> $order */
