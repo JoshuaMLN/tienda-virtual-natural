@@ -452,7 +452,7 @@ Etapa 5.6 validada:
 
 ## Fase 6: Pedidos del cliente
 
-Estado: En progreso (Etapas 6.1 y 6.2 cerradas; Etapa 6.3 pendiente)
+Estado: En progreso (Etapas 6.1, 6.2 y 6.3 cerradas; Etapa 6.4 pendiente)
 
 Reglas cerradas:
 - Estado comercial derivado sin perder los estados tecnicos independientes; `Entregado` corresponde a domicilio y `Recogido` a recojo.
@@ -501,14 +501,29 @@ Etapa 6.2 validada:
 - Los estados posteriores al pago quedan cubiertos por pruebas automatizadas hasta que Culqi habilite su recorrido manual real en el Sprint 7.
 - La etapa queda cerrada.
 
+Implementado en la Etapa 6.3:
+- Capacidad central para decidir si un pedido puede cancelarse, si podra continuar al pago con Culqi y si debe mostrar contacto con soporte.
+- Cancelacion visible en listado y detalle solo para pedidos pendientes o con pago fallido que conservan una reserva activa y vigente.
+- Modal de confirmacion reutilizable con aviso de liberacion de stock y de que los productos no regresan automaticamente al carrito.
+- Endpoint `DELETE` privado por codigo, limitado al propietario, correo verificado y tasa de seis solicitudes por minuto.
+- Cancelacion transaccional e idempotente con liberacion exacta de stock, historial auditable y conservacion del carrito actual.
+- Reconciliacion legible de carreras: un pago confirmado bloquea la cancelacion y una reserva vencida se expira y libera antes de responder.
+- Canal de WhatsApp y correo configurables para pedidos pagados aun no entregados o recogidos, sin ofrecer cancelacion automatica.
+- Capacidad de continuar pago preparada en backend sin exponer un boton ficticio antes del Sprint 7.
+- Siete pruebas nuevas para capacidades, visibilidad, autorizacion, middleware, doble envio, carrito, pago, vencimiento e inventario.
+- Suite completa: 536 pruebas y 4158 aserciones.
+
+Etapa 6.3 validada:
+- El usuario aprobo manualmente botones y modal en listado y detalle, mensajes posteriores, responsive y soporte para pedidos pagados.
+- La etapa queda cerrada.
+
 Planificado:
-- Etapa 6.3: cancelacion y preparacion del reintento de pago.
 - Etapa 6.4: comprobantes fiscales privados.
 - Etapa 6.5: correos de creacion, cancelacion y vencimiento mediante cola.
 - Etapa 6.6: integracion, seguridad, responsive, pruebas y cierre.
 
 Pendiente:
-- Implementar las Etapas 6.3 a 6.6.
+- Implementar las Etapas 6.4 a 6.6.
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 
@@ -553,7 +568,7 @@ Pendiente:
 
 ## Bloqueos actuales
 
-- Ninguno para continuar con la Etapa 6.3.
+- Ninguno para continuar con la Etapa 6.4.
 
 ## Resultado esperado
 

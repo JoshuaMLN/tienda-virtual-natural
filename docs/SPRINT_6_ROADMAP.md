@@ -483,6 +483,8 @@ Criterio de salida:
 
 ### Etapa 6.3: Cancelacion y preparacion del pago
 
+Estado: Completada.
+
 - Exponer la cancelacion existente desde listado y detalle solo cuando el pedido pendiente conserve una reserva vigente.
 - Confirmar la accion con modal y manejar de forma legible carreras con pago o vencimiento.
 - Mantener cancelacion, liberacion de stock e historial idempotentes y no restaurar productos al carrito.

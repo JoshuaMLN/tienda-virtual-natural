@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Account;
 
 use App\Enums\CustomerOrderFilter;
+use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Account\ListCustomerOrdersRequest;
 use App\Models\Order;
 use App\Support\Money\Money;
+use App\Support\Orders\CustomerOrderCapabilityResolver;
 use App\Support\Orders\CustomerOrderDateFormatter;
 use App\Support\Orders\CustomerOrderDetailPresenter;
 use App\Support\Orders\CustomerOrderStatusResolver;
+use App\Support\Settings\StorefrontSettings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -17,8 +20,10 @@ class CustomerOrderController extends Controller
 {
     public function __construct(
         private readonly CustomerOrderStatusResolver $statuses,
+        private readonly CustomerOrderCapabilityResolver $capabilities,
         private readonly CustomerOrderDateFormatter $dates,
         private readonly CustomerOrderDetailPresenter $details,
+        private readonly StorefrontSettings $settings,
     ) {}
 
     public function index(ListCustomerOrdersRequest $request): Response
@@ -30,6 +35,8 @@ class CustomerOrderController extends Controller
 
         $query->when($search, fn ($query) => $query->where('code', 'like', "%{$search}%"));
         $this->statuses->constrain($query, $activeFilter);
+        $query->with(['stockReservations' => fn ($query) => $query
+            ->where('stock_reservations.status', ReservationStatus::Active->value)]);
 
         $orders = $query
             ->orderByDesc('created_at')
@@ -43,6 +50,7 @@ class CustomerOrderController extends Controller
             'formatted_total' => Money::fromCents($order->total_cents)->formatted(),
             'formatted_date' => $this->dates->compactDate($order->created_at),
             'formatted_time' => $this->dates->compactTime($order->created_at),
+            'capabilities' => $this->capabilities->resolve($order),
         ]);
 
         return response()->view('account.orders', [
@@ -59,16 +67,24 @@ class CustomerOrderController extends Controller
             ->with([
                 'items' => fn ($query) => $query->orderBy('id'),
                 'items.product' => fn ($query) => $query->active(),
+                'stockReservations',
                 'statusHistories',
             ])
             ->where('code', strtoupper($code))
             ->firstOrFail();
         $commercialStatus = $this->statuses->resolve($order);
+        $capabilities = $this->capabilities->resolve($order);
 
         return response()->view('account.order-show', [
             'order' => $order,
             'commercialStatus' => $commercialStatus,
+            'capabilities' => $capabilities,
             'detail' => $this->details->present($order, $commercialStatus),
+            'support' => [
+                'whatsapp_url' => $this->settings->whatsappUrl(),
+                'whatsapp_display' => $this->settings->whatsappDisplay(),
+                'email' => $this->settings->email(),
+            ],
         ])->withHeaders($this->privateHeaders());
     }
 

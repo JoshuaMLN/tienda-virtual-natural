@@ -111,10 +111,23 @@
                             </td>
                             <td><x-account.order-status :status="$item['status']" /></td>
                             <td class="text-end">
-                                <a class="btn btn-sm btn-vn-outline text-nowrap" href="{{ route('account.orders.show', $order->code) }}">
-                                    <i class="bi bi-eye" aria-hidden="true"></i>
-                                    Ver pedido
-                                </a>
+                                <div class="customer-order-row-actions">
+                                    <a class="btn btn-sm btn-vn-outline text-nowrap" href="{{ route('account.orders.show', $order->code) }}">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>
+                                        Ver pedido
+                                    </a>
+                                    @if($item['capabilities']->canCancel)
+                                        <button
+                                            class="btn btn-sm btn-outline-danger text-nowrap"
+                                            type="button"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#cancelOrderModal-{{ $order->getKey() }}"
+                                        >
+                                            <i class="bi bi-x-circle" aria-hidden="true"></i>
+                                            Cancelar
+                                        </button>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforeach
@@ -149,13 +162,32 @@
                         </dd>
                     </div>
                 </dl>
-                <a class="btn btn-vn-outline w-100" href="{{ route('account.orders.show', $order->code) }}">
-                    <i class="bi bi-eye" aria-hidden="true"></i>
-                    Ver pedido
-                </a>
+                <div class="customer-order-mobile-actions">
+                    <a class="btn btn-vn-outline" href="{{ route('account.orders.show', $order->code) }}">
+                        <i class="bi bi-eye" aria-hidden="true"></i>
+                        Ver pedido
+                    </a>
+                    @if($item['capabilities']->canCancel)
+                        <button
+                            class="btn btn-outline-danger"
+                            type="button"
+                            data-bs-toggle="modal"
+                            data-bs-target="#cancelOrderModal-{{ $order->getKey() }}"
+                        >
+                            <i class="bi bi-x-circle" aria-hidden="true"></i>
+                            Cancelar
+                        </button>
+                    @endif
+                </div>
             </article>
         @endforeach
     </div>
+
+    @foreach($orders as $item)
+        @if($item['capabilities']->canCancel)
+            <x-account.order-cancel-modal :order="$item['order']" return-to="list" />
+        @endif
+    @endforeach
 
     <div class="mt-4">
         {{ $orders->links() }}

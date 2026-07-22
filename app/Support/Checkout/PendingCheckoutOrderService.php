@@ -7,6 +7,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\Orders\CustomerOrderCapabilityResolver;
 use App\Support\Orders\Reservations\StockReservationService;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,7 @@ class PendingCheckoutOrderService
 {
     public function __construct(
         private readonly StockReservationService $reservations,
+        private readonly CustomerOrderCapabilityResolver $capabilities,
     ) {}
 
     public function findFor(User $user, bool $lockForUpdate = false): ?Order
@@ -46,17 +48,13 @@ class PendingCheckoutOrderService
 
     public function isPending(Order $order): bool
     {
-        return $order->order_status === OrderStatus::PendingPayment
-            && in_array($order->payment_status, [PaymentStatus::Pending, PaymentStatus::Failed], true)
-            && ($order->pending_payment_owner_id !== null
-                || $order->stockReservations()
-                    ->where('stock_reservations.status', ReservationStatus::Active->value)
-                    ->exists());
+        return $this->capabilities->resolve($order)->canContinuePayment;
     }
 
     public function cancel(User $user, Order $order): Order
     {
-        return DB::transaction(function () use ($user, $order): Order {
+        $moment = now();
+        $result = DB::transaction(function () use ($user, $order, $moment): Order {
             $locked = Order::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
             if ((int) $locked->user_id !== (int) $user->getKey()) {
@@ -69,16 +67,36 @@ class PendingCheckoutOrderService
                 return $locked->refresh();
             }
 
+            if ($locked->order_status === OrderStatus::Expired
+                || $locked->payment_status === PaymentStatus::Expired) {
+                return $locked;
+            }
+
             if ($locked->order_status !== OrderStatus::PendingPayment
                 || ! in_array($locked->payment_status, [PaymentStatus::Pending, PaymentStatus::Failed], true)) {
-                throw new DomainException('Este pedido ya no se puede cancelar desde el checkout.');
+                throw new DomainException('Este pedido ya no se puede cancelar.');
+            }
+
+            if ($locked->reservation_expires_at?->lte($moment) === true) {
+                return $this->reservations->expireForOrder($locked, $moment);
+            }
+
+            if (! $this->capabilities->resolve($locked, $moment)->canCancel) {
+                throw new DomainException('Este pedido ya no conserva una reserva de stock vigente.');
             }
 
             return $this->reservations->releaseForCancellation(
                 $locked,
                 $user,
-                'Cancelado por el cliente desde el checkout',
+                'Cancelado por el cliente',
             );
         }, 5);
+
+        if ($result->order_status === OrderStatus::Expired
+            || $result->payment_status === PaymentStatus::Expired) {
+            throw new DomainException('La reserva vencio antes de poder cancelar el pedido.');
+        }
+
+        return $result;
     }
 }

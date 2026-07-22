@@ -1948,6 +1948,13 @@ a {
     justify-content: space-between;
 }
 
+.customer-order-detail-heading-actions {
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
+}
+
 .customer-orders-count {
     background: #fff;
     border: 1px solid var(--vn-line);
@@ -2001,6 +2008,13 @@ a {
 
 .customer-order-table tbody tr:last-child td {
     border-bottom: 0;
+}
+
+.customer-order-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    justify-content: flex-end;
 }
 
 .customer-order-method {
@@ -2068,6 +2082,18 @@ a {
     padding: 1rem;
 }
 
+.customer-order-mobile-actions {
+    display: grid;
+    gap: .5rem;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.customer-order-mobile-actions .btn {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+}
+
 .customer-order-mobile-header {
     align-items: flex-start;
     display: flex;
@@ -2117,6 +2143,46 @@ a {
 .customer-order-timeline-time {
     color: var(--vn-muted);
     font-size: .78rem;
+}
+
+.customer-order-support-notice {
+    align-items: center;
+    background: #f2f8ee;
+    border: 1px solid #c8ddb9;
+    border-radius: 8px;
+    display: grid;
+    gap: .85rem;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    padding: 1rem;
+}
+
+.customer-order-support-icon {
+    align-items: center;
+    background: var(--vn-green-100);
+    border-radius: 50%;
+    color: var(--vn-green-800);
+    display: inline-flex;
+    font-size: 1.15rem;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.customer-order-support-copy {
+    display: grid;
+    gap: .15rem;
+}
+
+.customer-order-support-copy span {
+    color: var(--vn-muted);
+    font-size: .82rem;
+}
+
+.customer-order-support-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    justify-content: flex-end;
 }
 
 .customer-order-detail-grid {
@@ -3058,6 +3124,20 @@ body.admin-sidebar-open {
         display: contents;
     }
 
+    .customer-order-support-notice {
+        align-items: start;
+        grid-template-columns: 42px minmax(0, 1fr);
+    }
+
+    .customer-order-support-actions {
+        grid-column: 1 / -1;
+        justify-content: stretch;
+    }
+
+    .customer-order-support-actions .btn {
+        flex: 1 1 190px;
+    }
+
     .customer-order-product-row {
         align-items: start;
         gap: .75rem;
@@ -3079,6 +3159,11 @@ body.admin-sidebar-open {
     .customer-order-detail-heading {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .customer-order-detail-heading-actions {
+        align-items: flex-start;
+        width: 100%;
     }
 
     .customer-order-filter-grid {

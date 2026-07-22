@@ -15,9 +15,44 @@
             <h1 class="section-title mb-1">{{ $order->code }}</h1>
             <p class="customer-order-created-at mb-0">Realizado el {{ $detail['created_at'] }}</p>
         </div>
-        <x-account.order-status :status="$commercialStatus" />
+        <div class="customer-order-detail-heading-actions">
+            <x-account.order-status :status="$commercialStatus" />
+            @if($capabilities->canCancel)
+                <button
+                    class="btn btn-sm btn-outline-danger"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#cancelOrderModal-{{ $order->getKey() }}"
+                >
+                    <i class="bi bi-x-circle" aria-hidden="true"></i>
+                    Cancelar pedido
+                </button>
+            @endif
+        </div>
     </div>
 </div>
+
+@if($capabilities->shouldContactSupport)
+    <div class="customer-order-support-notice mb-4" role="note">
+        <span class="customer-order-support-icon" aria-hidden="true"><i class="bi bi-headset"></i></span>
+        <div class="customer-order-support-copy">
+            <strong>Necesitas cambiar o cancelar este pedido?</strong>
+            <span>El pago ya fue confirmado. Nuestro equipo revisara tu solicitud antes de modificar el pedido.</span>
+        </div>
+        <div class="customer-order-support-actions">
+            @if($support['whatsapp_url'])
+                <a class="btn btn-sm btn-green" href="{{ $support['whatsapp_url'] }}" target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-whatsapp" aria-hidden="true"></i>
+                    WhatsApp {{ $support['whatsapp_display'] }}
+                </a>
+            @endif
+            <a class="btn btn-sm btn-vn-outline" href="mailto:{{ $support['email'] }}">
+                <i class="bi bi-envelope" aria-hidden="true"></i>
+                {{ $support['email'] }}
+            </a>
+        </div>
+    </div>
+@endif
 
 <div class="customer-order-detail-grid">
     <div class="customer-order-detail-column customer-order-detail-column-primary">
@@ -242,4 +277,8 @@
         </section>
     </div>
 </div>
+
+@if($capabilities->canCancel)
+    <x-account.order-cancel-modal :order="$order" />
+@endif
 @endsection

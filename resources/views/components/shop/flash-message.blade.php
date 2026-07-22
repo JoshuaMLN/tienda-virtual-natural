@@ -23,6 +23,24 @@
             'icon' => 'bi-clock-history',
             'message' => session('checkout_notice'),
         ];
+    } elseif (session()->has('order_success')) {
+        $flash = [
+            'type' => 'success',
+            'icon' => 'bi-check-circle-fill',
+            'message' => session('order_success'),
+        ];
+    } elseif (session()->has('order_error')) {
+        $flash = [
+            'type' => 'danger',
+            'icon' => 'bi-exclamation-circle-fill',
+            'message' => session('order_error'),
+        ];
+    } elseif (session()->has('order_notice')) {
+        $flash = [
+            'type' => 'warning',
+            'icon' => 'bi-clock-history',
+            'message' => session('order_notice'),
+        ];
     }
 @endphp
 
