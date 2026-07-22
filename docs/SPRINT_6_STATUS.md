@@ -1,6 +1,6 @@
 # Sprint 6 - Estado
 
-Fecha: 2026-07-21
+Fecha: 2026-07-22
 
 Estado: En progreso
 
@@ -452,18 +452,44 @@ Etapa 5.6 validada:
 
 ## Fase 6: Pedidos del cliente
 
-Estado: Pendiente
+Estado: En progreso (Etapa 6.1 completada y validada)
+
+Reglas cerradas:
+- Estado comercial derivado sin perder los estados tecnicos independientes; `Entregado` corresponde a domicilio y `Recogido` a recojo.
+- Pago fallido con reserva vigente se muestra como `Pago no completado`; despues del vencimiento se muestra `Vencido`.
+- Historial descendente, 10 pedidos por pagina, busqueda por codigo y filtros comerciales agrupados.
+- Cancelacion directa solo para `pending_payment` elegible; un pedido pagado remite al contacto de la tienda hasta integrar reembolso.
+- Capacidad de reintento preparada sin boton de pago ficticio antes de Culqi.
+- Timeline curado, snapshots historicos y enlaces al catalogo solo para productos vigentes y visibles.
+- Comprobantes propios con PDF descargables desde almacenamiento privado, incluidos los anulados con estado visible.
+- Correos de creacion, cancelacion y vencimiento enviados por cola despues del commit sin revertir el dominio ante fallos.
+- Creacion enviada al correo snapshot, avisos posteriores al correo verificado actual y comprobantes al correo fiscal.
+- Documentos de identidad enmascarados en pantalla; fechas definitivas solo despues del pago.
+- Recursos ajenos responden `404` mediante consultas acotadas o policies.
+
+Completado en la Etapa 6.1:
+- Resolvedor unico de estados comerciales para pedido, pago, entrega, modalidad y vencimiento de reserva.
+- Listado privado limitado al cliente autenticado, ordenado por fecha e ID descendentes.
+- Busqueda normalizada por codigo `PED-AAAA-NNNNNN` y filtros comerciales agrupados.
+- Paginacion de 10 pedidos con conservacion de parametros mediante `withQueryString()`.
+- Tabla para escritorio y tarjetas para celular con codigo, fecha, total, modalidad, estado y acceso al pedido.
+- Detalle privado basico preparado para ampliarse con snapshots y timeline en la Etapa 6.2.
+- Respuestas privadas sin cache publico y pedidos ajenos resueltos como `404`.
+- 12 pruebas nuevas con 67 aserciones para estados, consultas, aislamiento y responsive renderizado.
+
+Etapa 6.1 validada:
+- El usuario aprobo manualmente el estado vacio, datos reales, orden, busqueda, filtros, paginacion, detalle basico, aislamiento y comportamiento responsive.
+- La etapa queda cerrada; el detalle historico completo continuara en la Etapa 6.2.
 
 Planificado:
-- Historial y detalle reales.
-- Linea de tiempo y estados legibles.
-- Cancelacion de pedidos pendientes de pago.
-- Descarga privada de comprobantes.
-- Correos de creacion y cancelacion.
-- Autorizacion por propietario y pruebas.
+- Etapa 6.2: detalle historico, items y precios snapshot, fecha y hora del pedido y linea de tiempo con marcas temporales en `America/Lima`.
+- Etapa 6.3: cancelacion y preparacion del reintento de pago.
+- Etapa 6.4: comprobantes fiscales privados.
+- Etapa 6.5: correos de creacion, cancelacion y vencimiento mediante cola.
+- Etapa 6.6: integracion, seguridad, responsive, pruebas y cierre.
 
 Pendiente:
-- Implementacion completa de la fase.
+- Implementar las Etapas 6.2 a 6.6, comenzando por el detalle historico y la linea de tiempo.
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 
@@ -508,7 +534,7 @@ Pendiente:
 
 ## Bloqueos actuales
 
-- Ninguno para iniciar la Fase 1.
+- Ninguno para continuar con la Etapa 6.2.
 
 ## Resultado esperado
 

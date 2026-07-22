@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Account\CustomerAddressController;
+use App\Http\Controllers\Account\CustomerOrderController;
 use App\Http\Controllers\Account\ProfileController;
 use App\Http\Controllers\Account\SecurityController;
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController as AdminAuthenticatedSessionController;
@@ -141,7 +142,10 @@ Route::prefix('mi-cuenta')->name('account.')->middleware(['auth', 'customer'])->
     Route::delete('/seguridad/google', [GoogleAuthController::class, 'unlink'])
         ->middleware('throttle:6,1')
         ->name('google.unlink');
-    Route::view('/pedidos', 'account.orders')->name('orders');
+    Route::get('/pedidos', [CustomerOrderController::class, 'index'])->name('orders');
+    Route::get('/pedidos/{code}', [CustomerOrderController::class, 'show'])
+        ->where('code', 'PED-[0-9]{4}-[0-9]{6}')
+        ->name('orders.show');
     Route::get('/direcciones', [CustomerAddressController::class, 'index'])->name('addresses');
     Route::get('/direcciones/nueva', [CustomerAddressController::class, 'create'])->name('addresses.create');
     Route::post('/direcciones', [CustomerAddressController::class, 'store'])->name('addresses.store');

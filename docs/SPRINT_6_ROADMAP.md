@@ -436,20 +436,97 @@ Criterio de salida:
 
 Objetivo: permitir que el cliente consulte y gestione sus pedidos reales sin acceder a pedidos ajenos.
 
-Tareas:
-- Reemplazar la maqueta de `Mis pedidos` por listado real paginado y filtrable por estado.
-- Crear detalle con items, totales, entrega, datos fiscales, estado y linea de tiempo.
-- Mostrar claramente pedidos pendientes de pago, vencidos, procesando, enviados, entregados y cancelados.
-- Exponer en el historial y detalle la cancelacion segura de pedidos `pending_payment` creada en la Fase 5.
-- Preparar la accion de reintento de pago para Sprint 7 mientras la reserva siga activa.
-- Mostrar las fechas estimadas definitivas solo despues de la confirmacion del pago.
-- Permitir descargar el comprobante desde almacenamiento privado cuando exista.
-- Notificar por correo la creacion y cancelacion del pedido sin adjuntar un comprobante inexistente.
-- Impedir acceso horizontal mediante consultas acotadas al usuario o policies.
-- Crear pruebas de historial, detalle, cancelacion, descarga y aislamiento de propietario.
+Reglas de negocio cerradas:
+- La interfaz mostrara un estado comercial derivado de pedido, pago, entrega y modalidad, sin reemplazar los estados tecnicos independientes del dominio.
+- Domicilio terminara como `Entregado` y recojo como `Recogido`; durante el recorrido se usaran `En camino` y `Listo para recoger`, respectivamente.
+- Un pago fallido con reserva vigente se mostrara como `Pago no completado`; al vencer su reserva pasara a `Vencido`.
+- El historial se ordenara del mas reciente al mas antiguo, con 10 pedidos por pagina, busqueda por codigo `PED-AAAA-NNNNNN` y filtros comerciales agrupados.
+- El cliente solo podra cancelar directamente un pedido `pending_payment` con pago pendiente o fallido y reserva vigente. Para un pedido pagado se mostrara contacto con la tienda hasta integrar pago y reembolso.
+- No se mostrara un boton de pago ficticio. Se preparara la capacidad `puede continuar pago`, pero la accion real aparecera con Culqi en el Sprint 7.
+- La linea de tiempo expondra solo eventos comprensibles para el cliente y ocultara IDs, movimientos de inventario, correos administrativos, errores y metadatos internos.
+- Los items siempre se mostraran desde sus snapshots. Solo enlazaran al catalogo cuando el producto actual exista y siga visible.
+- No se incluira todavia una accion `Volver a comprar`.
+- Todo comprobante fiscal con PDF perteneciente al pedido sera descargable por su propietario; un documento anulado seguira visible y descargable, marcado claramente como `Anulado`.
+- Los correos de creacion, cancelacion y vencimiento se enviaran despues del commit mediante cola. Un fallo de correo nunca revertira el pedido ni su transicion.
+- El correo de creacion usara el snapshot `order.customer_email`; los avisos posteriores usaran el correo verificado actual de la cuenta y los comprobantes conservaran `fiscal_email`.
+- DNI, documento extranjero y RUC se mostraran enmascarados salvo sus ultimos cuatro caracteres; el PDF fiscal conservara los datos completos.
+- Mientras el pedido este pendiente solo se mostrara el vencimiento de la reserva. Las fechas definitivas de entrega o recojo apareceran despues de confirmar el pago.
+- Listados, detalles, cancelaciones y descargas se resolveran desde el usuario autenticado o mediante policies; un pedido ajeno respondera `404`.
+
+### Etapa 6.1: Listado y estado comercial
+
+- Crear un resolvedor unico del estado legible a partir de pedido, pago, entrega, reserva y modalidad.
+- Reemplazar la maqueta de `Mis pedidos` por una consulta limitada al cliente autenticado.
+- Ordenar por creacion descendente y paginar de 10 en 10 conservando filtros con `withQueryString()`.
+- Permitir busqueda normalizada por codigo interno y filtros `Todos`, `Pendientes`, `En preparacion`, `En camino o recojo`, `Finalizados` y `Cancelados o vencidos`.
+- Mostrar codigo, fecha, total, modalidad, estado comercial y accion `Ver pedido` con una composicion responsive.
+- Crear pruebas de consulta, orden, paginacion, busqueda, filtros, estados derivados y aislamiento entre clientes.
 
 Criterio de salida:
-- Cada cliente puede seguir sus pedidos y documentos reales sin ver ni modificar informacion de otra cuenta.
+- El cliente puede localizar y comprender cualquiera de sus pedidos sin ver registros de otra cuenta.
+
+### Etapa 6.2: Detalle y linea de tiempo
+
+- Crear el detalle privado por codigo con snapshots de items, precios, impuestos, totales, contacto, entrega o recojo y solicitud fiscal.
+- Completar la fecha del listado con una hora compacta y mostrar en el detalle una fecha absoluta descriptiva con dia y hora.
+- Mostrar fecha y hora en cada evento de la linea de tiempo, usando la zona configurada `America/Lima` y evitando fechas relativas como `hace 2 horas`.
+- Enmascarar documentos de identidad y omitir datos tecnicos o administrativos sensibles.
+- Enlazar un item al catalogo solo cuando el producto vigente siga siendo publicamente visible.
+- Construir una linea de tiempo curada para creacion, pago, preparacion, envio, recojo, entrega, cancelacion, vencimiento y reembolso.
+- Mostrar vencimiento mientras el pago siga pendiente y fechas definitivas solo despues de pagarse.
+- Ajustar escritorio y celular y crear pruebas de snapshots, privacidad, timeline, modalidades y producto eliminado u oculto.
+
+Criterio de salida:
+- El detalle reproduce historicamente la compra con informacion util y sin filtrar metadatos internos.
+
+### Etapa 6.3: Cancelacion y preparacion del pago
+
+- Exponer la cancelacion existente desde listado y detalle solo cuando el pedido pendiente conserve una reserva vigente.
+- Confirmar la accion con modal y manejar de forma legible carreras con pago o vencimiento.
+- Mantener cancelacion, liberacion de stock e historial idempotentes y no restaurar productos al carrito.
+- Preparar una capacidad central `puede continuar pago` para reservas vigentes sin mostrar una accion ficticia antes del Sprint 7.
+- Para pedidos pagados sin entregar, mostrar el canal de contacto de la tienda en lugar de una cancelacion automatica.
+- Crear pruebas de visibilidad, autorizacion, doble envio, carrera con vencimiento y liberacion exacta de inventario.
+
+Criterio de salida:
+- El cliente puede cancelar un pedido pendiente elegible una sola vez y el dominio queda listo para que Culqi habilite el reintento real.
+
+### Etapa 6.4: Comprobantes privados
+
+- Listar los comprobantes y documentos relacionados disponibles en el detalle del pedido.
+- Mostrar tipo, serie, correlativo, fecha y estado, incluyendo documentos anulados sin ocultarlos.
+- Descargar exclusivamente el PDF privado del documento perteneciente al cliente autenticado.
+- Rechazar documentos ajenos, rutas manipuladas, archivos inexistentes y documentos sin PDF mediante una respuesta no reveladora.
+- Evitar cache publico de respuestas fiscales y usar nombres de descarga comprensibles.
+- Crear pruebas con `Storage::fake()` para propiedad, documento anulado, archivo ausente y aislamiento horizontal.
+
+Criterio de salida:
+- Cada cliente puede consultar y descargar sus propios comprobantes historicos sin acceso al almacenamiento privado de terceros.
+
+### Etapa 6.5: Correos transaccionales
+
+- Crear notificaciones en cola para pedido creado y pendiente de pago, cancelacion y vencimiento de reserva.
+- Despacharlas solo despues del commit y una vez por la transicion de dominio correspondiente.
+- Enviar la creacion a `order.customer_email`, los avisos posteriores al correo verificado actual y los futuros comprobantes a `fiscal_email`.
+- No adjuntar comprobantes inexistentes ni hacer que un fallo de Brevo revierta pedidos, reservas o inventario.
+- Mantener enlaces HTTPS al pedido propio y contenido coherente con modalidad, total, vencimiento y estado.
+- Crear pruebas con `Notification::fake()` o `Mail::fake()` para destinatarios, cola, duplicados, rollback y eventos elegibles.
+
+Criterio de salida:
+- Cada transicion relevante genera una comunicacion desacoplada, segura y consistente con el pedido persistido.
+
+### Etapa 6.6: Integracion y cierre
+
+- Completar pruebas HTTP, servicios, policies, vistas, archivos, cola y regresion de pedidos pendientes.
+- Validar manualmente filtros, timeline, cancelacion, estados, documentos, correos y responsive.
+- Ejecutar suite completa, cache de vistas, build, formato, revision de diff y actualizacion documental.
+- Confirmar en despliegue que worker, scheduler y almacenamiento privado estan preparados.
+
+Criterio de salida de la etapa:
+- El recorrido completo de pedidos del cliente es seguro, responsive, auditable y queda listo para los pagos del Sprint 7 y la operacion administrativa de la Fase 7.
+
+Criterio de salida de la fase:
+- Las seis etapas estan completas y cada cliente puede seguir sus pedidos, cancelaciones, comunicaciones y documentos reales sin ver ni modificar informacion de otra cuenta.
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 
