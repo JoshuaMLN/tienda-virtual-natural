@@ -21,6 +21,8 @@ class CustomerOrderHttpTest extends TestCase
     {
         parent::setUp();
 
+        config()->set('app.locale', 'es');
+        config()->set('app.timezone', 'America/Lima');
         CarbonImmutable::setTestNow('2026-07-22 10:00:00');
     }
 
@@ -172,6 +174,8 @@ class CustomerOrderHttpTest extends TestCase
             ->assertSee('customer-order-mobile-list d-md-none', false)
             ->assertSee("pedido-{$order->code}", false)
             ->assertSee("pedido-mobile-{$order->code}", false)
+            ->assertSee('22/07/2026')
+            ->assertSee('10:00 a. m.')
             ->assertSee('Recojo en tienda')
             ->assertSee('S/ 176.60');
     }
@@ -190,7 +194,7 @@ class CustomerOrderHttpTest extends TestCase
             ->get(route('account.orders.show', $ownOrder->code))
             ->assertOk()
             ->assertSee($ownOrder->code)
-            ->assertSee('Resumen del pedido')
+            ->assertSee('Resumen de compra')
             ->assertSee('Entrega a domicilio')
             ->assertSee('S/ 259.00');
 

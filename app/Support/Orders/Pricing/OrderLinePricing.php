@@ -27,7 +27,7 @@ final readonly class OrderLinePricing
             'product_id' => $this->product->getKey(),
             'product_sku' => $this->product->sku,
             'product_name' => $this->product->name,
-            'product_image' => $this->product->primaryImage?->image_path ?? Product::DEFAULT_IMAGE,
+            'product_image' => $this->product->mainImageSnapshotSource(),
             'product_presentation' => $this->product->short_description,
             'sale_unit' => 'unidad',
             'quantity' => $this->quantity,

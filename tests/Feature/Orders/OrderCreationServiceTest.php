@@ -54,6 +54,37 @@ class OrderCreationServiceTest extends TestCase
         $this->assertDatabaseHas('order_sequences', ['year' => 2040, 'last_number' => 1]);
     }
 
+    public function test_product_image_snapshot_prefers_local_path_then_legacy_url_and_finally_default(): void
+    {
+        $localProduct = Product::factory()->create();
+        $localProduct->images()->create([
+            'image_path' => 'products/local.webp',
+            'url' => '/storage/products/local.webp',
+            'is_primary' => true,
+        ]);
+
+        $legacyProduct = Product::factory()->create();
+        $legacyProduct->images()->create([
+            'url' => 'https://images.example.test/legacy.webp',
+            'is_primary' => true,
+        ]);
+
+        $productWithoutImage = Product::factory()->create();
+
+        $this->assertSame(
+            'products/local.webp',
+            $this->pricing($localProduct)->lines[0]->snapshotAttributes()['product_image'],
+        );
+        $this->assertSame(
+            'https://images.example.test/legacy.webp',
+            $this->pricing($legacyProduct)->lines[0]->snapshotAttributes()['product_image'],
+        );
+        $this->assertSame(
+            Product::DEFAULT_IMAGE,
+            $this->pricing($productWithoutImage)->lines[0]->snapshotAttributes()['product_image'],
+        );
+    }
+
     public function test_snapshots_remain_after_optional_references_are_deleted(): void
     {
         [$user, $address, $product] = $this->fixtures();

@@ -288,7 +288,7 @@ class CheckoutOrderCreationService
             return [
                 ...$item,
                 'product_id' => $product->getKey(),
-                'product_image' => $product->primaryImage?->image_path ?? Product::DEFAULT_IMAGE,
+                'product_image' => $product->mainImageSnapshotSource(),
                 'product_presentation' => $product->short_description,
                 'sale_unit' => 'unidad',
             ];

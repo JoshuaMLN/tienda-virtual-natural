@@ -57,6 +57,10 @@ class CheckoutOrderCreationTest extends TestCase
             'price' => '59.00',
             'stock' => 5,
         ]);
+        $product->images()->create([
+            'url' => 'https://images.example.test/omega.webp',
+            'is_primary' => true,
+        ]);
         $this->reviewPickup($user, [$product->id => 2]);
         $reviewReference = session('checkout.draft.review.fingerprint');
         $terms = $this->activeTerms();
@@ -80,6 +84,7 @@ class CheckoutOrderCreationTest extends TestCase
         $this->assertSame($user->id, $order->pending_payment_owner_id);
         $this->assertSame($reviewReference, $order->checkout_review_reference);
         $this->assertSame(2, $order->items->sole()->quantity);
+        $this->assertSame('https://images.example.test/omega.webp', $order->items->sole()->product_image);
         $this->assertSame(5900, $order->items->sole()->unit_price_cents);
         $this->assertSame(11_800, $order->total_cents);
         $this->assertSame(ReservationStatus::Active, $order->stockReservations->sole()->status);

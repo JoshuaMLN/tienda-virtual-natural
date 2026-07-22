@@ -98,7 +98,10 @@
                         @php($order = $item['order'])
                         <tr id="pedido-{{ $order->code }}">
                             <td class="fw-black">{{ $order->code }}</td>
-                            <td>{{ $order->created_at->format('d/m/Y') }}</td>
+                            <td>
+                                <span class="d-block">{{ $item['formatted_date'] }}</span>
+                                <span class="customer-order-time">{{ $item['formatted_time'] }}</span>
+                            </td>
                             <td class="fw-bold text-nowrap">{{ $item['formatted_total'] }}</td>
                             <td>
                                 <span class="customer-order-method">
@@ -127,8 +130,8 @@
                 <div class="customer-order-mobile-header">
                     <div>
                         <div class="customer-order-mobile-code">{{ $order->code }}</div>
-                        <time class="small text-muted" datetime="{{ $order->created_at->toDateString() }}">
-                            {{ $order->created_at->format('d/m/Y') }}
+                        <time class="small text-muted" datetime="{{ $order->created_at->toAtomString() }}">
+                            {{ $item['formatted_date'] }} a las {{ $item['formatted_time'] }}
                         </time>
                     </div>
                     <x-account.order-status :status="$item['status']" />

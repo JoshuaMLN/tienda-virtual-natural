@@ -467,6 +467,8 @@ Criterio de salida:
 
 ### Etapa 6.2: Detalle y linea de tiempo
 
+Estado: Completada.
+
 - Crear el detalle privado por codigo con snapshots de items, precios, impuestos, totales, contacto, entrega o recojo y solicitud fiscal.
 - Completar la fecha del listado con una hora compacta y mostrar en el detalle una fecha absoluta descriptiva con dia y hora.
 - Mostrar fecha y hora en cada evento de la linea de tiempo, usando la zona configurada `America/Lima` y evitando fechas relativas como `hace 2 horas`.

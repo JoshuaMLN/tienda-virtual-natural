@@ -452,7 +452,7 @@ Etapa 5.6 validada:
 
 ## Fase 6: Pedidos del cliente
 
-Estado: En progreso (Etapa 6.1 completada y validada)
+Estado: En progreso (Etapas 6.1 y 6.2 cerradas; Etapa 6.3 pendiente)
 
 Reglas cerradas:
 - Estado comercial derivado sin perder los estados tecnicos independientes; `Entregado` corresponde a domicilio y `Recogido` a recojo.
@@ -481,15 +481,34 @@ Etapa 6.1 validada:
 - El usuario aprobo manualmente el estado vacio, datos reales, orden, busqueda, filtros, paginacion, detalle basico, aislamiento y comportamiento responsive.
 - La etapa queda cerrada; el detalle historico completo continuara en la Etapa 6.2.
 
+Implementado en la Etapa 6.2:
+- Detalle privado completo con items, nombres, imagenes, SKU, presentacion, cantidades, precios unitarios, descuentos y subtotales desde snapshots inmutables.
+- Fuente de imagen del snapshot unificada: prioriza archivo local, conserva URLs heredadas y usa el placeholder solo cuando el producto carece de imagen principal.
+- Resumen de importes historicos con productos, descuento, envio, valores gravados, exonerados e inafectos, IGV incluido y total.
+- Fecha y hora compactas en el listado y fecha absoluta descriptiva en detalle y timeline, siempre en `America/Lima`.
+- Enlace al catalogo solo cuando el producto vigente conserva la visibilidad publica completa; productos eliminados u ocultos mantienen su snapshot sin enlace.
+- Informacion de contacto, domicilio o recojo y solicitud de boleta o factura con DNI, documento extranjero o RUC enmascarado.
+- Reserva visible solo mientras el pedido sigue pendiente y vigente; fechas estimadas visibles solo despues de confirmar el pago.
+- Timeline curado para creacion, pago, preparacion, envio, recojo, entrega, cancelacion, vencimiento y reembolso.
+- Eventos de reserva, IDs, actores, correos administrativos, razones y metadata interna excluidos de la presentacion.
+- Composicion responsive sin acceso horizontal y respuestas privadas sin cache publico.
+- 13 pruebas nuevas; regresion especifica de pedidos del cliente con 25 pruebas y 161 aserciones.
+- Suite completa: 529 pruebas y 4071 aserciones.
+
+Etapa 6.2 validada:
+- El usuario aprobo manualmente el detalle desktop y mobile, snapshots, imagenes, enlaces, importes, modalidades, privacidad fiscal, fechas y timeline.
+- La composicion final usa columnas verticales independientes en escritorio y conserva un orden de lectura logico en celular.
+- Los estados posteriores al pago quedan cubiertos por pruebas automatizadas hasta que Culqi habilite su recorrido manual real en el Sprint 7.
+- La etapa queda cerrada.
+
 Planificado:
-- Etapa 6.2: detalle historico, items y precios snapshot, fecha y hora del pedido y linea de tiempo con marcas temporales en `America/Lima`.
 - Etapa 6.3: cancelacion y preparacion del reintento de pago.
 - Etapa 6.4: comprobantes fiscales privados.
 - Etapa 6.5: correos de creacion, cancelacion y vencimiento mediante cola.
 - Etapa 6.6: integracion, seguridad, responsive, pruebas y cierre.
 
 Pendiente:
-- Implementar las Etapas 6.2 a 6.6, comenzando por el detalle historico y la linea de tiempo.
+- Implementar las Etapas 6.3 a 6.6.
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 
@@ -534,7 +553,7 @@ Pendiente:
 
 ## Bloqueos actuales
 
-- Ninguno para continuar con la Etapa 6.2.
+- Ninguno para continuar con la Etapa 6.3.
 
 ## Resultado esperado
 

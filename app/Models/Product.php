@@ -151,6 +151,19 @@ class Product extends Model
             ?? asset(self::DEFAULT_IMAGE);
     }
 
+    public function mainImageSnapshotSource(): string
+    {
+        $imagePath = trim((string) $this->primaryImage?->image_path);
+
+        if ($imagePath !== '') {
+            return $imagePath;
+        }
+
+        $legacyUrl = trim((string) $this->primaryImage?->url);
+
+        return $legacyUrl !== '' ? $legacyUrl : self::DEFAULT_IMAGE;
+    }
+
     public function getFormattedPriceAttribute(): string
     {
         return Money::fromDecimal($this->price)->formatted();

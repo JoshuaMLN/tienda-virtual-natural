@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Account\ListCustomerOrdersRequest;
 use App\Models\Order;
 use App\Support\Money\Money;
+use App\Support\Orders\CustomerOrderDateFormatter;
+use App\Support\Orders\CustomerOrderDetailPresenter;
 use App\Support\Orders\CustomerOrderStatusResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,6 +17,8 @@ class CustomerOrderController extends Controller
 {
     public function __construct(
         private readonly CustomerOrderStatusResolver $statuses,
+        private readonly CustomerOrderDateFormatter $dates,
+        private readonly CustomerOrderDetailPresenter $details,
     ) {}
 
     public function index(ListCustomerOrdersRequest $request): Response
@@ -37,6 +41,8 @@ class CustomerOrderController extends Controller
             'order' => $order,
             'status' => $this->statuses->resolve($order),
             'formatted_total' => Money::fromCents($order->total_cents)->formatted(),
+            'formatted_date' => $this->dates->compactDate($order->created_at),
+            'formatted_time' => $this->dates->compactTime($order->created_at),
         ]);
 
         return response()->view('account.orders', [
@@ -50,13 +56,19 @@ class CustomerOrderController extends Controller
     public function show(Request $request, string $code): Response
     {
         $order = $request->user()->orders()
+            ->with([
+                'items' => fn ($query) => $query->orderBy('id'),
+                'items.product' => fn ($query) => $query->active(),
+                'statusHistories',
+            ])
             ->where('code', strtoupper($code))
             ->firstOrFail();
+        $commercialStatus = $this->statuses->resolve($order);
 
         return response()->view('account.order-show', [
             'order' => $order,
-            'commercialStatus' => $this->statuses->resolve($order),
-            'formattedTotal' => Money::fromCents($order->total_cents)->formatted(),
+            'commercialStatus' => $commercialStatus,
+            'detail' => $this->details->present($order, $commercialStatus),
         ])->withHeaders($this->privateHeaders());
     }
 
