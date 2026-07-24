@@ -162,6 +162,9 @@ MAIL_USERNAME="LOGIN_SMTP_DE_BREVO"
 MAIL_PASSWORD="CLAVE_SMTP_DE_BREVO"
 MAIL_FROM_ADDRESS=no-reply@tu-dominio.com
 MAIL_FROM_NAME="${APP_NAME}"
+ORDER_EMAIL_IMAGE_REMOTE_HOSTS=images.unsplash.com
+ORDER_EMAIL_IMAGE_CONNECT_TIMEOUT=3
+ORDER_EMAIL_IMAGE_TIMEOUT=5
 
 GOOGLE_CLIENT_ID=CLIENTE_WEB_DE_PRODUCCION
 GOOGLE_CLIENT_SECRET="SECRETO_GOOGLE_DE_PRODUCCION"
@@ -349,10 +352,37 @@ scheduler.
 
 ## Worker de colas
 
-El proyecto usa la conexion `database`. Las notificaciones actuales todavia se
-envian de forma sincrona, por lo que el worker no bloquea esta version; debe
-quedar preparado para los correos y trabajos asincronos de las siguientes fases.
-Sera obligatorio cuando un trabajo o notificacion implemente `ShouldQueue`.
+El proyecto usa la conexion `database`. El worker es obligatorio: los correos
+de creacion, cancelacion y vencimiento de pedidos se envian de forma asincrona
+despues de confirmar la transaccion. Sin un worker activo, los pedidos y las
+reservas seguiran funcionando, pero esas comunicaciones permaneceran en cola.
+
+Cada destinatario se registra una sola vez por pedido y evento. El trabajo
+realiza como maximo tres intentos SMTP: el inicial, otro aproximadamente al
+minuto y el ultimo aproximadamente a los cinco minutos. Un fallo de correo no
+revierte el pedido ni sus movimientos de inventario.
+
+El correo de creacion incrusta miniaturas JPEG mediante CID. El servidor
+necesita GD con lectura WebP y escritura JPEG. Se procesan snapshots locales del
+disco `public` o de `public/images`. Los snapshots HTTPS heredados solo se
+descargan cuando su host aparece exactamente en
+`ORDER_EMAIL_IMAGE_REMOTE_HOSTS`; no se siguen redirecciones, se aplican
+timeouts, se valida el contenido y la miniatura queda en cache privada. Un host
+no autorizado o una imagen ausente o ilegible usa el placeholder local. Cada
+miniatura mide `96 x 96`, ocupa como maximo 25 KB y el mensaje limita sus
+imagenes a 300 KB.
+
+En desarrollo, `composer run dev` ya levanta la cola y el scheduler. Para probar
+solamente los trabajos asincronos en una terminal independiente:
+
+```bash
+php artisan queue:work database --tries=3 --timeout=60
+```
+
+El worker es un proceso persistente: despues de cambiar jobs, notificaciones o
+plantillas de correo debes detenerlo y volverlo a iniciar, o ejecutar
+`php artisan queue:restart` para que termine el trabajo actual y recargue el
+codigo.
 
 Ejemplo de Supervisor:
 
@@ -373,18 +403,22 @@ stopwaitsecs=3600
 ```
 
 Activa la configuracion segun la distribucion y verifica que Supervisor muestre
-el proceso como `RUNNING`. Tras cada despliegue ejecuta `php artisan reload` o
-reinicia el worker con el gestor del proveedor para que cargue el codigo nuevo.
+el proceso como `RUNNING`. Tras cada despliegue ejecuta
+`php artisan queue:restart` o reinicia el worker con el gestor del proveedor
+para que cargue el codigo nuevo.
 
 Comandos de diagnostico:
 
 ```bash
 php artisan queue:failed
-php artisan queue:retry all
+php artisan queue:retry <id>
 ```
 
 No reintentes masivamente trabajos fallidos sin revisar primero su causa y su
-idempotencia.
+idempotencia. `php artisan queue:retry all` queda disponible solo para una
+recuperacion revisada. Los correos de pedido conservan ademas un limite
+historico de tres intentos por destinatario; reencolar un trabajo agotado no
+supera ese limite.
 
 ## Configuracion inicial de la tienda
 
@@ -467,6 +501,7 @@ npm run build
 php artisan migrate --force
 php artisan storage:link
 php artisan optimize
+php artisan queue:restart
 php artisan reload
 php artisan up
 ```

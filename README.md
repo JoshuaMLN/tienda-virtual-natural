@@ -40,14 +40,16 @@ creacion de pedidos pendientes con reserva de inventario.
 - Checkout por etapas con contacto, entrega, comprobante y terminos versionados.
 - Revalidacion de precio, stock, cobertura y tarifa antes de confirmar.
 - Pedidos idempotentes con reserva temporal, cancelacion y vencimiento automatico.
+- Historial y detalle privado de pedidos con estados, linea de tiempo y comprobantes disponibles.
+- Correos en cola para creacion, cancelacion y vencimiento, con plantilla responsive, texto plano e imagenes CID optimizadas.
 
 ## Alcance actual
 
 El checkout ya crea pedidos pendientes y reserva inventario, pero todavia no
-realiza cobros. El historial del cliente, la gestion administrativa de pedidos
-y comprobantes se completaran en las siguientes fases del Sprint 6. Los pagos
-con Culqi corresponden al Sprint 7; cupones y promociones quedan para sprints
-posteriores.
+realiza cobros. El cliente ya puede consultar y cancelar sus pedidos elegibles;
+la gestion administrativa y el registro de comprobantes se completaran en las
+siguientes fases del Sprint 6. Los pagos con Culqi corresponden al Sprint 7;
+cupones y promociones quedan para sprints posteriores.
 
 ## Tecnologias
 
@@ -105,6 +107,31 @@ composer run dev
 Este comando inicia el servidor, la cola, el scheduler, los logs y Vite. La
 aplicacion estara disponible normalmente en `http://127.0.0.1:8000`.
 
+Para probar los correos transaccionales sin levantar todos los servicios, inicia
+el worker en una terminal independiente:
+
+```bash
+php artisan queue:work database --tries=3 --timeout=60
+```
+
+El worker permanece activo. Despues de modificar jobs, notificaciones o
+plantillas de correo, detenlo con `Ctrl+C` y vuelve a ejecutar el comando, o
+solicita una recarga ordenada:
+
+```bash
+php artisan queue:restart
+```
+
+Para inspeccionar y reintentar un trabajo fallido concreto:
+
+```bash
+php artisan queue:failed
+php artisan queue:retry <id>
+```
+
+Revisa primero la causa del fallo. Los correos de pedido respetan un limite
+historico de tres intentos por destinatario y evento.
+
 ## Scheduler
 
 El vencimiento de pedidos pendientes depende del scheduler de Laravel. Para
@@ -138,8 +165,9 @@ seguridad y backups esta en [Despliegue en produccion](docs/DEPLOYMENT.md).
 
 Para probar correos reales, configura las variables `MAIL_*` de `.env` con un
 proveedor SMTP. Sin credenciales, Laravel puede registrar los mensajes usando el
-mailer `log`. El correo se utiliza para verificacion de cuenta y recuperacion de
-contrasena.
+mailer `log`. El correo se utiliza para verificacion de cuenta, recuperacion de
+contrasena y eventos transaccionales de pedidos. Para estos ultimos tambien debe
+estar ejecutandose `php artisan queue:work database`.
 
 El acceso con Google requiere configurar:
 
