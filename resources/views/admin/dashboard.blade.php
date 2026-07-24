@@ -42,8 +42,11 @@
     </div>
     <div class="col-xl-8">
         <div class="admin-card p-3">
-            <h2 class="h5 fw-black">Ultimos pedidos</h2>
-            @include('admin.partials.orders-table')
+            <div class="d-flex align-items-center justify-content-between gap-3 mb-2">
+                <h2 class="h5 fw-black mb-0">Ultimos pedidos</h2>
+                <a class="small fw-bold text-vn-green" href="{{ route('admin.orders.index') }}">Ver todos</a>
+            </div>
+            @include('admin.partials.orders-table', ['orders' => $latestOrders, 'compact' => true])
         </div>
     </div>
     <div class="col-xl-4">

@@ -161,8 +161,14 @@ class CheckoutOrderCreationService
                 $this->itemAttributes($quote, $products->all()),
             );
 
+            $reservationOperation = "reservation:create:order:{$order->getKey()}";
+
             foreach ($order->items->sortBy('id') as $item) {
-                $this->reservations->reserve($item, $expiration);
+                $this->reservations->reserve(
+                    $item,
+                    $expiration,
+                    operationReference: $reservationOperation,
+                );
             }
 
             $this->notifications->record($order, OrderNotificationType::Created);

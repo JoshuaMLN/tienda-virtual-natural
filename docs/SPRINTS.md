@@ -124,7 +124,11 @@ Entregables:
 - Liberacion auditable de reservas canceladas o vencidas; un vencimiento usa estado `expired`, no `failed`.
 - Resumen real, historial y detalle de pedidos para el cliente.
 - Panel admin de pedidos conectado a DB.
+- Acciones administrativas contextuales y auditadas para preparacion, envio, recojo, finalizacion y cancelacion.
+- Reembolso pendiente explicito para cancelaciones pagadas, sin permitir que el administrador suplante al proveedor de pagos.
+- Historial de intentos y ciclos de entrega, alertas de recojo y recordatorios por correo mediante scheduler.
 - Registro manual del comprobante emitido previamente en SUNAT mediante serie, correlativo, fecha y PDF oficial.
+- Correccion versionada de archivos fiscales y registro de notas de credito o debito sin destruir el historial.
 - Almacenamiento privado y envio o reenvio del PDF al correo fiscal del pedido.
 - Numeracion fiscal copiada desde SUNAT SEE-SOL; la tienda no genera series ni correlativos.
 - Consulta y descarga privada de comprobantes propios, incluidos documentos anulados, con aislamiento horizontal comprobado automaticamente.

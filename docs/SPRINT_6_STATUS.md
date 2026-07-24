@@ -584,19 +584,53 @@ Pendiente:
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 
-Estado: Pendiente
+Estado: En progreso (Etapa 7.1 completada)
+
+Reglas cerradas:
+- Acciones contextuales en lugar de edicion libre de estados.
+- `Iniciar preparacion` coordinara pedido y entrega; confirmar entrega o recojo completara el pedido atomicamente.
+- Flujos separados para domicilio y recojo, con motivo y auditoria en toda accion sensible.
+- Los estados de pago dependeran de Culqi; no se agregaran botones administrativos ni pagos simulados.
+- La cancelacion pagada usara `refund_pending` hasta recibir la confirmacion real del reembolso.
+- Intentos de entrega auditados; solo los atribuibles al cliente consumiran el limite configurable.
+- Un ciclo agotado exigira nuevo pago de envio y, al agotar los ciclos configurados, el caso pasara a seguimiento manual.
+- El plazo de recojo no cancelara pedidos automaticamente y generara alertas administrativas.
+- Avisos de recojo al quedar listo, a mitad del plazo, 48 horas antes y al vencer, deduplicados y cancelados si el pedido se recoge.
+- Correos operativos para envio, disponibilidad de recojo y finalizacion, sin correo al iniciar preparacion.
+- Correo snapshot y copia al correo actual verificado para eventos operativos; correo fiscal snapshot como unico destino del comprobante.
+- Identidad fiscal inmutable; correccion versionada de archivos, anulacion confirmada, notas relacionadas y estados legal y de correo separados.
+- Todos los administradores podran operar esta fase; los permisos por capacidad quedan en el Sprint 9.
 
 Planificado:
-- Listado, filtros y detalle de pedidos reales.
-- Transiciones administrativas validas y auditadas.
-- Registro de boleta o factura solo para pedidos pagados.
-- Serie y correlativo copiados del comprobante emitido en SUNAT.
-- PDF privado, XML opcional y estado de anulacion.
-- Envio y reenvio por correo con trazabilidad.
-- Pruebas de archivos, correo y autorizacion.
+- Etapa 7.1: bandeja, filtros y detalle administrativo de solo lectura. Completada.
+- Etapa 7.2: acciones contextuales, transiciones atomicas, auditoria y `refund_pending`.
+- Etapa 7.3: intentos y ciclos de entrega, bloqueo por nuevo pago y seguimiento de recojo.
+- Etapa 7.4: correos operativos, recordatorios, scheduler e idempotencia.
+- Etapa 7.5: registro y descarga privada de boleta o factura principal.
+- Etapa 7.6: correccion versionada de archivos, notas relacionadas y anulacion.
+- Etapa 7.7: envio fiscal auditado, integracion y cierre de la fase.
+
+Completado en la Etapa 7.1:
+- `Admin\OrderController` y `ListAdminOrdersRequest` reemplazan las rutas y vistas estaticas.
+- Busqueda normalizada sobre codigo, cliente, correo, telefono, documento y razon social.
+- Filtros validados por enums para pedido, pago, entrega y modalidad, junto con rango inclusivo de fecha.
+- Listado real ordenado por fecha e ID descendentes, paginado de 15 en 15 y con query string persistente.
+- Navegacion listado-detalle-listado que conserva filtros y pagina sin aceptar una URL de retorno arbitraria.
+- Presentador administrativo reutilizable para importes, estados, snapshots, reservas, historial, documentos y comunicaciones.
+- Detalle estrictamente consultivo, sin controles para transiciones, cancelacion, carga o envio fiscal.
+- Lectura contextual de estados terminales: entrega `No aplica` si el pedido vencio antes de despacharse y pago `No realizado` si se cancelo antes de cobrar.
+- Historial tecnico con leyenda, colores e iconos diferenciados para pedido, pago, entrega y reserva.
+- Resumen unico del estado de las reservas, con cantidades totales y detalle por producto cerrado por defecto.
+- Agrupacion de eventos de reserva por lote sin perder reservas, movimientos, cantidades ni metadata individuales.
+- Vista responsive con tabla en escritorio, filas compactas en celular y columnas de detalle independientes.
+- Dashboard conectado a los cuatro pedidos mas recientes, sin tocar las tarjetas estaticas excluidas del alcance.
+- Respuestas privadas, relaciones cargadas anticipadamente y prueba explicita contra lazy loading.
+- Doce pruebas HTTP nuevas, 104 aserciones focalizadas y suite completa aprobada con 571 pruebas y 4431 aserciones.
+- Build de produccion, cache de Blade, rutas, formato y revision de whitespace aprobados.
+- Validacion manual aprobada en escritorio y celular, incluyendo estados terminales, historial por flujos y reservas agrupadas.
 
 Pendiente:
-- Implementacion completa de la fase.
+- Implementar y validar las Etapas 7.2 a 7.7 en orden.
 
 ## Fase 8: Integracion, pruebas y cierre
 

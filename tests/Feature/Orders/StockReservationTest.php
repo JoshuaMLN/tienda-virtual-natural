@@ -102,6 +102,54 @@ class StockReservationTest extends TestCase
         ]);
     }
 
+    public function test_order_level_reservation_operations_share_an_auditable_batch_reference(): void
+    {
+        [$order, $firstItem] = $this->reservableOrder(stock: 8, quantity: 2);
+        $secondProduct = Product::factory()->create(['stock' => 6]);
+        $secondItem = OrderItem::factory()->for($order)->for($secondProduct)->create([
+            'product_sku' => $secondProduct->sku,
+            'product_name' => $secondProduct->name,
+            'quantity' => 1,
+        ]);
+        $expiresAt = now()->addMinutes(15);
+        $creationReference = "reservation:create:order:{$order->id}";
+
+        $this->reservations()->reserve(
+            $firstItem,
+            $expiresAt,
+            operationReference: $creationReference,
+        );
+        $this->reservations()->reserve(
+            $secondItem,
+            $expiresAt,
+            operationReference: $creationReference,
+        );
+
+        $creationHistories = $order->statusHistories()
+            ->where('domain', OrderHistoryDomain::Reservation->value)
+            ->where('to_status', ReservationStatus::Active->value)
+            ->get();
+
+        $this->assertCount(2, $creationHistories);
+        $this->assertSame(
+            [$creationReference],
+            $creationHistories->pluck('metadata.operation_reference')->unique()->values()->all(),
+        );
+
+        $this->reservations()->consumeForOrder($order);
+
+        $consumptionHistories = $order->statusHistories()
+            ->where('domain', OrderHistoryDomain::Reservation->value)
+            ->where('to_status', ReservationStatus::Consumed->value)
+            ->get();
+
+        $this->assertCount(2, $consumptionHistories);
+        $this->assertSame(
+            ["reservation:consume:order:{$order->id}"],
+            $consumptionHistories->pluck('metadata.operation_reference')->unique()->values()->all(),
+        );
+    }
+
     public function test_confirming_payment_consumes_reservations_and_stock_remains_sold(): void
     {
         [$order, $item, $product] = $this->reservableOrder(stock: 8, quantity: 2);

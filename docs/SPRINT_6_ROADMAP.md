@@ -34,7 +34,7 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - El codigo interno del pedido usa el formato neutral `PED-AAAA-NNNNNN`, con correlativo anual seguro ante concurrencia e independiente del ID, la marca y la numeracion fiscal.
 - Los estados de pedido, pago, entrega y reserva se modelan por separado.
 - Estados iniciales de pedido: `pending_payment`, `processing`, `completed`, `cancelled`, `expired`.
-- Estados iniciales de pago: `pending`, `paid`, `failed`, `expired`, `refunded`.
+- Estados de pago objetivo: `pending`, `paid`, `failed`, `expired`, `refund_pending`, `refunded`.
 - Estados iniciales de entrega: `pending`, `preparing`, `shipped`, `ready_for_pickup`, `delivered`, `picked_up`, `cancelled`.
 - Estados iniciales de reserva: `active`, `consumed`, `released`, `expired`.
 - Un intento de pago rechazado no equivale automaticamente a un pedido vencido. Mientras la reserva siga activa, Sprint 7 podra reintentar el pago sobre el mismo pedido.
@@ -587,27 +587,151 @@ Resultado tecnico:
 
 Objetivo: conectar el panel administrativo a pedidos reales y operar el flujo fiscal manual inicial.
 
-Tareas:
-- Reemplazar pedidos estaticos por listado paginado con busqueda y filtros de pedido, pago, entrega y fecha.
-- Crear detalle administrativo con cliente, items, snapshots, totales, direccion, datos fiscales, reserva e historial.
-- Permitir transiciones administrativas validas, incluyendo procesamiento, envio, entrega y cancelacion.
-- Evitar acciones incompatibles con el estado actual y registrar quien realizo cada cambio.
-- Mostrar el tipo de comprobante solicitado sin permitir cambiarlo arbitrariamente.
-- Habilitar `Registrar boleta` o `Registrar factura` solo para pedidos pagados.
-- Validar la funcionalidad con factories de pedidos pagados mientras Sprint 7 todavia no provea pagos reales.
-- Solicitar serie, correlativo, fecha de emision y PDF oficial; permitir XML opcional.
-- Validar PDF, tamano, almacenamiento privado y unicidad fiscal.
-- No calcular ni sugerir el siguiente correlativo. Debe copiarse el asignado por SUNAT SEE-SOL.
-- Mostrar identificador fiscal completo y estado `emitido`, `enviado` o `anulado`.
-- Habilitar `Enviar comprobante` solo cuando exista PDF.
-- Enviar por cola al correo fiscal del snapshot y registrar exito, error, fecha, destinatario y administrador.
-- Permitir reenvio sin duplicar el documento fiscal.
-- Ofrecer descarga privada al administrador y al cliente propietario.
-- No eliminar silenciosamente comprobantes emitidos.
-- Crear pruebas con `Storage::fake()`, `Mail::fake()` o `Notification::fake()` y autorizacion.
+Reglas operativas cerradas:
+- El administrador operara mediante acciones contextuales; no existira un selector libre que permita saltar entre estados incompatibles.
+- Un pago confirmado no iniciara por si solo la preparacion. `Iniciar preparacion` cambiara atomicamente el pedido a `processing` y la entrega a `preparing`.
+- Entrega a domicilio seguira `Preparando -> En camino -> Entregado`; recojo seguira `Preparando -> Listo para recoger -> Recogido`.
+- Confirmar entrega o recojo completara tambien el pedido dentro de la misma operacion.
+- El administrador no podra marcar pagos como pagados, fallidos o reembolsados. Culqi controlara esos estados en el Sprint 7; los pedidos pagados de esta fase se validaran con factories.
+- Un pedido pendiente de pago podra cancelarse liberando sus reservas. Un pedido pagado podra cancelarse antes del envio a domicilio o antes de ser recogido, siempre con motivo.
+- Cancelar un pedido pagado lo dejara con pago `refund_pending`; solo la confirmacion real del proveedor podra llevarlo a `refunded`.
+- Un pedido enviado, entregado o recogido no se cancelara desde este flujo; devoluciones, reclamos y reembolsos posteriores tendran su tratamiento correspondiente.
+- Cada intento de entrega conservara fecha, resultado, responsable, motivo, atribucion y administrador. Solo los fallos atribuibles al cliente consumiran intentos.
+- Al agotar los intentos configurados de un ciclo, el pedido quedara pendiente de un nuevo pago de envio. El Sprint 7 implementara su desbloqueo real; al agotar los ciclos automaticos el caso pasara a seguimiento manual.
+- Los pedidos listos para recojo respetaran el plazo configurable. Su vencimiento generara seguimiento administrativo, pero nunca cancelacion o descarte automatico.
+- El recojo enviara un aviso al quedar listo, otro a mitad del plazo, otro 48 horas antes y uno al vencer. Fechas coincidentes se deduplicaran y recoger el pedido cancelara los recordatorios pendientes.
+- Los recordatorios se procesaran mediante scheduler y cola, con historial e idempotencia por pedido, evento y destinatario.
+- Se enviaran comunicaciones operativas al quedar en camino, listo para recoger, entregado o recogido. `Iniciar preparacion` no generara correo.
+- Las comunicaciones operativas usaran el correo snapshot del pedido y una copia al correo actual cuando sea distinto y este verificado.
+- Cancelaciones, intentos fallidos y demas acciones sensibles exigiran motivo y conservaran administrador, correo, fecha y valores anteriores y nuevos.
+- Todos los administradores tendran estas facultades durante este sprint; las capacidades granulares se implementaran en el Sprint 9.
+
+Reglas fiscales cerradas:
+- El tipo de comprobante solicitado por el cliente no se podra cambiar desde el pedido.
+- Solo un pedido pagado podra registrar su boleta o factura principal.
+- Tipo, serie y correlativo seran una identidad fiscal inmutable, copiada del comprobante emitido previamente en SUNAT SEE-SOL.
+- Los archivos PDF o XML cargados por error se corregiran mediante una accion explicita, motivo obligatorio y versionado privado del archivo anterior, sin alterar la identidad fiscal.
+- La anulacion interna solo reflejara una anulacion ya realizada por el operador en SUNAT y exigira motivo; nunca eliminara el documento ni sus archivos historicos.
+- Se habilitara el registro de notas de credito y debito relacionadas, conservando el documento principal y sus referencias.
+- El estado legal `emitido` o `anulado` permanecera separado del estado de correo `no enviado`, `enviado` o `fallido`.
+- El comprobante se enviara manualmente y solo al correo fiscal snapshot del pedido. Cada envio o reenvio quedara auditado y los clics simultaneos no duplicaran trabajos.
+
+### Etapa 7.1: Bandeja y detalle administrativo
+
+Estado: Completada.
+
+- Reemplazar los pedidos estaticos por un listado real, paginado y ordenado del mas reciente al mas antiguo.
+- Buscar por codigo, cliente, correo y documento; filtrar por pedido, pago, entrega, modalidad y rango de fecha de creacion.
+- Conservar filtros y pagina en la navegacion mediante query string.
+- Crear el detalle administrativo de solo lectura con cliente, items, snapshots, impuestos, totales, direccion o recojo, solicitud fiscal, reserva, historial y comunicaciones.
+- Mostrar estados tecnicos separados y un estado comercial comprensible, sin ofrecer todavia acciones operativas.
+- Mantener la tabla y el detalle utilizables en escritorio y celular.
+- Cubrir acceso administrativo, filtros combinados, paginacion, consultas y ausencia de datos estaticos.
 
 Criterio de salida:
-- El administrador opera pedidos reales y puede registrar y entregar de forma segura un comprobante previamente emitido en SUNAT.
+- El administrador puede localizar y auditar cualquier pedido real sin modificarlo.
+
+Resultado tecnico:
+- Rutas administrativas reales para listado y detalle por codigo neutral del pedido.
+- Busqueda por codigo, cliente, correo, telefono, documento y razon social.
+- Filtros combinables de pedido, pago, entrega, modalidad y rango inclusivo de fecha de creacion.
+- Orden descendente estable, paginacion de 15 registros y retorno al listado conservando filtros y pagina.
+- Detalle de solo lectura con snapshots de productos e importes, contacto, entrega o recojo, solicitud fiscal, reservas, historial tecnico, documentos, comunicaciones y aceptacion legal.
+- Estados comercial y tecnicos separados, con lectura contextual para no presentar como pendientes el pago o la entrega de pedidos ya cerrados.
+- Historial cronologico identificado por color e icono para los flujos de pedido, pago, entrega y reserva.
+- Reservas individuales por producto conservadas para inventario y auditoria, con resumen global y detalle desplegable en el pedido.
+- Eventos de reserva agrupados por operacion mediante una referencia persistida en metadata y respaldo compatible para pedidos existentes.
+- Tabla de escritorio y filas compactas para celular.
+- Bloque `Ultimos pedidos` del dashboard conectado a datos reales sin modificar sus tarjetas de ventas, pedidos o clientes.
+- Carga anticipada de relaciones verificada sin lazy loading y respuestas privadas sin cache.
+- Doce pruebas HTTP nuevas aprobadas; suite completa en verde con 571 pruebas y 4431 aserciones.
+- Validacion manual aprobada en escritorio y celular, incluyendo estados terminales, historial por flujos y reservas agrupadas.
+
+### Etapa 7.2: Operacion y transiciones de pedidos
+
+- Agregar `refund_pending` al dominio de pagos y definir `paid -> refund_pending -> refunded`.
+- Crear servicios transaccionales para iniciar preparacion, marcar envio o disponibilidad de recojo, confirmar entrega o recojo y cancelar.
+- Coordinar atomicamente pedido y entrega en las acciones que afectan ambos dominios.
+- Exponer solo las acciones contextuales permitidas para el estado y modalidad actuales.
+- Solicitar confirmacion y motivo en cancelaciones u otras acciones sensibles.
+- Impedir cambios manuales del estado de pago y mantener la integracion de Culqi como unica autoridad futura.
+- Conservar administrador, correo, fecha, motivo, valores anteriores y nuevos en el historial.
+- Probar transiciones validas, invalidas, concurrencia, idempotencia y rollback.
+
+Criterio de salida:
+- El administrador puede operar el ciclo principal sin saltarse estados, alterar pagos ni dejar pedido y entrega inconsistentes.
+
+### Etapa 7.3: Intentos de entrega y seguimiento de recojo
+
+- Crear historial inmutable de intentos de entrega con ciclo, numero, fecha, resultado, responsable, motivo, atribucion y administrador.
+- Usar las reglas aceptadas por cada pedido desde `terms_snapshot.settings_snapshot`; los pedidos heredados usaran un respaldo explicito y probado.
+- Consumir intentos solo cuando el fallo sea atribuible al cliente.
+- Bloquear nuevos intentos al agotar un ciclo y mostrar `Pendiente de nuevo pago de envio` hasta que Sprint 7 confirme ese pago.
+- Pasar a seguimiento manual cuando se agoten los ciclos configurados.
+- Registrar fecha de disponibilidad y fecha limite para recojo usando el plazo historico del pedido.
+- Generar alertas administrativas al acercarse o vencer el plazo de recojo, sin cancelar ni descartar el pedido.
+- Probar limites, atribucion, ciclos, snapshots, concurrencia y alertas.
+
+Criterio de salida:
+- Cada intento y plazo queda trazable, aplica la politica aceptada por el cliente y nunca cobra o cancela silenciosamente.
+
+### Etapa 7.4: Correos operativos y recordatorios
+
+- Ampliar las notificaciones en cola para pedido en camino, listo para recoger, entregado y recogido.
+- No enviar correo al iniciar preparacion.
+- Programar recordatorios de recojo al quedar listo, a mitad del plazo, 48 horas antes y al vencer.
+- Deduplicar fechas coincidentes y cancelar recordatorios pendientes cuando el pedido sea recogido.
+- Resolver destinatarios con el correo snapshot y la copia al correo actual distinto y verificado.
+- Registrar una entrega inmutable por pedido, evento y destinatario, con reintentos limitados.
+- Procesar recordatorios mediante scheduler y reconciliarlos idempotentemente.
+- Probar cola posterior al commit, destinatarios, deduplicacion, scheduler, reintentos y ausencia de envios obsoletos.
+
+Criterio de salida:
+- El cliente recibe solo comunicaciones oportunas y el administrador puede auditar cada envio.
+
+### Etapa 7.5: Registro del comprobante principal
+
+- Mostrar el tipo solicitado sin permitir cambiarlo y habilitar el registro solo para pedidos pagados.
+- Solicitar serie, correlativo, fecha de emision y PDF oficial; permitir XML opcional.
+- Validar archivos, tamano, fecha, almacenamiento privado y unicidad fiscal.
+- No calcular ni sugerir el siguiente correlativo; copiar el asignado por SUNAT SEE-SOL.
+- Mantener tipo, serie y correlativo como identidad inmutable.
+- Mostrar por separado identidad, estado legal y estado de correo.
+- Ofrecer descarga privada al administrador y al cliente propietario.
+- Validar la funcionalidad con factories de pedidos pagados mientras Sprint 7 no provea pagos reales.
+- Probar autorizacion, aislamiento horizontal, archivos, unicidad, concurrencia e inmutabilidad.
+
+Criterio de salida:
+- Una boleta o factura emitida externamente puede registrarse y consultarse sin exponer sus archivos ni inventar numeracion.
+
+### Etapa 7.6: Correcciones, notas y anulacion fiscal
+
+- Versionar cada correccion de PDF o XML, exigir motivo y conservar el archivo anterior de forma privada.
+- Impedir que una correccion de archivo cambie tipo, serie o correlativo.
+- Registrar notas de credito y debito relacionadas con su propia identidad y archivos.
+- Permitir la anulacion solo como reflejo de una operacion ya realizada en SUNAT, con confirmacion, motivo y administrador.
+- Mantener visibles los documentos anulados y todas sus relaciones sin eliminaciones en cascada.
+- Probar versiones, notas relacionadas, anulacion, restricciones unicas, historial y acceso privado.
+
+Criterio de salida:
+- Los errores de carga y cambios fiscales se corrigen con trazabilidad completa y sin reescribir la historia.
+
+### Etapa 7.7: Envio fiscal e integracion de la fase
+
+- Habilitar `Enviar comprobante` solo para documentos emitidos con PDF vigente.
+- Enviar manualmente por cola y exclusivamente al correo fiscal snapshot del pedido.
+- Registrar exito, error, fecha, destinatario y administrador por cada intento.
+- Permitir reenvio intencional sin duplicar el documento ni crear trabajos simultaneos por doble clic.
+- Mantener separados el estado legal y el estado derivado de entrega por correo.
+- Integrar en el detalle administrativo pedidos, operacion, entrega, recojo y documentos fiscales.
+- Ejecutar pruebas focalizadas de la fase, cache de vistas, Pint, build y revision responsive.
+- Documentar expresamente que la validacion UX con pago real y comprobante cargado se completara en el Sprint 7.
+
+Criterio de salida:
+- La operacion administrativa y fiscal queda integrada, auditable y preparada para recibir confirmaciones reales de Culqi.
+
+Criterio de salida de la fase:
+- El administrador opera pedidos reales mediante acciones validas y auditadas, controla intentos y recojos sin saltarse el pago, y puede registrar, corregir y entregar de forma segura un comprobante previamente emitido en SUNAT.
 
 ## Fase 8: Integracion, pruebas y cierre
 
@@ -625,7 +749,9 @@ Tareas:
   - reserva, consumo preparado, cancelacion y expiracion
   - aislamiento de pedidos por cliente
   - transiciones administrativas
-  - PDF privado y envio o reenvio por correo
+  - intentos y ciclos de entrega
+  - recordatorios de recojo y scheduler
+  - PDF privado, versiones, notas, anulacion y envio o reenvio por correo
 - Verificar que no se crea un pedido al abrir checkout.
 - Verificar que un conflicto mantiene los datos y no devuelve al cliente al inicio del flujo.
 - Verificar que doble click y reintentos producen un solo pedido.
@@ -658,8 +784,12 @@ Criterio de salida:
 - `admin.orders.show`
 - `admin.orders.status.update`
 - `admin.orders.cancel`
+- `admin.orders.delivery-attempts.store`
 - `admin.orders.fiscal-documents.store`
 - `admin.orders.fiscal-documents.download`
+- `admin.orders.fiscal-documents.files.update`
+- `admin.orders.fiscal-documents.related.store`
+- `admin.orders.fiscal-documents.annul`
 - `admin.orders.fiscal-documents.send`
 
 ## Criterios de cierre del Sprint 6

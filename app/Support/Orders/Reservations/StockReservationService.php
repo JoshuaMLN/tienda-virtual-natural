@@ -27,9 +27,13 @@ class StockReservationService
         private readonly OrderStateTransitionService $states,
     ) {}
 
-    public function reserve(OrderItem $orderItem, DateTimeInterface $expiresAt, ?User $actor = null): StockReservation
-    {
-        return DB::transaction(function () use ($orderItem, $expiresAt, $actor): StockReservation {
+    public function reserve(
+        OrderItem $orderItem,
+        DateTimeInterface $expiresAt,
+        ?User $actor = null,
+        ?string $operationReference = null,
+    ): StockReservation {
+        return DB::transaction(function () use ($orderItem, $expiresAt, $actor, $operationReference): StockReservation {
             $lockedItem = OrderItem::query()
                 ->with(['order', 'product'])
                 ->whereKey($orderItem->getKey())
@@ -79,16 +83,19 @@ class StockReservationService
                 ReservationStatus::Active->value,
                 $actor,
                 'Stock reservado',
-                $this->historyMetadata($reservation),
+                $this->historyMetadata($reservation, $operationReference),
             );
 
             return $reservation->refresh();
         });
     }
 
-    public function consume(StockReservation $reservation, ?User $actor = null): StockReservation
-    {
-        return DB::transaction(function () use ($reservation, $actor): StockReservation {
+    public function consume(
+        StockReservation $reservation,
+        ?User $actor = null,
+        ?string $operationReference = null,
+    ): StockReservation {
+        return DB::transaction(function () use ($reservation, $actor, $operationReference): StockReservation {
             $locked = $this->lock($reservation);
 
             if ($locked->status === ReservationStatus::Consumed) {
@@ -108,34 +115,61 @@ class StockReservationService
                 'status' => ReservationStatus::Consumed,
                 'consumed_at' => now(),
             ]);
-            $this->recordTransition($locked, ReservationStatus::Active, ReservationStatus::Consumed, $actor, 'Reserva consumida por pago confirmado');
+            $this->recordTransition(
+                $locked,
+                ReservationStatus::Active,
+                ReservationStatus::Consumed,
+                $actor,
+                'Reserva consumida por pago confirmado',
+                $operationReference,
+            );
 
             return $locked->refresh();
         });
     }
 
-    public function release(StockReservation $reservation, string $reason, ?User $actor = null): StockReservation
-    {
-        return $this->returnStock($reservation, ReservationStatus::Released, $reason, $actor);
+    public function release(
+        StockReservation $reservation,
+        string $reason,
+        ?User $actor = null,
+        ?string $operationReference = null,
+    ): StockReservation {
+        return $this->returnStock($reservation, ReservationStatus::Released, $reason, $actor, operationReference: $operationReference);
     }
 
-    public function expire(StockReservation $reservation, ?DateTimeInterface $at = null, ?User $actor = null): StockReservation
-    {
+    public function expire(
+        StockReservation $reservation,
+        ?DateTimeInterface $at = null,
+        ?User $actor = null,
+        ?string $operationReference = null,
+    ): StockReservation {
         $moment = $at ? CarbonImmutable::instance($at) : CarbonImmutable::now();
 
-        return $this->returnStock($reservation, ReservationStatus::Expired, 'Vencimiento de la reserva', $actor, $moment);
+        return $this->returnStock(
+            $reservation,
+            ReservationStatus::Expired,
+            'Vencimiento de la reserva',
+            $actor,
+            $moment,
+            $operationReference,
+        );
     }
 
     public function consumeForOrder(Order $order, ?User $actor = null): void
     {
         DB::transaction(function () use ($order, $actor): void {
             $lockedOrder = Order::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            $operationReference = $this->operationReference('consume', $lockedOrder);
 
             $lockedOrder->stockReservations()
                 ->where('status', ReservationStatus::Active->value)
                 ->orderBy('stock_reservations.id')
                 ->pluck('stock_reservations.id')
-                ->each(fn (int $id) => $this->consume(StockReservation::query()->findOrFail($id), $actor));
+                ->each(fn (int $id) => $this->consume(
+                    StockReservation::query()->findOrFail($id),
+                    $actor,
+                    $operationReference,
+                ));
         });
     }
 
@@ -143,12 +177,18 @@ class StockReservationService
     {
         return DB::transaction(function () use ($order, $actor, $reason): Order {
             $current = Order::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            $operationReference = $this->operationReference('release', $current);
 
             $current->stockReservations()
                 ->where('status', ReservationStatus::Active->value)
                 ->orderBy('stock_reservations.id')
                 ->pluck('stock_reservations.id')
-                ->each(fn (int $id) => $this->release(StockReservation::query()->findOrFail($id), $reason, $actor));
+                ->each(fn (int $id) => $this->release(
+                    StockReservation::query()->findOrFail($id),
+                    $reason,
+                    $actor,
+                    $operationReference,
+                ));
 
             $current = $current->refresh();
 
@@ -166,6 +206,7 @@ class StockReservationService
 
         return DB::transaction(function () use ($order, $moment): Order {
             $current = Order::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            $operationReference = $this->operationReference('expire', $current);
 
             if (! in_array($current->order_status, [OrderStatus::PendingPayment, OrderStatus::Expired], true)
                 || ! in_array($current->payment_status, [PaymentStatus::Pending, PaymentStatus::Failed, PaymentStatus::Expired], true)) {
@@ -180,7 +221,11 @@ class StockReservationService
                 ->where('status', ReservationStatus::Active->value)
                 ->orderBy('stock_reservations.id')
                 ->pluck('stock_reservations.id')
-                ->each(fn (int $id) => $this->expire(StockReservation::query()->findOrFail($id), $moment));
+                ->each(fn (int $id) => $this->expire(
+                    StockReservation::query()->findOrFail($id),
+                    $moment,
+                    operationReference: $operationReference,
+                ));
 
             $current = $current->refresh();
 
@@ -202,8 +247,9 @@ class StockReservationService
         string $reason,
         ?User $actor,
         ?DateTimeInterface $at = null,
+        ?string $operationReference = null,
     ): StockReservation {
-        return DB::transaction(function () use ($reservation, $target, $reason, $actor, $at): StockReservation {
+        return DB::transaction(function () use ($reservation, $target, $reason, $actor, $at, $operationReference): StockReservation {
             $locked = $this->lock($reservation);
 
             if ($locked->status === $target) {
@@ -251,7 +297,14 @@ class StockReservationService
             }
 
             $locked->applyStatusMutation($attributes);
-            $this->recordTransition($locked, ReservationStatus::Active, $target, $actor, $reason);
+            $this->recordTransition(
+                $locked,
+                ReservationStatus::Active,
+                $target,
+                $actor,
+                $reason,
+                $operationReference,
+            );
 
             return $locked->refresh();
         });
@@ -279,6 +332,7 @@ class StockReservationService
         ReservationStatus $to,
         ?User $actor,
         string $reason,
+        ?string $operationReference = null,
     ): void {
         $this->history->record(
             $reservation->orderItem->order,
@@ -287,20 +341,31 @@ class StockReservationService
             $to->value,
             $actor,
             $reason,
-            $this->historyMetadata($reservation),
+            $this->historyMetadata($reservation, $operationReference),
         );
     }
 
-    /** @return array<string, int|null> */
-    private function historyMetadata(StockReservation $reservation): array
+    /** @return array<string, int|string|null> */
+    private function historyMetadata(StockReservation $reservation, ?string $operationReference = null): array
     {
         $reservation->loadMissing('orderItem');
 
-        return [
+        $metadata = [
             'reservation_id' => $reservation->getKey(),
             'order_item_id' => $reservation->order_item_id,
             'product_id' => $reservation->orderItem->product_id,
             'quantity' => $reservation->quantity,
         ];
+
+        if ($operationReference !== null) {
+            $metadata['operation_reference'] = $operationReference;
+        }
+
+        return $metadata;
+    }
+
+    private function operationReference(string $operation, Order $order): string
+    {
+        return "reservation:{$operation}:order:{$order->getKey()}";
     }
 }

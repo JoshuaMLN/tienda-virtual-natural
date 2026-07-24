@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\LegalDocumentController as AdminLegalDocumentCont
 use App\Http\Controllers\Admin\LegalSettingsController as AdminLegalSettingsController;
 use App\Http\Controllers\Admin\NonWorkingDayController as AdminNonWorkingDayController;
 use App\Http\Controllers\Admin\OperationalSettingsController as AdminOperationalSettingsController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductSettingsController as AdminProductSettingsController;
 use App\Http\Controllers\Admin\StockController as AdminStockController;
@@ -246,8 +247,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 'destroy' => 'products.destroy',
             ]);
 
-        Route::view('/pedidos', 'admin.orders.index')->name('orders.index');
-        Route::view('/pedidos/vn-2024-000123', 'admin.orders.show')->name('orders.show');
+        Route::get('/pedidos', [AdminOrderController::class, 'index'])->name('orders.index');
+        Route::get('/pedidos/{order:code}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::view('/pagos', 'admin.payments.index')->name('payments.index');
         Route::get('/stock', [AdminStockController::class, 'index'])->name('stock.index');
         Route::patch('/stock/{product}/alerta', [AdminStockController::class, 'updateThreshold'])->name('stock.threshold.update');
