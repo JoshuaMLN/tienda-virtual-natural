@@ -2,12 +2,14 @@
 
 namespace App\Support\Checkout;
 
+use App\Enums\OrderNotificationType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Models\Order;
 use App\Models\User;
 use App\Support\Orders\CustomerOrderCapabilityResolver;
+use App\Support\Orders\Notifications\OrderNotificationDeliveryService;
 use App\Support\Orders\Reservations\StockReservationService;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +19,7 @@ class PendingCheckoutOrderService
     public function __construct(
         private readonly StockReservationService $reservations,
         private readonly CustomerOrderCapabilityResolver $capabilities,
+        private readonly OrderNotificationDeliveryService $notifications,
     ) {}
 
     public function findFor(User $user, bool $lockForUpdate = false): ?Order
@@ -78,18 +81,24 @@ class PendingCheckoutOrderService
             }
 
             if ($locked->reservation_expires_at?->lte($moment) === true) {
-                return $this->reservations->expireForOrder($locked, $moment);
+                $expired = $this->reservations->expireForOrder($locked, $moment);
+                $this->notifications->record($expired, OrderNotificationType::Expired);
+
+                return $expired;
             }
 
             if (! $this->capabilities->resolve($locked, $moment)->canCancel) {
                 throw new DomainException('Este pedido ya no conserva una reserva de stock vigente.');
             }
 
-            return $this->reservations->releaseForCancellation(
+            $cancelled = $this->reservations->releaseForCancellation(
                 $locked,
                 $user,
                 'Cancelado por el cliente',
             );
+            $this->notifications->record($cancelled, OrderNotificationType::Cancelled);
+
+            return $cancelled;
         }, 5);
 
         if ($result->order_status === OrderStatus::Expired

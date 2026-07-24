@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Checkout;
 
+use App\Enums\OrderNotificationType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
@@ -53,6 +54,11 @@ class PendingCheckoutOrderExpirationTest extends TestCase
         $this->assertSame(ReservationStatus::Expired, $reservation->refresh()->status);
         $this->assertSame('Vencimiento de la reserva', $reservation->release_reason);
         $this->assertSame(8, $product->refresh()->stock);
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::Expired->value,
+        ]);
+        $notificationCount = $order->notificationDeliveries()->count();
         $this->assertSame($expiresAt->format('Y-m-d H:i:s'), $expired->reservation_expires_at->format('Y-m-d H:i:s'));
 
         $movementCount = $product->inventoryMovements()->count();
@@ -62,6 +68,7 @@ class PendingCheckoutOrderExpirationTest extends TestCase
         $this->assertSame(OrderStatus::Expired, $expiredAgain->order_status);
         $this->assertSame($movementCount, $product->inventoryMovements()->count());
         $this->assertSame($historyCount, $order->statusHistories()->count());
+        $this->assertSame($notificationCount, $order->notificationDeliveries()->count());
         $this->assertSame(8, $product->refresh()->stock);
     }
 

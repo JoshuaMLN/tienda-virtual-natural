@@ -5,6 +5,7 @@ namespace Tests\Feature\Checkout;
 use App\Enums\DeliveryMethod;
 use App\Enums\LegalDocumentType;
 use App\Enums\OrderHistoryDomain;
+use App\Enums\OrderNotificationType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
@@ -106,6 +107,11 @@ class CheckoutOrderCreationTest extends TestCase
             'quantity' => 2,
         ]);
         $this->assertDatabaseCount('inventory_movements', 1);
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::Created->value,
+            'recipient_email' => $user->email,
+        ]);
         $this->assertNull(session('checkout.draft'));
 
         DB::table('legal_documents')->where('id', $terms->id)->delete();
@@ -145,6 +151,7 @@ class CheckoutOrderCreationTest extends TestCase
         $this->assertDatabaseCount('order_items', 1);
         $this->assertDatabaseCount('stock_reservations', 1);
         $this->assertDatabaseCount('inventory_movements', 1);
+        $this->assertDatabaseCount('order_notification_deliveries', 1);
         $this->assertSame(6, $product->refresh()->stock);
         $this->assertDatabaseHas('cart_items', [
             'product_id' => $product->id,

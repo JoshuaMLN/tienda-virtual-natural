@@ -5,6 +5,7 @@ namespace App\Support\Checkout;
 use App\Enums\CheckoutRevalidationStatus;
 use App\Enums\DeliveryMethod;
 use App\Enums\LegalDocumentType;
+use App\Enums\OrderNotificationType;
 use App\Enums\TaxAffectation;
 use App\Models\Cart as CartModel;
 use App\Models\CartItem as CartItemModel;
@@ -14,6 +15,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\Orders\Notifications\OrderNotificationDeliveryService;
 use App\Support\Orders\OrderCreationService;
 use App\Support\Orders\Reservations\StockReservationService;
 use Carbon\CarbonImmutable;
@@ -28,6 +30,7 @@ class CheckoutOrderCreationService
         private readonly OrderCreationService $orders,
         private readonly StockReservationService $reservations,
         private readonly PendingCheckoutOrderExpirationService $expirations,
+        private readonly OrderNotificationDeliveryService $notifications,
     ) {}
 
     public function confirm(
@@ -161,6 +164,8 @@ class CheckoutOrderCreationService
             foreach ($order->items->sortBy('id') as $item) {
                 $this->reservations->reserve($item, $expiration);
             }
+
+            $this->notifications->record($order, OrderNotificationType::Created);
 
             return [$order->fresh(['items', 'statusHistories', 'stockReservations']), $lockedResult, false, false];
         }, 5);

@@ -16,6 +16,15 @@ return [
 
     'default' => env('MAIL_MAILER', 'log'),
 
+    'order_images' => [
+        'remote_hosts' => array_values(array_filter(array_map(
+            static fn (string $host): string => strtolower(trim($host)),
+            explode(',', (string) env('ORDER_EMAIL_IMAGE_REMOTE_HOSTS', 'images.unsplash.com')),
+        ))),
+        'connect_timeout' => (int) env('ORDER_EMAIL_IMAGE_CONNECT_TIMEOUT', 3),
+        'timeout' => (int) env('ORDER_EMAIL_IMAGE_TIMEOUT', 5),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Mailer Configurations

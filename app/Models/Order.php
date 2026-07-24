@@ -222,6 +222,11 @@ class Order extends Model
         return $this->hasMany(FiscalDocument::class);
     }
 
+    public function notificationDeliveries(): HasMany
+    {
+        return $this->hasMany(OrderNotificationDelivery::class);
+    }
+
     public function saleDocument(): HasOne
     {
         return $this->hasOne(FiscalDocument::class)->where('sale_document_slot', 'sale');

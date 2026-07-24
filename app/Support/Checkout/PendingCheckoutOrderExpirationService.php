@@ -2,10 +2,12 @@
 
 namespace App\Support\Checkout;
 
+use App\Enums\OrderNotificationType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\Orders\Notifications\OrderNotificationDeliveryService;
 use App\Support\Orders\Reservations\StockReservationService;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
@@ -19,6 +21,7 @@ class PendingCheckoutOrderExpirationService
     public function __construct(
         private readonly PendingCheckoutOrderService $pendingOrders,
         private readonly StockReservationService $reservations,
+        private readonly OrderNotificationDeliveryService $notifications,
     ) {}
 
     public function reconcileFor(
@@ -71,7 +74,10 @@ class PendingCheckoutOrderExpirationService
                 return null;
             }
 
-            return $this->reservations->expireForOrder($current, $moment);
+            $expired = $this->reservations->expireForOrder($current, $moment);
+            $this->notifications->record($expired, OrderNotificationType::Expired);
+
+            return $expired;
         }, 5);
     }
 

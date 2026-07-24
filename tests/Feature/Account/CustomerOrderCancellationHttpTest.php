@@ -3,6 +3,7 @@
 namespace Tests\Feature\Account;
 
 use App\Enums\DeliveryStatus;
+use App\Enums\OrderNotificationType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
@@ -164,6 +165,11 @@ class CustomerOrderCancellationHttpTest extends TestCase
         $this->assertSame(12, $product->refresh()->stock);
         $this->assertSame($movementsBefore + 1, $product->inventoryMovements()->count());
         $this->assertSame($historyBefore + 3, $order->statusHistories()->count());
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::Cancelled->value,
+        ]);
+        $notificationCount = $order->notificationDeliveries()->count();
         $this->assertDatabaseHas('cart_items', [
             'cart_id' => $cartId,
             'product_id' => $cartProduct->id,
@@ -184,6 +190,7 @@ class CustomerOrderCancellationHttpTest extends TestCase
         $this->assertSame(12, $product->refresh()->stock);
         $this->assertSame($movementCount, $product->inventoryMovements()->count());
         $this->assertSame($historyCount, $order->statusHistories()->count());
+        $this->assertSame($notificationCount, $order->notificationDeliveries()->count());
     }
 
     public function test_payment_winning_the_race_prevents_cancellation_and_keeps_stock_sold(): void
@@ -224,6 +231,11 @@ class CustomerOrderCancellationHttpTest extends TestCase
         $this->assertSame(PaymentStatus::Expired, $order->payment_status);
         $this->assertSame(ReservationStatus::Expired, $reservation->refresh()->status);
         $this->assertSame(9, $product->refresh()->stock);
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::Expired->value,
+        ]);
+        $notificationCount = $order->notificationDeliveries()->count();
         $movementCount = $product->inventoryMovements()->count();
         $historyCount = $order->statusHistories()->count();
 
@@ -233,6 +245,7 @@ class CustomerOrderCancellationHttpTest extends TestCase
         $this->assertSame(9, $product->refresh()->stock);
         $this->assertSame($movementCount, $product->inventoryMovements()->count());
         $this->assertSame($historyCount, $order->statusHistories()->count());
+        $this->assertSame($notificationCount, $order->notificationDeliveries()->count());
     }
 
     public function test_cancellation_is_private_and_route_is_verified_rate_limited_and_delete_only(): void
