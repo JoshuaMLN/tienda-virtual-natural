@@ -448,7 +448,7 @@ Reglas de negocio cerradas:
 - No se incluira todavia una accion `Volver a comprar`.
 - Todo comprobante fiscal con PDF perteneciente al pedido sera descargable por su propietario; un documento anulado seguira visible y descargable, marcado claramente como `Anulado`.
 - Los correos de creacion, cancelacion y vencimiento se enviaran despues del commit mediante cola. Un fallo de correo nunca revertira el pedido ni su transicion.
-- El correo de creacion usara el snapshot `order.customer_email`; los avisos posteriores usaran el correo verificado actual de la cuenta y los comprobantes conservaran `fiscal_email`.
+- Creacion, cancelacion y vencimiento usaran `order.customer_email` como destinatario base y agregaran una copia independiente al correo actual solo cuando sea distinto y este verificado; los comprobantes conservaran `fiscal_email`.
 - DNI, documento extranjero y RUC se mostraran enmascarados salvo sus ultimos cuatro caracteres; el PDF fiscal conservara los datos completos.
 - Mientras el pedido este pendiente solo se mostrara el vencimiento de la reserva. Las fechas definitivas de entrega o recojo apareceran despues de confirmar el pago.
 - Listados, detalles, cancelaciones y descargas se resolveran desde el usuario autenticado o mediante policies; un pedido ajeno respondera `404`.
@@ -497,6 +497,14 @@ Criterio de salida:
 
 ### Etapa 6.4: Comprobantes privados
 
+Estado: Completada tecnicamente; validacion UX integral diferida por dependencia funcional.
+
+Dependencia de validacion:
+- La etapa puede implementarse y validarse tecnicamente con factories, almacenamiento simulado y pruebas automatizadas, aunque todavia no exista una interfaz para pagar pedidos.
+- No se agregara un boton administrativo ni otro mecanismo ficticio para marcar pedidos como pagados; la confirmacion real del pago corresponde a Culqi en el Sprint 7.
+- La validacion UX integral `crear pedido -> pagar -> cargar comprobante -> descargar comprobante` quedara pendiente hasta completar la carga administrativa de la Fase 7 y el pago real del Sprint 7, donde se registra como criterio obligatorio de cierre.
+- Esta dependencia no bloquea el desarrollo de la consulta, autorizacion y descarga privada, pero debe conservarse como validacion manual pendiente al cerrar la etapa.
+
 - Listar los comprobantes y documentos relacionados disponibles en el detalle del pedido.
 - Mostrar tipo, serie, correlativo, fecha y estado, incluyendo documentos anulados sin ocultarlos.
 - Descargar exclusivamente el PDF privado del documento perteneciente al cliente autenticado.
@@ -506,18 +514,29 @@ Criterio de salida:
 
 Criterio de salida:
 - Cada cliente puede consultar y descargar sus propios comprobantes historicos sin acceso al almacenamiento privado de terceros.
+- La consulta y descarga quedan cerradas mediante pruebas automatizadas; el recorrido UX integral se validara al disponer de carga administrativa en la Fase 7 y pago real en el Sprint 7, que no podra cerrarse sin completar esa prueba manual.
 
 ### Etapa 6.5: Correos transaccionales
 
 - Crear notificaciones en cola para pedido creado y pendiente de pago, cancelacion y vencimiento de reserva.
 - Despacharlas solo despues del commit y una vez por la transicion de dominio correspondiente.
-- Enviar la creacion a `order.customer_email`, los avisos posteriores al correo verificado actual y los futuros comprobantes a `fiscal_email`.
+- Considerar `order.customer_email` como destinatario base de las tres comunicaciones; este snapshot corresponde al correo verificado de la cuenta al crear el pedido.
+- Si la cuenta conserva un correo actual verificado y es distinto al snapshot, enviarle una segunda copia independiente, sin `CC` ni `BCC` que exponga una direccion a la otra.
+- No enviar la copia al correo actual mientras siga sin verificar; si la cuenta fue eliminada, conservar unicamente el destinatario snapshot.
+- Normalizar y deduplicar las direcciones para que dos correos equivalentes generen un solo envio.
+- Congelar los destinatarios al producirse la transicion. Un cambio de correo durante los reintentos no modificara los destinos del evento ya registrado.
+- Reservar `fiscal_email` exclusivamente para el futuro envio del comprobante fiscal.
+- Respaldar la idempotencia con una restriccion unica por pedido, tipo de evento y destinatario, manteniendo un registro auditable de cada comunicacion.
+- Usar tres intentos totales de Laravel por destinatario: envio inicial y hasta dos reintentos con espera aproximada de uno y cinco minutos.
+- Considerar exitoso el trabajo cuando Brevo acepte el mensaje por SMTP; sus reintentos posteriores de entrega diferida pertenecen al proveedor y no crean otro evento de negocio.
 - No adjuntar comprobantes inexistentes ni hacer que un fallo de Brevo revierta pedidos, reservas o inventario.
 - Mantener enlaces HTTPS al pedido propio y contenido coherente con modalidad, total, vencimiento y estado.
-- Crear pruebas con `Notification::fake()` o `Mail::fake()` para destinatarios, cola, duplicados, rollback y eventos elegibles.
+- Enviar solo al cliente en esta etapa, sin copia administrativa, correo de pago confirmado ni adjuntos fiscales.
+- Tomar el remitente y nombre comercial desde la configuracion, sin fijar la marca en las nuevas plantillas.
+- Crear pruebas con `Notification::fake()` o `Mail::fake()` para destinatarios snapshot y actual, correo sin verificar, cuenta eliminada, deduplicacion, cola, duplicados, rollback y eventos elegibles.
 
 Criterio de salida:
-- Cada transicion relevante genera una comunicacion desacoplada, segura y consistente con el pedido persistido.
+- Cada transicion relevante genera una comunicacion desacoplada, segura y consistente con el pedido persistido, una sola vez por destinatario legitimo.
 
 ### Etapa 6.6: Integracion y cierre
 

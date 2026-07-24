@@ -127,6 +127,8 @@ Entregables:
 - Registro manual del comprobante emitido previamente en SUNAT mediante serie, correlativo, fecha y PDF oficial.
 - Almacenamiento privado y envio o reenvio del PDF al correo fiscal del pedido.
 - Numeracion fiscal copiada desde SUNAT SEE-SOL; la tienda no genera series ni correlativos.
+- Consulta y descarga privada de comprobantes propios, incluidos documentos anulados, con aislamiento horizontal comprobado automaticamente.
+- La validacion UX integral de comprobantes queda transferida expresamente al Sprint 7 porque requiere un pago real confirmado; no se agregaran pagos simulados.
 
 ## Sprint 7: Pagos con Culqi
 
@@ -143,6 +145,11 @@ Entregables:
 - Intentos rechazados diferenciados de pedidos vencidos.
 - Politica separada para metodos de pago asincronos antes de habilitarlos.
 - Pantallas `success`, `failed` y `pending` conectadas a estados reales.
+
+Dependencia heredada y criterio de cierre:
+- Completar la validacion UX integral `crear pedido -> pagar -> cargar comprobante -> descargar comprobante` usando la confirmacion backend real de Culqi y la carga administrativa implementada en el Sprint 6.
+- Validar el recorrido en escritorio y celular: estado pendiente antes de emitir, registro del PDF desde admin, aparicion en el detalle del cliente, descarga privada y documento anulado visible.
+- No cerrar el Sprint 7 mientras este recorrido no haya sido probado manualmente de extremo a extremo.
 
 ## Sprint 8: Promociones y banners
 

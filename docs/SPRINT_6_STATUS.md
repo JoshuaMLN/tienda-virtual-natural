@@ -1,6 +1,6 @@
 # Sprint 6 - Estado
 
-Fecha: 2026-07-22
+Fecha: 2026-07-24
 
 Estado: En progreso
 
@@ -452,7 +452,7 @@ Etapa 5.6 validada:
 
 ## Fase 6: Pedidos del cliente
 
-Estado: En progreso (Etapas 6.1, 6.2 y 6.3 cerradas; Etapa 6.4 pendiente)
+Estado: En progreso (Etapas 6.1 a 6.4 cerradas tecnicamente; Etapa 6.5 pendiente)
 
 Reglas cerradas:
 - Estado comercial derivado sin perder los estados tecnicos independientes; `Entregado` corresponde a domicilio y `Recogido` a recojo.
@@ -463,7 +463,7 @@ Reglas cerradas:
 - Timeline curado, snapshots historicos y enlaces al catalogo solo para productos vigentes y visibles.
 - Comprobantes propios con PDF descargables desde almacenamiento privado, incluidos los anulados con estado visible.
 - Correos de creacion, cancelacion y vencimiento enviados por cola despues del commit sin revertir el dominio ante fallos.
-- Creacion enviada al correo snapshot, avisos posteriores al correo verificado actual y comprobantes al correo fiscal.
+- Creacion, cancelacion y vencimiento enviados al correo snapshot, con una copia independiente al correo actual cuando sea distinto y este verificado; comprobantes enviados al correo fiscal.
 - Documentos de identidad enmascarados en pantalla; fechas definitivas solo despues del pago.
 - Recursos ajenos responden `404` mediante consultas acotadas o policies.
 
@@ -517,13 +517,40 @@ Etapa 6.3 validada:
 - El usuario aprobo manualmente botones y modal en listado y detalle, mensajes posteriores, responsive y soporte para pedidos pagados.
 - La etapa queda cerrada.
 
+Implementado en la Etapa 6.4:
+- Presentacion de documentos fiscales disponibles dentro del detalle privado del pedido, ordenados por fecha de emision.
+- Tipo, serie, correlativo, fecha y estado visibles, conservando los documentos anulados con una identificacion diferenciada.
+- Estado pendiente de emision solo para pedidos pagados sin documentos; los pedidos pendientes de pago no muestran comprobantes ficticios.
+- Descarga privada desde el disco `local`, con nombre comprensible, tipo PDF, proteccion `nosniff` y encabezados que impiden cache publico.
+- Resolucion conjunta de propietario, codigo de pedido y documento para que pedidos ajenos, IDs inexistentes y pares manipulados respondan `404`.
+- Archivos ausentes, rutas vacias y extensiones distintas de PDF rechazados mediante la misma respuesta no reveladora.
+- Ocho pruebas HTTP nuevas con 49 aserciones para presentacion, propiedad, documentos relacionados, anulacion, almacenamiento y aislamiento horizontal.
+
+Etapa 6.4 validada tecnicamente:
+- La suite focalizada pasa con ocho pruebas y 49 aserciones usando `Storage::fake('local')`.
+- La suite completa pasa con 544 pruebas y 4207 aserciones.
+- La validacion UX integral permanece diferida hasta disponer de carga administrativa en la Fase 7 y confirmacion real de pago con Culqi; queda registrada como criterio obligatorio de cierre del Sprint 7.
+- No se agrego ningun boton administrativo ni mecanismo temporal para marcar pedidos como pagados.
+
 Planificado:
-- Etapa 6.4: comprobantes fiscales privados.
 - Etapa 6.5: correos de creacion, cancelacion y vencimiento mediante cola.
 - Etapa 6.6: integracion, seguridad, responsive, pruebas y cierre.
 
+Politica cerrada para la Etapa 6.5:
+- Pedido creado, cancelacion real y vencimiento real generan eventos distintos; reintentos idempotentes, doble clic y nuevas ejecuciones del scheduler no crean otra comunicacion.
+- `order.customer_email` recibe siempre la comunicacion como snapshot verificado al crear el pedido.
+- Un correo actual verificado y diferente recibe una copia independiente; no se usa `CC` ni `BCC`, no se copia a correos sin verificar y las direcciones equivalentes se deduplican.
+- Una cuenta eliminada conserva solo el destinatario snapshot y `fiscal_email` queda reservado para comprobantes.
+- Los destinatarios se congelan al producirse el evento y la unicidad se garantiza por pedido, evento y correo normalizado.
+- Cada destinatario tiene un registro auditable y hasta tres intentos totales de Laravel por SMTP: inicial y dos reintentos aproximados al minuto y a los cinco minutos.
+- La aceptacion SMTP de Brevo completa el trabajo de Laravel; los intentos de entrega diferida del proveedor no representan nuevos eventos del pedido.
+- Los trabajos se despachan despues del commit y sus fallos nunca revierten pedido, reserva ni inventario.
+- Esta etapa no envia copias administrativas, confirmaciones de pago ni adjuntos fiscales.
+- Remitente, nombre comercial, enlaces y contenido usan configuracion vigente y snapshots historicos segun corresponda.
+
 Pendiente:
-- Implementar las Etapas 6.4 a 6.6.
+- Implementar las Etapas 6.5 y 6.6.
+- Completar la validacion manual integral de la Etapa 6.4 como criterio de cierre del Sprint 7, cuando sus dependencias funcionales esten disponibles.
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 
@@ -568,7 +595,8 @@ Pendiente:
 
 ## Bloqueos actuales
 
-- Ninguno para continuar con la Etapa 6.4.
+- Ninguno para continuar con la Etapa 6.5.
+- La validacion manual integral de sus comprobantes queda transferida como criterio obligatorio de cierre del Sprint 7.
 
 ## Resultado esperado
 
