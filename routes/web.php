@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Account\CustomerAddressController;
+use App\Http\Controllers\Account\CustomerFiscalDocumentController;
 use App\Http\Controllers\Account\CustomerOrderCancellationController;
 use App\Http\Controllers\Account\CustomerOrderController;
 use App\Http\Controllers\Account\ProfileController;
@@ -151,6 +152,11 @@ Route::prefix('mi-cuenta')->name('account.')->middleware(['auth', 'customer'])->
         ->where('code', 'PED-[0-9]{4}-[0-9]{6}')
         ->middleware(['verified', 'throttle:6,1'])
         ->name('orders.cancel');
+    Route::get('/pedidos/{code}/comprobantes/{document}/descargar', CustomerFiscalDocumentController::class)
+        ->where('code', 'PED-[0-9]{4}-[0-9]{6}')
+        ->whereNumber('document')
+        ->middleware('throttle:30,1')
+        ->name('orders.fiscal-documents.download');
     Route::get('/direcciones', [CustomerAddressController::class, 'index'])->name('addresses');
     Route::get('/direcciones/nueva', [CustomerAddressController::class, 'create'])->name('addresses.create');
     Route::post('/direcciones', [CustomerAddressController::class, 'store'])->name('addresses.store');

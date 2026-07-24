@@ -20,6 +20,7 @@ class CustomerOrderDetailPresenter
         private readonly CustomerOrderDateFormatter $dates,
         private readonly CustomerOrderTimelineBuilder $timeline,
         private readonly FiscalIdentityDocumentMasker $identityMasker,
+        private readonly CustomerFiscalDocumentPresenter $fiscalDocuments,
     ) {}
 
     /** @return array<string, mixed> */
@@ -40,6 +41,7 @@ class CustomerOrderDetailPresenter
             ],
             'delivery' => $this->delivery($order, $commercialStatus),
             'fiscal' => $this->fiscal($order),
+            'fiscal_documents' => $this->fiscalDocuments->present($order),
             'timeline' => array_map(
                 fn (CustomerOrderTimelineEvent $event): array => [
                     'event' => $event,

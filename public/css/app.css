@@ -2219,6 +2219,10 @@ a {
     grid-area: fiscal;
 }
 
+.customer-order-documents {
+    grid-area: documents;
+}
+
 .customer-order-timeline-card {
     grid-area: timeline;
 }
@@ -2337,6 +2341,116 @@ a {
     font-size: .88rem;
     font-weight: 700;
     margin: 0;
+}
+
+.customer-order-document-pending {
+    align-items: flex-start;
+    background: #fff8e8;
+    border: 1px solid #eed79d;
+    border-radius: 6px;
+    color: #6f510c;
+    display: flex;
+    font-size: .84rem;
+    gap: .65rem;
+    padding: .8rem;
+}
+
+.customer-order-document-pending > i {
+    font-size: 1.05rem;
+    margin-top: .05rem;
+}
+
+.customer-order-document-pending p {
+    color: #806928;
+    font-size: .78rem;
+    margin-top: .15rem;
+}
+
+.customer-order-document-list {
+    display: grid;
+}
+
+.customer-order-document-row {
+    align-items: center;
+    display: grid;
+    gap: .7rem;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    padding: .85rem 0;
+}
+
+.customer-order-document-row:first-child {
+    padding-top: 0;
+}
+
+.customer-order-document-row:last-child {
+    padding-bottom: 0;
+}
+
+.customer-order-document-row + .customer-order-document-row {
+    border-top: 1px solid var(--vn-line);
+}
+
+.customer-order-document-icon {
+    align-items: center;
+    background: #f4f6f2;
+    border-radius: 50%;
+    color: var(--vn-green-800);
+    display: inline-flex;
+    flex: 0 0 38px;
+    font-size: 1rem;
+    height: 38px;
+    justify-content: center;
+    width: 38px;
+}
+
+.customer-order-document-row.is-annulled .customer-order-document-icon {
+    background: #fff0ee;
+    color: #a1392c;
+}
+
+.customer-order-document-copy {
+    display: grid;
+    min-width: 0;
+}
+
+.customer-order-document-heading {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
+.customer-order-document-status {
+    background: #edf7e8;
+    border: 1px solid #c9e2bc;
+    border-radius: 4px;
+    color: #346522;
+    font-size: .64rem;
+    font-weight: 800;
+    line-height: 1;
+    padding: .25rem .35rem;
+}
+
+.customer-order-document-status.is-annulled {
+    background: #fff0ee;
+    border-color: #efc6c0;
+    color: #a1392c;
+}
+
+.customer-order-document-reference {
+    color: var(--vn-text);
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.customer-order-document-date {
+    color: var(--vn-muted);
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+.customer-order-document-download {
+    white-space: nowrap;
 }
 
 .customer-order-timeline {
@@ -3116,6 +3230,7 @@ body.admin-sidebar-open {
             "delivery"
             "contact"
             "fiscal"
+            "documents"
             "timeline";
         grid-template-columns: minmax(0, 1fr);
     }
@@ -3151,6 +3266,21 @@ body.admin-sidebar-open {
     .customer-order-product-total {
         grid-column: 2;
         justify-items: start;
+    }
+
+    .customer-order-document-row {
+        align-items: start;
+        grid-template-columns: 34px minmax(0, 1fr);
+    }
+
+    .customer-order-document-icon {
+        height: 34px;
+        width: 34px;
+    }
+
+    .customer-order-document-download {
+        grid-column: 2;
+        justify-self: start;
     }
 }
 

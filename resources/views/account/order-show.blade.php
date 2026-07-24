@@ -275,6 +275,50 @@
                 </div>
             </dl>
         </section>
+
+        @if($detail['fiscal_documents']['visible'])
+            <section class="account-card customer-order-documents p-3 p-lg-4" aria-labelledby="order-documents-title">
+                <h2 class="h5 fw-black mb-3" id="order-documents-title">Documentos fiscales</h2>
+
+                @if($detail['fiscal_documents']['pending_issue'])
+                    <div class="customer-order-document-pending" role="status">
+                        <i class="bi bi-clock-history" aria-hidden="true"></i>
+                        <div>
+                            <strong>Comprobante pendiente de emision</strong>
+                            <p class="mb-0">Lo encontraras aqui cuando la tienda registre el documento emitido.</p>
+                        </div>
+                    </div>
+                @else
+                    <div class="customer-order-document-list">
+                        @foreach($detail['fiscal_documents']['items'] as $document)
+                            <article class="customer-order-document-row{{ $document['is_annulled'] ? ' is-annulled' : '' }}">
+                                <span class="customer-order-document-icon" aria-hidden="true">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </span>
+                                <div class="customer-order-document-copy">
+                                    <div class="customer-order-document-heading">
+                                        <strong>{{ $document['type'] }}</strong>
+                                        <span class="customer-order-document-status{{ $document['is_annulled'] ? ' is-annulled' : '' }}">
+                                            {{ $document['status'] }}
+                                        </span>
+                                    </div>
+                                    <span class="customer-order-document-reference">{{ $document['reference'] }}</span>
+                                    <span class="customer-order-document-date">Emitido el {{ $document['issued_at'] }}</span>
+                                </div>
+                                <a
+                                    class="btn btn-sm btn-vn-outline customer-order-document-download"
+                                    href="{{ $document['download_url'] }}"
+                                    aria-label="Descargar {{ $document['type'] }} {{ $document['reference'] }} en PDF"
+                                >
+                                    <i class="bi bi-download" aria-hidden="true"></i>
+                                    Descargar PDF
+                                </a>
+                            </article>
+                        @endforeach
+                    </div>
+                @endif
+            </section>
+        @endif
     </div>
 </div>
 

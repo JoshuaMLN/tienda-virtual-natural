@@ -67,6 +67,9 @@ class CustomerOrderController extends Controller
             ->with([
                 'items' => fn ($query) => $query->orderBy('id'),
                 'items.product' => fn ($query) => $query->active(),
+                'fiscalDocuments' => fn ($query) => $query
+                    ->oldest('issued_at')
+                    ->oldest('id'),
                 'stockReservations',
                 'statusHistories',
             ])
