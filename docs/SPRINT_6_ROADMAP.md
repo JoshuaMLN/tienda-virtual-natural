@@ -518,6 +518,8 @@ Criterio de salida:
 
 ### Etapa 6.5: Correos transaccionales
 
+Estado: Completada y validada.
+
 - Crear notificaciones en cola para pedido creado y pendiente de pago, cancelacion y vencimiento de reserva.
 - Despacharlas solo despues del commit y una vez por la transicion de dominio correspondiente.
 - Considerar `order.customer_email` como destinatario base de las tres comunicaciones; este snapshot corresponde al correo verificado de la cuenta al crear el pedido.
@@ -538,18 +540,48 @@ Criterio de salida:
 Criterio de salida:
 - Cada transicion relevante genera una comunicacion desacoplada, segura y consistente con el pedido persistido, una sola vez por destinatario legitimo.
 
+Resultado tecnico:
+- Registro persistente e inmutable por pedido, evento y destinatario normalizado, con estados de cola, envio, exito y fallo.
+- Destinatarios snapshot y actual verificado resueltos y congelados dentro de la transaccion que produce el evento.
+- Trabajo unico despachado despues del commit, con tres intentos totales y esperas de 60 y 300 segundos.
+- Correos diferenciados para creacion, cancelacion y vencimiento, construidos con snapshots del pedido y configuracion de marca.
+- Integracion idempotente con confirmacion de checkout, cancelacion real y vencimiento real por acceso o scheduler.
+- Cobertura automatizada de destinatarios, deduplicacion, inmutabilidad, cola, contenido, reintentos, limite de intentos, rollback y transiciones.
+
 ### Etapa 6.6: Integracion y cierre
 
+Estado: Completada y validada.
+
+- Reemplazar la presentacion generica del correo de pedido creado por una plantilla Blade responsive, compatible con clientes de correo y con version de texto plano.
+- Mostrar cada producto en una fila visual con miniatura principal, nombre, presentacion, cantidad e importes historicos del pedido.
+- Cuando la cantidad sea una unidad, mostrar solo su precio; cuando sea mayor, mostrar cantidad, precio unitario y subtotal de linea.
+- Generar o reutilizar miniaturas JPEG de `96 x 96 px`, calidad aproximada de 75 a 80 %, procurando un peso individual de 10 a 25 KB.
+- Incrustar las miniaturas mediante CID para que el cliente de correo no dependa de URLs publicas, `APP_URL` ni acceso al entorno local.
+- Permitir la importacion de snapshots HTTPS heredados solo desde hosts configurados, sin redirecciones, con timeout, validacion de imagen y cache privada.
+- Usar el placeholder de producto cuando el snapshot no tenga imagen o el archivo ya no exista.
+- Mantener las filas exclusivamente informativas, sin enlaces al producto ni JavaScript.
+- Limitar las imagenes incrustadas a la principal de cada producto, deduplicarlas dentro del mismo mensaje y controlar el peso total del correo.
+- Conservar subtotal de productos, descuento cuando exista, costo de entrega, total, modalidad, vencimiento y accion principal.
+- Aplicar una identidad visual coherente a creacion, cancelacion y vencimiento; el listado ilustrado de productos se priorizara en el correo de creacion.
+- Validar manualmente renderizado, imagenes CID, fallback, accesibilidad y responsive en Gmail, Outlook y un cliente movil.
 - Completar pruebas HTTP, servicios, policies, vistas, archivos, cola y regresion de pedidos pendientes.
 - Validar manualmente filtros, timeline, cancelacion, estados, documentos, correos y responsive.
 - Ejecutar suite completa, cache de vistas, build, formato, revision de diff y actualizacion documental.
 - Confirmar en despliegue que worker, scheduler y almacenamiento privado estan preparados.
 
 Criterio de salida de la etapa:
-- El recorrido completo de pedidos del cliente es seguro, responsive, auditable y queda listo para los pagos del Sprint 7 y la operacion administrativa de la Fase 7.
+- El recorrido completo de pedidos del cliente es seguro, responsive, auditable y queda listo para los pagos del Sprint 7 y la operacion administrativa de la Fase 7; sus correos son legibles, autocontenidos y compatibles con los clientes objetivo.
 
 Criterio de salida de la fase:
 - Las seis etapas estan completas y cada cliente puede seguir sus pedidos, cancelaciones, comunicaciones y documentos reales sin ver ni modificar informacion de otra cuenta.
+
+Resultado tecnico:
+- Plantilla Blade HTML responsive y alternativa de texto plano compartidas por creacion, cancelacion y vencimiento.
+- Correo de creacion con filas informativas, imagen principal CID, presentacion, cantidad y desglose segun unidades, sin enlaces de producto ni JavaScript.
+- Miniaturas JPEG locales de `96 x 96 px`, maximo de 25 KB cada una, deduplicacion por contenido y presupuesto total de 300 KB por mensaje.
+- Snapshot HTTPS de un host permitido convertido y cacheado de forma privada; host no autorizado, archivo ausente, inseguro o ilegible sustituido por el placeholder.
+- Pruebas sobre MIME real para CID inline, JPEG, dimensiones, peso, deduplicacion, texto plano, ausencia de `data:` y ausencia de enlaces de producto.
+- Auditoria focalizada de cuenta, checkout y pedidos aprobada, junto con cache de Blade, build, formato, migraciones y suite completa.
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 

@@ -452,7 +452,7 @@ Etapa 5.6 validada:
 
 ## Fase 6: Pedidos del cliente
 
-Estado: En progreso (Etapas 6.1 a 6.4 cerradas tecnicamente; Etapa 6.5 pendiente)
+Estado: Completada (Etapas 6.1 a 6.6 cerradas)
 
 Reglas cerradas:
 - Estado comercial derivado sin perder los estados tecnicos independientes; `Entregado` corresponde a domicilio y `Recogido` a recojo.
@@ -532,9 +532,40 @@ Etapa 6.4 validada tecnicamente:
 - La validacion UX integral permanece diferida hasta disponer de carga administrativa en la Fase 7 y confirmacion real de pago con Culqi; queda registrada como criterio obligatorio de cierre del Sprint 7.
 - No se agrego ningun boton administrativo ni mecanismo temporal para marcar pedidos como pagados.
 
-Planificado:
-- Etapa 6.5: correos de creacion, cancelacion y vencimiento mediante cola.
-- Etapa 6.6: integracion, seguridad, responsive, pruebas y cierre.
+Implementado en la Etapa 6.5:
+- Tabla `order_notification_deliveries` con historial persistente, destinatario congelado, tipo, estado, intentos, fechas y ultimo error.
+- Unicidad real en base de datos por pedido, evento y correo normalizado; identidad historica protegida contra edicion y eliminacion.
+- Correo snapshot obligatorio y copia independiente al correo actual solo cuando sea distinto y este verificado; cuenta eliminada o correo sin verificar no agregan la copia.
+- Trabajo unico `SendOrderTransactionalEmail` posterior al commit, con tres intentos totales y reintentos aproximados al minuto y a los cinco minutos.
+- Estados auditables `queued`, `sending`, `sent` y `failed`, sin permitir que un fallo SMTP revierta el pedido, la reserva ni el inventario.
+- Plantilla transaccional diferenciada para creacion pendiente de pago, cancelacion y vencimiento, con marca configurable y snapshots de items e importes.
+- Integracion en las transiciones reales de confirmacion, cancelacion y vencimiento, incluidos reconciliacion por acceso y scheduler.
+- Pruebas automatizadas de destinatarios, deduplicacion, congelamiento, cuenta eliminada, correo sin verificar, unicidad, inmutabilidad, cola, contenido, reintentos, limite de intentos, rollback e idempotencia de transiciones.
+- Migracion aplicada en la base local y suite completa aprobada con 554 pruebas y 4273 aserciones.
+
+Etapa 6.5 validada:
+- El usuario comprobo el procesamiento mediante worker y el envio SMTP real.
+- El correo de creacion muestra precio unitario, subtotal de productos, descuento cuando corresponde, costo de entrega y total.
+- La etapa queda cerrada; su mejora visual con imagenes CID se traslada expresamente a la Etapa 6.6.
+
+Implementado en la Etapa 6.6:
+- Etapa 6.6: integracion, seguridad, responsive, pruebas y cierre tecnico de la Fase 6.
+- Plantilla Blade responsive y version de texto plano para los correos transaccionales.
+- Filas visuales de productos en el correo de creacion con miniatura CID `96 x 96 px`, nombre, presentacion, cantidad y desglose historico.
+- Precio simple para una unidad; cantidad, precio unitario y subtotal de linea cuando haya mas de una.
+- Miniaturas JPEG optimizadas con maximo de 25 KB, deduplicadas por mensaje, presupuesto total de 300 KB y limitadas a la imagen principal.
+- Importacion controlada de snapshots HTTPS heredados desde hosts configurados, sin redirecciones, con timeout, validacion MIME y cache privada.
+- Placeholder local para hosts no autorizados y snapshots ausentes, inseguros o ilegibles.
+- Filas informativas sin enlaces ni JavaScript, independientes de URLs remotas y de `APP_URL`.
+- Correo MIME real probado con CID inline, JPEG, dimensiones, peso, deduplicacion, texto plano y ausencia de `data:` o enlaces de producto.
+- Auditoria focalizada de `Account`, `Checkout` y `Orders` aprobada con 200 pruebas y 2304 aserciones.
+- Cache de Blade, build de produccion, Pint, migraciones y revision de whitespace aprobados.
+- Suite completa aprobada con 558 pruebas y 4323 aserciones.
+
+Etapa 6.6 validada:
+- El usuario aprobo el formato responsive del correo, el desglose de importes y las miniaturas CID.
+- Se confirmo con datos reales la imagen principal de snapshots locales y URLs heredadas permitidas, conservando el placeholder cuando el producto no tiene imagen.
+- La Etapa 6.6 y la Fase 6 quedan cerradas.
 
 Politica cerrada para la Etapa 6.5:
 - Pedido creado, cancelacion real y vencimiento real generan eventos distintos; reintentos idempotentes, doble clic y nuevas ejecuciones del scheduler no crean otra comunicacion.
@@ -549,7 +580,6 @@ Politica cerrada para la Etapa 6.5:
 - Remitente, nombre comercial, enlaces y contenido usan configuracion vigente y snapshots historicos segun corresponda.
 
 Pendiente:
-- Implementar las Etapas 6.5 y 6.6.
 - Completar la validacion manual integral de la Etapa 6.4 como criterio de cierre del Sprint 7, cuando sus dependencias funcionales esten disponibles.
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
@@ -595,7 +625,7 @@ Pendiente:
 
 ## Bloqueos actuales
 
-- Ninguno para continuar con la Etapa 6.5.
+- Ninguno para continuar con la Fase 7.
 - La validacion manual integral de sus comprobantes queda transferida como criterio obligatorio de cierre del Sprint 7.
 
 ## Resultado esperado
