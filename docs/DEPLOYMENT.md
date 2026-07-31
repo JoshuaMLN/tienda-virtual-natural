@@ -154,10 +154,15 @@ QUEUE_CONNECTION=database
 BROADCAST_CONNECTION=log
 FILESYSTEM_DISK=local
 
-MAIL_MAILER=smtp
+MAIL_MAILER=failover
 MAIL_SCHEME=null
 MAIL_HOST=smtp-relay.brevo.com
 MAIL_PORT=587
+MAIL_FALLBACK_SCHEME=null
+MAIL_FALLBACK_HOST=smtp-relay.sendinblue.com
+MAIL_FALLBACK_PORT=587
+MAIL_TIMEOUT=10
+MAIL_FAILOVER_RETRY_AFTER=300
 MAIL_USERNAME="LOGIN_SMTP_DE_BREVO"
 MAIL_PASSWORD="CLAVE_SMTP_DE_BREVO"
 MAIL_FROM_ADDRESS=no-reply@tu-dominio.com
@@ -274,10 +279,25 @@ curl --fail --silent --show-error https://tienda.example.com/up
 4. Usa el login SMTP como `MAIL_USERNAME`.
 5. Usa la clave SMTP como `MAIL_PASSWORD`. No uses la API key ni la contrasena
    de la cuenta Brevo.
-6. Usa `smtp-relay.brevo.com` y el puerto 587.
+6. Usa `smtp-relay.brevo.com` y el puerto 587 como transporte principal.
 
 Con `MAIL_SCHEME=null`, Symfony Mailer negocia STARTTLS automaticamente en el
 puerto 587 cuando OpenSSL esta disponible. No desactives la verificacion TLS.
+
+El mailer `failover` intenta primero el relay oficial y, ante un fallo de
+conexion o TLS, usa `smtp-relay.sendinblue.com` con las mismas credenciales. Este
+segundo nombre pertenece a la infraestructura heredada de Brevo y se conserva
+como mitigacion operativa porque coincide con los certificados que algunos
+relays regionales presentan actualmente. No sustituye la apertura de un ticket
+con Brevo: adjunta al soporte el hostname solicitado, IP resuelta, fecha, puerto,
+CN y SAN del certificado recibido. Retira o revisa el respaldo cuando Brevo
+confirme la correccion de su relay.
+
+`MAIL_FAILOVER_RETRY_AFTER` evita probar repetidamente un transporte caido
+dentro del mismo proceso. El reintento de la cola sigue siendo la segunda capa
+de resiliencia cuando ambos transportes fallan. Nunca agregues opciones como
+`verify_peer=false`, porque ocultarian una suplantacion real ademas de este
+incidente.
 
 `MAIL_FROM_ADDRESS` debe pertenecer al remitente o dominio verificado. Despues
 de ejecutar `php artisan optimize`, valida manualmente:

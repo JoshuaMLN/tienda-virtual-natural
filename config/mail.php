@@ -54,7 +54,18 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            'timeout' => env('MAIL_TIMEOUT', 10),
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        'smtp_fallback' => [
+            'transport' => 'smtp',
+            'scheme' => env('MAIL_FALLBACK_SCHEME'),
+            'host' => env('MAIL_FALLBACK_HOST', '127.0.0.1'),
+            'port' => env('MAIL_FALLBACK_PORT', 2525),
+            'username' => env('MAIL_USERNAME'),
+            'password' => env('MAIL_PASSWORD'),
+            'timeout' => env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
@@ -92,9 +103,9 @@ return [
             'transport' => 'failover',
             'mailers' => [
                 'smtp',
-                'log',
+                'smtp_fallback',
             ],
-            'retry_after' => 60,
+            'retry_after' => env('MAIL_FAILOVER_RETRY_AFTER', 300),
         ],
 
         'roundrobin' => [
