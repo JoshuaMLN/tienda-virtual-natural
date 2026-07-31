@@ -661,6 +661,29 @@ Resultado tecnico:
 Criterio de salida:
 - El administrador puede operar el ciclo principal sin saltarse estados, alterar pagos ni dejar pedido y entrega inconsistentes.
 
+Resultado tecnico:
+- Nuevo estado de pago `refund_pending`, con transicion obligatoria `paid -> refund_pending -> refunded` y representacion comercial `Reembolso pendiente`.
+- Estado comercial `Pago confirmado` para distinguir un pedido pagado que aun no inicio preparacion.
+- Servicio `AdminOrderOperationService` como unica puerta para iniciar preparacion, despachar, habilitar recojo, completar y cancelar.
+- Flujos separados y validados para entrega a domicilio y recojo, con actualizaciones compuestas dentro de una sola transaccion.
+- Seis rutas `PATCH` explicitas; no existe un endpoint administrativo que acepte estados arbitrarios ni controles para alterar pagos manualmente.
+- Acciones contextuales en el detalle, confirmacion Bootstrap, motivo obligatorio al cancelar, advertencia de reembolso y proteccion frente a doble envio.
+- Cancelacion pendiente que libera reservas activas y cancelacion pagada que repone reservas consumidas exactamente una vez.
+- Toda cancelacion administrativa registra y encola la comunicacion transaccional `Pedido cancelado` despues del commit, sin duplicarla ante reintentos.
+- El motivo visible e inmutable se comparte entre el detalle del cliente y el correo, distingue quien inicio la cancelacion, informa el reembolso cuando aplica y nunca expone la identidad del administrador.
+- Las plantillas tratan los datos de cancelacion como opcionales para que los correos de creacion y vencimiento nunca dependan de ese contexto.
+- Una cancelacion o vencimiento omite correos de creacion aun en cola; si la creacion ya se esta enviando, la comunicacion terminal espera su resultado y solo la conserva cuando realmente fue enviada. Un estado `Enviando` abandonado deja de bloquear despues de dos minutos.
+- El estado auditable `Omitido` distingue una comunicacion reemplazada por un estado terminal de un fallo SMTP, sin consumir intentos ni enviar mensajes historicamente obsoletos.
+- Una vez que Brevo acepta dos mensajes, el orden final en la bandeja ya depende del proveedor y del cliente de correo. Se acepta que una creacion y cancelacion separadas solo por segundos puedan llegar invertidas; la web conserva siempre el estado autoritativo.
+- La pantalla pendiente consulta un endpoint privado cada 10 segundos y al recuperar el foco; detiene el contador y muestra cancelacion, motivo, reembolso o vencimiento sin recargar.
+- Abrir nuevamente la URL pendiente de un pedido ya no pagable conduce a su detalle historico, mientras el endpoint reconcilia vencimientos antes de responder.
+- Trazabilidad de la reposicion mediante movimiento de inventario, fecha, motivo y referencia opcional sin cambiar ni borrar el estado historico consumido.
+- Historial inmutable con administrador, correo snapshot, motivo, estados anterior y nuevo, accion y referencia comun de operacion.
+- Bloqueo pesimista, idempotencia y reintentos acotados ante interbloqueos para evitar transiciones, historiales o reposiciones duplicadas.
+- Factories para pagos con reembolso pendiente o completado y reservas consumidas ya repuestas.
+- Pruebas de dominio, HTTP, permisos, modalidad, transiciones validas e invalidas, rollback, idempotencia y concurrencia real con cuatro procesos.
+- Suite completa aprobada con 598 pruebas y 4642 aserciones.
+
 ### Etapa 7.3: Intentos de entrega y seguimiento de recojo
 
 - Crear historial inmutable de intentos de entrega con ciclo, numero, fecha, resultado, responsable, motivo, atribucion y administrador.

@@ -584,7 +584,7 @@ Pendiente:
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 
-Estado: En progreso (Etapa 7.1 completada)
+Estado: En progreso (Etapas 7.1 y 7.2 completadas)
 
 Reglas cerradas:
 - Acciones contextuales en lugar de edicion libre de estados.
@@ -603,7 +603,7 @@ Reglas cerradas:
 
 Planificado:
 - Etapa 7.1: bandeja, filtros y detalle administrativo de solo lectura. Completada.
-- Etapa 7.2: acciones contextuales, transiciones atomicas, auditoria y `refund_pending`.
+- Etapa 7.2: acciones contextuales, transiciones atomicas, auditoria y `refund_pending`. Completada.
 - Etapa 7.3: intentos y ciclos de entrega, bloqueo por nuevo pago y seguimiento de recojo.
 - Etapa 7.4: correos operativos, recordatorios, scheduler e idempotencia.
 - Etapa 7.5: registro y descarga privada de boleta o factura principal.
@@ -629,8 +629,33 @@ Completado en la Etapa 7.1:
 - Build de produccion, cache de Blade, rutas, formato y revision de whitespace aprobados.
 - Validacion manual aprobada en escritorio y celular, incluyendo estados terminales, historial por flujos y reservas agrupadas.
 
+Completado en la Etapa 7.2:
+- `refund_pending` incorporado al enum, esquema, filtros, badges, estado comercial y linea de tiempo del cliente.
+- Flujo de reembolso restringido a `paid -> refund_pending -> refunded`; el panel no permite cambiar pagos manualmente.
+- Estado comercial `Pago confirmado` mientras el pedido pagado aun espera que un administrador inicie la preparacion.
+- `AdminOrderOperationService` coordina acciones bajo bloqueo pesimista, transaccion, validacion contextual e idempotencia.
+- Domicilio opera `pendiente -> preparando -> enviado -> entregado`; recojo opera `pendiente -> preparando -> listo -> recogido`.
+- Iniciar preparacion y finalizar entrega o recojo actualizan pedido y entrega atomicamente.
+- Cancelacion no pagada libera reservas activas; cancelacion pagada repone el stock consumido y deja el pago en reembolso pendiente.
+- Las cancelaciones administrativas pagadas y no pagadas registran y encolan un correo transaccional idempotente despues del commit.
+- Detalle del cliente y correo muestran el mismo motivo historico, distinguen cancelacion propia o de la tienda, informan el reembolso y ocultan la identidad administrativa.
+- Las plantillas aceptan la ausencia de contexto de cancelacion y la regresion renderiza HTML y texto reales para `Pedido creado`.
+- Cancelacion y vencimiento sustituyen comunicaciones de creacion pendientes con estado auditable `Omitido`; un envio ya iniciado se resuelve antes de liberar la comunicacion terminal y un intento abandonado vence a los dos minutos.
+- Los trabajos omitidos no consumen intentos SMTP ni pueden enviar despues un correo de creacion obsoleto.
+- Limitacion aceptada: si Brevo ya acepto la creacion y la cancelacion con pocos segundos de diferencia, puede entregarlas en otro orden; el estado visible en la cuenta sigue siendo la fuente autoritativa.
+- Estado pendiente sincronizado cada 10 segundos y al volver a la pestana mediante endpoint privado sin cache; cancelacion o vencimiento detienen el contador y reemplazan las acciones.
+- La respuesta terminal incluye solo datos visibles para el cliente y la URL pendiente ya cerrada redirige al detalle del pedido.
+- Cada reposicion queda enlazada a un movimiento de inventario unico, fecha y motivo, sin reescribir el estado historico consumido.
+- Seis endpoints administrativos explicitos, protegidos por autenticacion y rol, con retorno que conserva filtros y pagina.
+- Panel responsive con solo las acciones permitidas, confirmaciones, motivo obligatorio, advertencia para pagos y bloqueo del boton durante el envio.
+- Historial conserva actor, correo, fecha, motivo, valores anterior/nuevo, accion y una referencia compartida para la operacion compuesta.
+- Pruebas focalizadas de dominio y HTTP cubren flujos, permisos, restricciones, rollback, doble ejecucion y reposicion.
+- Prueba multiproceso con cuatro cancelaciones simultaneas confirma una sola reposicion, un solo movimiento y una sola transicion de reembolso.
+- Entorno Artisan de pruebas aislado mediante `.env.testing.example`, con SQLite en memoria, idioma y zona horaria equivalentes al desarrollo.
+- Suite completa aprobada con 598 pruebas y 4642 aserciones.
+
 Pendiente:
-- Implementar y validar las Etapas 7.2 a 7.7 en orden.
+- Implementar y validar las Etapas 7.3 a 7.7 en orden.
 
 ## Fase 8: Integracion, pruebas y cierre
 
