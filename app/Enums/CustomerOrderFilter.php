@@ -16,7 +16,7 @@ enum CustomerOrderFilter: string
         return match ($this) {
             self::All => 'Todos los estados',
             self::Pending => 'Pendientes',
-            self::Preparing => 'En preparacion',
+            self::Preparing => 'Confirmados o en preparacion',
             self::Fulfillment => 'En camino o recojo',
             self::Completed => 'Finalizados',
             self::Closed => 'Cancelados o vencidos',

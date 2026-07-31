@@ -32,6 +32,33 @@
     </div>
 </div>
 
+@if($detail['cancellation'])
+    <section class="customer-order-cancellation-notice mb-4" aria-labelledby="order-cancellation-title">
+        <span class="customer-order-cancellation-icon" aria-hidden="true">
+            <i class="bi bi-x-lg"></i>
+        </span>
+        <div>
+            <h2 class="h6 fw-black mb-1" id="order-cancellation-title">{{ $detail['cancellation']['title'] }}</h2>
+            <p class="mb-1">
+                <span class="fw-bold">Motivo:</span>
+                {{ $detail['cancellation']['reason'] }}
+            </p>
+            @if($detail['cancellation']['refund_message'])
+                <p class="customer-order-cancellation-refund mb-1">
+                    <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>
+                    {{ $detail['cancellation']['refund_message'] }}
+                </p>
+            @endif
+            <time
+                class="customer-order-cancellation-time"
+                datetime="{{ $detail['cancellation']['occurred_at']->toAtomString() }}"
+            >
+                Cancelado el {{ $detail['cancellation']['formatted_date'] }}
+            </time>
+        </div>
+    </section>
+@endif
+
 @if($capabilities->shouldContactSupport)
     <div class="customer-order-support-notice mb-4" role="note">
         <span class="customer-order-support-icon" aria-hidden="true"><i class="bi bi-headset"></i></span>

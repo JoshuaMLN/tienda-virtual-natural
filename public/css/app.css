@@ -2156,6 +2156,40 @@ a {
     padding: 1rem;
 }
 
+.customer-order-cancellation-notice {
+    align-items: flex-start;
+    background: #fff4f2;
+    border: 1px solid #efc4bf;
+    border-radius: 8px;
+    color: #5c2925;
+    display: grid;
+    gap: .85rem;
+    grid-template-columns: 42px minmax(0, 1fr);
+    padding: 1rem;
+}
+
+.customer-order-cancellation-icon {
+    align-items: center;
+    background: #f9d8d4;
+    border-radius: 50%;
+    color: #a12a24;
+    display: inline-flex;
+    font-size: 1rem;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.customer-order-cancellation-refund {
+    color: #7e3b34;
+    font-size: .84rem;
+}
+
+.customer-order-cancellation-time {
+    color: #8a5a55;
+    font-size: .78rem;
+}
+
 .customer-order-support-icon {
     align-items: center;
     background: var(--vn-green-100);
@@ -3631,6 +3665,29 @@ body.admin-sidebar-open {
     grid-template-columns: minmax(0, 1.45fr) minmax(310px, .8fr);
 }
 
+.admin-order-operation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.admin-order-operation-copy,
+.admin-order-operation-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.admin-order-operation-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.admin-order-operation-actions .btn {
+    min-height: 40px;
+}
+
 .admin-order-detail-column {
     display: flex;
     flex-direction: column;
@@ -4109,6 +4166,26 @@ body.admin-sidebar-open {
 }
 
 @media (max-width: 767.98px) {
+    .admin-order-operation {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-order-operation-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-order-operation-actions .btn,
+    .admin-order-action-modal .modal-footer .btn {
+        width: 100%;
+    }
+
+    .admin-order-action-modal .modal-footer {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
     .admin-order-filter-grid > div,
     .admin-order-filter-grid .admin-order-filter-search,
     .admin-order-filter-actions {

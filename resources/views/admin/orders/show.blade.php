@@ -19,6 +19,35 @@
     </div>
 </div>
 
+@if($detail['actions'] !== [])
+    <section class="admin-card admin-order-operation p-3 p-lg-4 mb-4" aria-labelledby="admin-order-operation-title">
+        <div class="admin-order-operation-copy">
+            <span class="admin-order-section-icon" aria-hidden="true">
+                <i class="bi bi-signpost-split"></i>
+            </span>
+            <div>
+                <h2 class="h5 fw-black mb-1" id="admin-order-operation-title">Operacion del pedido</h2>
+                <p class="small text-muted mb-0">
+                    Acciones disponibles para {{ strtolower($order->delivery_method->label()) }} segun el estado actual.
+                </p>
+            </div>
+        </div>
+        <div class="admin-order-operation-actions">
+            @foreach($detail['actions'] as $action)
+                <button
+                    class="btn {{ $action['destructive'] ? 'btn-outline-danger' : 'btn-vn-primary' }}"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#admin-order-action-{{ $action['value'] }}"
+                >
+                    <i class="bi {{ $action['icon'] }}" aria-hidden="true"></i>
+                    {{ $action['label'] }}
+                </button>
+            @endforeach
+        </div>
+    </section>
+@endif
+
 <div class="admin-order-detail-grid">
     <div class="admin-order-detail-column">
         <section class="admin-card p-3 p-lg-4" aria-labelledby="admin-order-products-title">
@@ -175,7 +204,9 @@
                                     @if($reservationSummary['is_mixed'])
                                         <x-admin.status-badge :status="$reservation['status']" />
                                     @endif
-                                    @if($reservation['closed_at'])
+                                    @if($reservation['restocked_at'])
+                                        <span>Repuesto el {{ $reservation['restocked_at'] }}</span>
+                                    @elseif($reservation['closed_at'])
                                         <span>{{ $reservation['closed_at'] }}</span>
                                     @elseif($reservation['expires_at'])
                                         <span>Vence el {{ $reservation['expires_at'] }}</span>
@@ -183,6 +214,9 @@
                                 </div>
                                 @if($reservation['release_reason'])
                                     <p class="mb-0"><strong>Motivo:</strong> {{ $reservation['release_reason'] }}</p>
+                                @endif
+                                @if($reservation['restock_reason'])
+                                    <p class="mb-0"><strong>Motivo de reposicion:</strong> {{ $reservation['restock_reason'] }}</p>
                                 @endif
                             </article>
                         @endforeach
@@ -303,6 +337,9 @@
                             @endif
                             @if($communication['error'])
                                 <p class="small text-danger mb-0"><strong>Error:</strong> {{ $communication['error'] }}</p>
+                            @endif
+                            @if($communication['note'])
+                                <p class="small text-muted mb-0"><strong>Detalle:</strong> {{ $communication['note'] }}</p>
                             @endif
                         </article>
                     @endforeach
@@ -507,4 +544,117 @@
         </section>
     </div>
 </div>
+
+@foreach($detail['actions'] as $action)
+    <div
+        class="modal fade admin-order-action-modal"
+        id="admin-order-action-{{ $action['value'] }}"
+        tabindex="-1"
+        aria-labelledby="admin-order-action-title-{{ $action['value'] }}"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form
+                    action="{{ route($action['route_name'], ['order' => $order->code]) }}"
+                    method="POST"
+                    data-admin-order-action-form
+                >
+                    @csrf
+                    @method('PATCH')
+                    @foreach($backQuery as $key => $value)
+                        @if($value !== null && $value !== '')
+                            <input type="hidden" name="return[{{ $key }}]" value="{{ $value }}">
+                        @endif
+                    @endforeach
+
+                    <div class="modal-header">
+                        <h2 class="modal-title fs-5 fw-black" id="admin-order-action-title-{{ $action['value'] }}">
+                            {{ $action['title'] }}
+                        </h2>
+                        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>{{ $action['message'] }}</p>
+
+                        @if($action['paid_cancellation'])
+                            <div class="alert alert-warning d-flex gap-2" role="alert">
+                                <i class="bi bi-exclamation-triangle flex-shrink-0" aria-hidden="true"></i>
+                                <span>
+                                    El stock sera repuesto y el pago quedara como <strong>Reembolso pendiente</strong>.
+                                    Esto no significa que el dinero ya fue devuelto.
+                                </span>
+                            </div>
+                        @endif
+
+                        @if($action['requires_reason'])
+                            <div>
+                                <label class="form-label fw-bold" for="admin-order-cancel-reason">
+                                    Motivo visible para el cliente <span class="text-danger" aria-hidden="true">*</span>
+                                </label>
+                                <textarea
+                                    class="form-control @error('reason') is-invalid @enderror"
+                                    id="admin-order-cancel-reason"
+                                    name="reason"
+                                    rows="3"
+                                    minlength="5"
+                                    maxlength="255"
+                                    required
+                                >{{ old('reason') }}</textarea>
+                                <div class="form-text">
+                                    Se mostrara en el detalle del pedido y en el correo de cancelacion. No incluyas notas internas.
+                                </div>
+                                @error('reason')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        @endif
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Volver</button>
+                        <button
+                            class="btn {{ $action['destructive'] ? 'btn-danger' : 'btn-vn-primary' }}"
+                            type="submit"
+                        >
+                            <span data-submit-label>
+                                <i class="bi {{ $action['icon'] }}" aria-hidden="true"></i>
+                                {{ $action['label'] }}
+                            </span>
+                            <span class="d-none" data-submit-loading>
+                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                Procesando
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endforeach
+
+<script>
+    window.addEventListener('load', () => {
+        document.querySelectorAll('[data-admin-order-action-form]').forEach((form) => {
+            form.addEventListener('submit', () => {
+                const button = form.querySelector('button[type="submit"]');
+
+                if (!button) {
+                    return;
+                }
+
+                button.disabled = true;
+                button.querySelector('[data-submit-label]')?.classList.add('d-none');
+                button.querySelector('[data-submit-loading]')?.classList.remove('d-none');
+            });
+        });
+
+        @if($errors->has('reason'))
+            const cancelModal = document.getElementById('admin-order-action-cancel');
+
+            if (cancelModal) {
+                bootstrap.Modal.getOrCreateInstance(cancelModal).show();
+            }
+        @endif
+    });
+</script>
 @endsection

@@ -47,6 +47,9 @@ class CustomerOrderStatusResolverTest extends TestCase
                 'payment_status' => PaymentStatus::Failed,
                 'reservation_expires_at' => now()->addMinute(),
             ]),
+            CustomerOrderStatus::PaymentConfirmed->value => $this->order(13, [
+                'payment_status' => PaymentStatus::Paid,
+            ]),
             CustomerOrderStatus::Preparing->value => $this->order(3, [
                 'order_status' => OrderStatus::Processing,
                 'payment_status' => PaymentStatus::Paid,
@@ -83,6 +86,11 @@ class CustomerOrderStatusResolverTest extends TestCase
             CustomerOrderStatus::Refunded->value => $this->order(10, [
                 'order_status' => OrderStatus::Cancelled,
                 'payment_status' => PaymentStatus::Refunded,
+            ]),
+            CustomerOrderStatus::RefundPending->value => $this->order(14, [
+                'order_status' => OrderStatus::Cancelled,
+                'payment_status' => PaymentStatus::RefundPending,
+                'delivery_status' => DeliveryStatus::Cancelled,
             ]),
         ];
 

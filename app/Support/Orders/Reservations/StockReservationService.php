@@ -173,9 +173,14 @@ class StockReservationService
         });
     }
 
-    public function releaseForCancellation(Order $order, ?User $actor = null, string $reason = 'Pedido cancelado'): Order
-    {
-        return DB::transaction(function () use ($order, $actor, $reason): Order {
+    /** @param array<string, mixed> $metadata */
+    public function releaseForCancellation(
+        Order $order,
+        ?User $actor = null,
+        string $reason = 'Pedido cancelado',
+        array $metadata = [],
+    ): Order {
+        return DB::transaction(function () use ($order, $actor, $reason, $metadata): Order {
             $current = Order::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
             $operationReference = $this->operationReference('release', $current);
 
@@ -193,10 +198,82 @@ class StockReservationService
             $current = $current->refresh();
 
             if (in_array($current->delivery_status, [DeliveryStatus::Pending, DeliveryStatus::Preparing, DeliveryStatus::ReadyForPickup], true)) {
-                $current = $this->states->transitionDelivery($current, DeliveryStatus::Cancelled, $actor, $reason);
+                $current = $this->states->transitionDelivery(
+                    $current,
+                    DeliveryStatus::Cancelled,
+                    $actor,
+                    $reason,
+                    $metadata,
+                );
             }
 
-            return $this->states->transitionOrder($current, OrderStatus::Cancelled, $actor, $reason);
+            return $this->states->transitionOrder(
+                $current,
+                OrderStatus::Cancelled,
+                $actor,
+                $reason,
+                $metadata,
+            );
+        });
+    }
+
+    public function restockConsumedForCancellation(
+        Order $order,
+        User $actor,
+        string $reason,
+        string $operationReference,
+    ): void {
+        DB::transaction(function () use ($order, $actor, $reason, $operationReference): void {
+            $lockedOrder = Order::query()
+                ->whereKey($order->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $lockedOrder->stockReservations()
+                ->where('status', ReservationStatus::Consumed->value)
+                ->whereNull('restocked_at')
+                ->orderBy('stock_reservations.id')
+                ->pluck('stock_reservations.id')
+                ->each(function (int $id) use ($actor, $reason, $operationReference): void {
+                    $reservation = $this->lock(StockReservation::query()->findOrFail($id));
+
+                    if ($reservation->restocked_at !== null) {
+                        return;
+                    }
+
+                    $product = $reservation->orderItem->product;
+                    $order = $reservation->orderItem->order;
+                    $movementId = null;
+
+                    if ($product !== null) {
+                        $movement = $this->inventory->increase($product, $reservation->quantity, [
+                            'reason' => 'Reposicion por cancelacion pagada',
+                            'notes' => $reason,
+                            'reference' => $order->code,
+                            'created_by' => $actor->getKey(),
+                        ]);
+                        $movementId = $movement->getKey();
+                    }
+
+                    $reservation->applyStatusMutation([
+                        'restock_inventory_movement_id' => $movementId,
+                        'restocked_at' => now(),
+                        'restock_reason' => $reason,
+                    ]);
+
+                    $this->history->record(
+                        $order,
+                        OrderHistoryDomain::Reservation,
+                        ReservationStatus::Consumed->value,
+                        ReservationStatus::Consumed->value,
+                        $actor,
+                        $reason,
+                        array_merge($this->historyMetadata($reservation, $operationReference), [
+                            'event' => 'restocked',
+                            'inventory_movement_id' => $movementId,
+                        ]),
+                    );
+                });
         });
     }
 

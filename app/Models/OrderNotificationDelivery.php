@@ -31,7 +31,9 @@ class OrderNotificationDelivery extends Model
         'last_attempt_at',
         'sent_at',
         'failed_at',
+        'superseded_at',
         'last_error',
+        'superseded_reason',
     ];
 
     protected static function booted(): void
@@ -74,7 +76,9 @@ class OrderNotificationDelivery extends Model
             'last_attempt_at',
             'sent_at',
             'failed_at',
+            'superseded_at',
             'last_error',
+            'superseded_reason',
         ];
         $unexpected = array_diff(array_keys($attributes), $allowed);
 
@@ -101,6 +105,7 @@ class OrderNotificationDelivery extends Model
             'last_attempt_at' => 'datetime',
             'sent_at' => 'datetime',
             'failed_at' => 'datetime',
+            'superseded_at' => 'datetime',
         ];
     }
 }

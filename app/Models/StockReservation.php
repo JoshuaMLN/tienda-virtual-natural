@@ -20,6 +20,7 @@ class StockReservation extends Model
         'order_item_id',
         'reserve_inventory_movement_id',
         'release_inventory_movement_id',
+        'restock_inventory_movement_id',
         'quantity',
         'status',
         'expires_at',
@@ -27,6 +28,8 @@ class StockReservation extends Model
         'released_at',
         'expired_at',
         'release_reason',
+        'restocked_at',
+        'restock_reason',
     ];
 
     protected static function booted(): void
@@ -52,10 +55,13 @@ class StockReservation extends Model
         $allowed = [
             'status',
             'release_inventory_movement_id',
+            'restock_inventory_movement_id',
             'consumed_at',
             'released_at',
             'expired_at',
             'release_reason',
+            'restocked_at',
+            'restock_reason',
         ];
         $unexpected = array_diff(array_keys($attributes), $allowed);
 
@@ -87,6 +93,11 @@ class StockReservation extends Model
         return $this->belongsTo(InventoryMovement::class, 'release_inventory_movement_id');
     }
 
+    public function restockInventoryMovement(): BelongsTo
+    {
+        return $this->belongsTo(InventoryMovement::class, 'restock_inventory_movement_id');
+    }
+
     protected function casts(): array
     {
         return [
@@ -96,6 +107,7 @@ class StockReservation extends Model
             'consumed_at' => 'datetime',
             'released_at' => 'datetime',
             'expired_at' => 'datetime',
+            'restocked_at' => 'datetime',
         ];
     }
 }

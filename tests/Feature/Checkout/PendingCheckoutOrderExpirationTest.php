@@ -17,6 +17,7 @@ use App\Support\Orders\Reservations\StockReservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -198,6 +199,30 @@ class PendingCheckoutOrderExpirationTest extends TestCase
 
         $this->assertSame(OrderStatus::Expired, $order->refresh()->order_status);
         $this->assertSame(5, $product->refresh()->stock);
+    }
+
+    public function test_status_poll_reconciles_an_expired_reservation_without_page_reload(): void
+    {
+        Queue::fake();
+        [$owner, $order, $product] = $this->pendingOrder(stock: 6, quantity: 2);
+        CarbonImmutable::setTestNow($order->reservation_expires_at);
+
+        $this->actingAs($owner)
+            ->getJson(route('checkout.order.status', $order->code))
+            ->assertOk()
+            ->assertJsonPath('state', 'expired')
+            ->assertJsonPath('terminal', true)
+            ->assertJsonPath('can_continue_payment', false)
+            ->assertJsonPath('title', 'La reserva de este pedido vencio')
+            ->assertJsonPath('detail_url', route('account.orders.show', $order->code));
+
+        $this->assertSame(OrderStatus::Expired, $order->refresh()->order_status);
+        $this->assertSame(PaymentStatus::Expired, $order->payment_status);
+        $this->assertSame(6, $product->refresh()->stock);
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::Expired->value,
+        ]);
     }
 
     public function test_expiration_route_keeps_checkout_security_middlewares(): void

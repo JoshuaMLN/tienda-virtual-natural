@@ -142,6 +142,14 @@ class CustomerOrderTimelineBuilder
                 'neutral',
                 $history,
             ),
+            PaymentStatus::RefundPending->value => $this->event(
+                null,
+                'Reembolso pendiente',
+                'La cancelacion fue registrada y el reembolso esta pendiente de confirmacion.',
+                'bi-arrow-counterclockwise',
+                'warning',
+                $history,
+            ),
             PaymentStatus::Expired->value => $this->event(
                 'expired',
                 'Pedido vencido',

@@ -4,15 +4,17 @@ namespace App\Jobs;
 
 use App\Notifications\OrderTransactionalNotification;
 use App\Support\Orders\Notifications\OrderNotificationDeliveryService;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Foundation\Queue\Queueable as FoundationQueueable;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
 
-class SendOrderTransactionalEmail implements ShouldBeUnique, ShouldQueueAfterCommit
+class SendOrderTransactionalEmail implements ShouldBeUniqueUntilProcessing, ShouldQueueAfterCommit
 {
     use FoundationQueueable;
+
+    private const PREDECESSOR_RECHECK_SECONDS = 35;
 
     public int $tries = 3;
 
@@ -37,6 +39,13 @@ class SendOrderTransactionalEmail implements ShouldBeUnique, ShouldQueueAfterCom
 
     public function handle(OrderNotificationDeliveryService $deliveries): void
     {
+        if ($deliveries->shouldDeferAttempt($this->deliveryId)) {
+            self::dispatch($this->deliveryId)
+                ->delay(now()->addSeconds(self::PREDECESSOR_RECHECK_SECONDS));
+
+            return;
+        }
+
         $delivery = $deliveries->beginAttempt($this->deliveryId);
 
         if ($delivery === null) {

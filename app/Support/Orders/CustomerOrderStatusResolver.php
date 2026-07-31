@@ -25,6 +25,10 @@ class CustomerOrderStatusResolver
             return CustomerOrderStatus::Refunded;
         }
 
+        if ($order->payment_status === PaymentStatus::RefundPending) {
+            return CustomerOrderStatus::RefundPending;
+        }
+
         if ($order->order_status === OrderStatus::Cancelled
             || $order->delivery_status === DeliveryStatus::Cancelled) {
             return CustomerOrderStatus::Cancelled;
@@ -59,9 +63,13 @@ class CustomerOrderStatusResolver
 
     private function resolveBeforeFulfillment(Order $order): CustomerOrderStatus
     {
-        if ($order->payment_status === PaymentStatus::Paid
-            || $order->order_status === OrderStatus::Processing) {
+        if ($order->order_status === OrderStatus::Processing) {
             return CustomerOrderStatus::Preparing;
+        }
+
+        if ($order->payment_status === PaymentStatus::Paid
+            && $order->delivery_status === DeliveryStatus::Pending) {
+            return CustomerOrderStatus::PaymentConfirmed;
         }
 
         if ($order->payment_status === PaymentStatus::Failed) {
@@ -140,6 +148,7 @@ class CustomerOrderStatusResolver
                 OrderStatus::Expired->value,
             ])->orWhereIn('payment_status', [
                 PaymentStatus::Expired->value,
+                PaymentStatus::RefundPending->value,
                 PaymentStatus::Refunded->value,
             ])->orWhere('delivery_status', DeliveryStatus::Cancelled->value)
                 ->orWhere(function (Builder $query) use ($now): void {
@@ -155,7 +164,11 @@ class CustomerOrderStatusResolver
     {
         return $query
             ->whereNotIn('order_status', [OrderStatus::Cancelled->value, OrderStatus::Expired->value])
-            ->whereNotIn('payment_status', [PaymentStatus::Expired->value, PaymentStatus::Refunded->value])
+            ->whereNotIn('payment_status', [
+                PaymentStatus::Expired->value,
+                PaymentStatus::RefundPending->value,
+                PaymentStatus::Refunded->value,
+            ])
             ->where('delivery_status', '!=', DeliveryStatus::Cancelled->value)
             ->where(function (Builder $query) use ($now): void {
                 $query->where('order_status', '!=', OrderStatus::PendingPayment->value)

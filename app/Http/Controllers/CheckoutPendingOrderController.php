@@ -31,7 +31,7 @@ class CheckoutPendingOrderController extends Controller
         }
 
         if (! $this->pendingOrders->isPending($order)) {
-            return redirect()->route('shop.cart');
+            return redirect()->route('account.orders.show', $order->code);
         }
 
         $order->loadMissing('items');

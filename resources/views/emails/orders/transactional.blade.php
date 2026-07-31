@@ -65,6 +65,20 @@
                     </td>
                 </tr>
 
+                @if ($cancellation ?? null)
+                    <tr>
+                        <td class="content-padding" style="padding-top:12px;padding-bottom:4px;">
+                            <div style="padding:14px 16px;background:#fff4f2;border:1px solid #efc4bf;border-radius:6px;color:#5c2925;font-size:14px;line-height:21px;">
+                                <div style="font-weight:700;">{{ $cancellation['title'] }}</div>
+                                <div style="margin-top:5px;"><strong>Motivo:</strong> {{ $cancellation['reason'] }}</div>
+                                @if ($cancellation['refund_message'])
+                                    <div style="margin-top:7px;color:#7e3b34;">{{ $cancellation['refund_message'] }}</div>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @endif
+
                 @if ($has_items)
                     <tr>
                         <td class="content-padding" style="padding-top:16px;">

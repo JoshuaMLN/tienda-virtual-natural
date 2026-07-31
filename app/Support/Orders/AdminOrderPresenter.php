@@ -23,6 +23,7 @@ class AdminOrderPresenter
         private readonly CustomerOrderStatusResolver $statuses,
         private readonly CustomerOrderDateFormatter $dates,
         private readonly CustomerOrderDetailPresenter $customerDetails,
+        private readonly AdminOrderOperationService $operations,
     ) {}
 
     /** @return array<string, mixed> */
@@ -73,6 +74,21 @@ class AdminOrderPresenter
                 'accepted_at' => $this->formatDate($order->terms_accepted_at),
                 'fingerprint' => $order->terms_content_fingerprint,
             ],
+            'actions' => array_map(
+                fn ($action): array => [
+                    'value' => $action->value,
+                    'route_name' => $action->routeName(),
+                    'label' => $action->label(),
+                    'title' => $action->confirmationTitle(),
+                    'message' => $action->confirmationMessage(),
+                    'icon' => $action->icon(),
+                    'destructive' => $action->isDestructive(),
+                    'requires_reason' => $action->requiresReason(),
+                    'paid_cancellation' => $action->isDestructive()
+                        && $order->payment_status === PaymentStatus::Paid,
+                ],
+                $this->operations->availableActions($order),
+            ),
         ]);
     }
 
@@ -118,6 +134,7 @@ class AdminOrderPresenter
     /** @return array<string, mixed> */
     private function reservation(StockReservation $reservation): array
     {
+        $wasRestocked = $reservation->restocked_at !== null;
         $closedAt = match ($reservation->status) {
             ReservationStatus::Consumed => $reservation->consumed_at,
             ReservationStatus::Released => $reservation->released_at,
@@ -129,10 +146,12 @@ class AdminOrderPresenter
             'product' => $reservation->orderItem?->product_name ?? 'Producto historico',
             'sku' => $reservation->orderItem?->product_sku,
             'quantity' => $reservation->quantity,
-            'status' => $reservation->status->label(),
+            'status' => $wasRestocked ? 'Repuesta' : $reservation->status->label(),
             'expires_at' => $this->formatDate($reservation->expires_at),
             'closed_at' => $this->formatDate($closedAt),
             'release_reason' => $reservation->release_reason,
+            'restocked_at' => $this->formatDate($reservation->restocked_at),
+            'restock_reason' => $reservation->restock_reason,
         ];
     }
 
@@ -172,6 +191,7 @@ class AdminOrderPresenter
             ReservationStatus::Consumed->label() => 'El stock se desconto definitivamente al confirmar el pago.',
             ReservationStatus::Released->label() => 'El stock reservado fue devuelto al inventario.',
             ReservationStatus::Expired->label() => 'La reserva vencio y el stock regreso al inventario.',
+            'Repuesta' => 'El stock consumido fue repuesto al cancelar un pedido pagado.',
             default => 'Consulta el detalle de las reservas del pedido.',
         };
     }
@@ -274,11 +294,14 @@ class AdminOrderPresenter
 
         $entry['reservation_items'] = $items->all();
         $entry['reservation_count'] = max($items->count(), count($histories));
-        $entry['reservation_summary'] = $this->reservationOperationSummary(
-            ReservationStatus::tryFrom($histories[0]->to_status),
-            $entry['reservation_count'],
-            $items->sum('quantity'),
-        );
+        $isRestock = data_get($histories[0]->metadata, 'event') === 'restocked';
+        $entry['reservation_summary'] = $isRestock
+            ? $this->restockOperationSummary($entry['reservation_count'], $items->sum('quantity'))
+            : $this->reservationOperationSummary(
+                ReservationStatus::tryFrom($histories[0]->to_status),
+                $entry['reservation_count'],
+                $items->sum('quantity'),
+            );
         $entry['metadata_json'] = $metadata === []
             ? null
             : json_encode(
@@ -287,6 +310,14 @@ class AdminOrderPresenter
             );
 
         return $entry;
+    }
+
+    private function restockOperationSummary(int $products, int $quantity): string
+    {
+        $productLabel = $products === 1 ? '1 producto' : "{$products} productos";
+        $quantityLabel = $quantity === 1 ? '1 unidad' : "{$quantity} unidades";
+
+        return "Se repuso el stock de {$productLabel} ({$quantityLabel}) por la cancelacion pagada.";
     }
 
     private function reservationOperationSummary(
@@ -408,7 +439,9 @@ class AdminOrderPresenter
                 'attempts' => $delivery->attempts,
                 'actor' => null,
                 'error' => $delivery->last_error,
+                'note' => $delivery->superseded_reason,
                 'sort_at' => $delivery->sent_at
+                    ?? $delivery->superseded_at
                     ?? $delivery->last_attempt_at
                     ?? $delivery->queued_at
                     ?? $delivery->created_at,
@@ -424,6 +457,7 @@ class AdminOrderPresenter
                     'attempts' => 1,
                     'actor' => $delivery->attempted_by_name,
                     'error' => $delivery->error_message,
+                    'note' => null,
                     'sort_at' => $delivery->attempted_at ?? $delivery->created_at,
                 ]));
 

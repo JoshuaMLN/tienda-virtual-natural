@@ -265,8 +265,11 @@ class AdminOrderHttpTest extends TestCase
             ->assertSee('F001-00000042')
             ->assertSee('Version aceptada')
             ->assertSee('S/ 126.00')
+            ->assertSee('Operacion del pedido')
+            ->assertSee('Iniciar preparacion')
+            ->assertSee('Cancelar pedido')
+            ->assertSee('Motivo visible para el cliente')
             ->assertDontSee('Marcar como enviado')
-            ->assertDontSee('Cancelar pedido')
             ->assertDontSee('Registrar boleta')
             ->assertDontSee('Enviar comprobante');
     }
@@ -306,6 +309,25 @@ class AdminOrderHttpTest extends TestCase
                 'No realizado',
                 'El pedido se cancelo antes de completar el pago.',
             ]);
+    }
+
+    public function test_admin_detail_explains_a_superseded_order_communication(): void
+    {
+        $order = Order::factory()->create();
+        OrderNotificationDelivery::factory()
+            ->for($order)
+            ->superseded()
+            ->create([
+                'type' => OrderNotificationType::Created,
+                'superseded_reason' => 'El pedido fue cancelado antes de enviar esta comunicacion.',
+            ]);
+
+        $this->get(route('admin.orders.show', $order->code))
+            ->assertOk()
+            ->assertSee('Pedido creado')
+            ->assertSee('Omitido')
+            ->assertSee('El pedido fue cancelado antes de enviar esta comunicacion.')
+            ->assertDontSee('Error: El pedido fue cancelado antes de enviar esta comunicacion.');
     }
 
     public function test_admin_history_visually_identifies_each_technical_domain(): void
@@ -448,5 +470,83 @@ class AdminOrderHttpTest extends TestCase
             ->assertSee($order->code)
             ->assertSee('Cliente Dashboard')
             ->assertDontSee('VN-2024-000123');
+    }
+
+    public function test_admin_sees_only_contextual_order_actions_for_each_fulfillment_mode(): void
+    {
+        $home = Order::factory()->processing()->create([
+            'delivery_status' => DeliveryStatus::Preparing,
+        ]);
+        $pickup = Order::factory()->processing()->pickup()->create([
+            'delivery_status' => DeliveryStatus::Preparing,
+        ]);
+
+        $this->get(route('admin.orders.show', $home->code))
+            ->assertOk()
+            ->assertSee('Marcar como enviado')
+            ->assertSee('Cancelar pedido')
+            ->assertDontSee('Marcar listo para recojo');
+
+        $this->get(route('admin.orders.show', $pickup->code))
+            ->assertOk()
+            ->assertSee('Marcar listo para recojo')
+            ->assertSee('Cancelar pedido')
+            ->assertDontSee('Marcar como enviado');
+    }
+
+    public function test_admin_operation_endpoint_applies_transition_and_preserves_return_filters(): void
+    {
+        $order = Order::factory()->paid()->create();
+
+        $this->patch(route('admin.orders.start-preparation', $order->code), [
+            'return' => [
+                'q' => 'Cliente',
+                'estado_pago' => PaymentStatus::Paid->value,
+                'page' => 2,
+            ],
+        ])
+            ->assertRedirect(route('admin.orders.show', [
+                'order' => $order->code,
+                'q' => 'Cliente',
+                'estado_pago' => PaymentStatus::Paid->value,
+                'page' => 2,
+            ]))
+            ->assertSessionHas('success', 'La preparacion del pedido fue iniciada.');
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::Processing, $order->order_status);
+        $this->assertSame(DeliveryStatus::Preparing, $order->delivery_status);
+    }
+
+    public function test_cancel_endpoint_validates_reason_before_changing_any_state(): void
+    {
+        $order = Order::factory()->create();
+
+        $this->from(route('admin.orders.show', $order->code))
+            ->patch(route('admin.orders.cancel', $order->code), ['reason' => '  '])
+            ->assertRedirect(route('admin.orders.show', $order->code))
+            ->assertSessionHasErrors('reason');
+
+        $this->assertSame(OrderStatus::PendingPayment, $order->refresh()->order_status);
+        $this->get(route('admin.orders.show', $order->code))
+            ->assertOk()
+            ->assertSee('admin-order-action-cancel', false);
+    }
+
+    public function test_order_operation_routes_require_authentication_and_admin_role(): void
+    {
+        $order = Order::factory()->paid()->create();
+        $customer = User::factory()->create();
+
+        auth()->logout();
+
+        $this->patch(route('admin.orders.start-preparation', $order->code))
+            ->assertRedirect(route('admin.login'));
+
+        $this->actingAs($customer)
+            ->patch(route('admin.orders.start-preparation', $order->code))
+            ->assertForbidden();
+
+        $this->assertSame(OrderStatus::PendingPayment, $order->refresh()->order_status);
     }
 }

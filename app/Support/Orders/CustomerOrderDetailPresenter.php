@@ -19,6 +19,7 @@ class CustomerOrderDetailPresenter
     public function __construct(
         private readonly CustomerOrderDateFormatter $dates,
         private readonly CustomerOrderTimelineBuilder $timeline,
+        private readonly OrderCancellationDetailsResolver $cancellations,
         private readonly FiscalIdentityDocumentMasker $identityMasker,
         private readonly CustomerFiscalDocumentPresenter $fiscalDocuments,
     ) {}
@@ -42,6 +43,7 @@ class CustomerOrderDetailPresenter
             'delivery' => $this->delivery($order, $commercialStatus),
             'fiscal' => $this->fiscal($order),
             'fiscal_documents' => $this->fiscalDocuments->present($order),
+            'cancellation' => $this->cancellation($order),
             'timeline' => array_map(
                 fn (CustomerOrderTimelineEvent $event): array => [
                     'event' => $event,
@@ -49,6 +51,25 @@ class CustomerOrderDetailPresenter
                 ],
                 $this->timeline->build($order),
             ),
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function cancellation(Order $order): ?array
+    {
+        $details = $this->cancellations->resolve($order);
+
+        if ($details === null) {
+            return null;
+        }
+
+        return [
+            'initiated_by_customer' => $details->initiatedByCustomer,
+            'title' => $details->title,
+            'reason' => $details->reason,
+            'occurred_at' => $details->occurredAt,
+            'formatted_date' => $this->dates->descriptive($details->occurredAt),
+            'refund_message' => $details->refundMessage,
         ];
     }
 

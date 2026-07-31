@@ -23,7 +23,10 @@ class CustomerOrderCapabilityResolver
         return new CustomerOrderCapabilities(
             canCancel: $isPendingPayment,
             canContinuePayment: $isPendingPayment,
-            shouldContactSupport: $order->payment_status === PaymentStatus::Paid
+            shouldContactSupport: in_array($order->payment_status, [
+                PaymentStatus::Paid,
+                PaymentStatus::RefundPending,
+            ], true)
                 && ! in_array($order->delivery_status, [DeliveryStatus::Delivered, DeliveryStatus::PickedUp], true),
         );
     }

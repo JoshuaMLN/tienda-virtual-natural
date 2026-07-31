@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Checkout;
 
+use App\Enums\AdminOrderAction;
 use App\Enums\DeliveryStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
@@ -12,11 +13,13 @@ use App\Models\Product;
 use App\Models\StockReservation;
 use App\Models\User;
 use App\Support\Cart\CartService;
+use App\Support\Orders\AdminOrderOperationService;
 use App\Support\Orders\OrderPaymentService;
 use App\Support\Orders\Reservations\StockReservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -46,6 +49,8 @@ class CheckoutPendingOrderTest extends TestCase
         $this->actingAs($other)
             ->get(route('checkout.order.pending', $order->code))
             ->assertNotFound();
+        $this->getJson(route('checkout.order.status', $order->code))
+            ->assertNotFound();
 
         $this->actingAs($owner)
             ->get(route('checkout.order.pending', $order->code))
@@ -54,9 +59,52 @@ class CheckoutPendingOrderTest extends TestCase
             ->assertSee('data-reservation-countdown', false)
             ->assertSee('data-server-now="2026-07-21T10:00:00-05:00"', false)
             ->assertSee('data-expiration-url="'.route('checkout.order.expire', $order->code).'"', false)
+            ->assertSee('data-status-url="'.route('checkout.order.status', $order->code).'"', false)
+            ->assertSee('data-pending-terminal', false)
             ->assertSee('1 (3 unidades)')
             ->assertSee(route('checkout.order.cancel', $order->code), false)
             ->assertSee('cancelPendingOrderModal');
+
+        $this->getJson(route('checkout.order.status', $order->code))
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')
+            ->assertJsonPath('state', 'pending')
+            ->assertJsonPath('terminal', false)
+            ->assertJsonPath('can_continue_payment', true)
+            ->assertJsonPath('reservation_expires_at', $order->reservation_expires_at->toAtomString());
+    }
+
+    public function test_status_endpoint_detects_admin_cancellation_and_pending_url_opens_order_detail(): void
+    {
+        Queue::fake();
+        [$owner, $order] = $this->pendingOrder(quantity: 2);
+        $admin = User::factory()->admin()->create([
+            'name' => 'Administrador Privado',
+            'email' => 'admin-privado@example.test',
+        ]);
+        app(AdminOrderOperationService::class)->perform(
+            $order,
+            AdminOrderAction::Cancel,
+            $admin,
+            'El lote reservado presento un problema de calidad',
+        );
+
+        $this->actingAs($owner)
+            ->getJson(route('checkout.order.status', $order->code))
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')
+            ->assertJsonPath('state', 'cancelled')
+            ->assertJsonPath('terminal', true)
+            ->assertJsonPath('can_continue_payment', false)
+            ->assertJsonPath('title', 'Pedido cancelado por la tienda')
+            ->assertJsonPath('message', 'Este pedido ya no puede pagarse.')
+            ->assertJsonPath('reason', 'El lote reservado presento un problema de calidad')
+            ->assertJsonPath('detail_url', route('account.orders.show', $order->code))
+            ->assertJsonMissing(['actor_name' => $admin->name])
+            ->assertJsonMissing(['actor_email' => $admin->email]);
+
+        $this->get(route('checkout.order.pending', $order->code))
+            ->assertRedirect(route('account.orders.show', $order->code));
     }
 
     public function test_cancelling_releases_stock_once_preserves_cart_and_allows_a_new_checkout(): void
@@ -139,10 +187,11 @@ class CheckoutPendingOrderTest extends TestCase
     public function test_pending_routes_keep_customer_verification_and_http_method_protection(): void
     {
         $pendingMiddleware = Route::getRoutes()->getByName('checkout.order.pending')?->gatherMiddleware() ?? [];
+        $statusMiddleware = Route::getRoutes()->getByName('checkout.order.status')?->gatherMiddleware() ?? [];
         $cancelMiddleware = Route::getRoutes()->getByName('checkout.order.cancel')?->gatherMiddleware() ?? [];
         $expirationMiddleware = Route::getRoutes()->getByName('checkout.order.expire')?->gatherMiddleware() ?? [];
 
-        foreach ([$pendingMiddleware, $cancelMiddleware, $expirationMiddleware] as $middleware) {
+        foreach ([$pendingMiddleware, $statusMiddleware, $cancelMiddleware, $expirationMiddleware] as $middleware) {
             $this->assertContains('web', $middleware);
             $this->assertContains('auth', $middleware);
             $this->assertContains('customer', $middleware);
@@ -151,6 +200,7 @@ class CheckoutPendingOrderTest extends TestCase
 
         $route = Route::getRoutes()->getByName('checkout.order.cancel');
         $this->assertSame(['DELETE'], $route?->methods());
+        $this->assertSame(['GET', 'HEAD'], Route::getRoutes()->getByName('checkout.order.status')?->methods());
     }
 
     /** @return array{User, Order, Product, StockReservation} */

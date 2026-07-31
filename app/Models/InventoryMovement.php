@@ -64,4 +64,9 @@ class InventoryMovement extends Model
     {
         return $this->hasMany(StockReservation::class, 'release_inventory_movement_id');
     }
+
+    public function restockedReservations(): HasMany
+    {
+        return $this->hasMany(StockReservation::class, 'restock_inventory_movement_id');
+    }
 }

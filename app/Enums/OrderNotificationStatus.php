@@ -8,6 +8,7 @@ enum OrderNotificationStatus: string
     case Sending = 'sending';
     case Sent = 'sent';
     case Failed = 'failed';
+    case Superseded = 'superseded';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum OrderNotificationStatus: string
             self::Sending => 'Enviando',
             self::Sent => 'Enviado',
             self::Failed => 'Fallido',
+            self::Superseded => 'Omitido',
         };
     }
 }

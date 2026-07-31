@@ -24,7 +24,9 @@ class OrderNotificationDeliveryFactory extends Factory
             'last_attempt_at' => null,
             'sent_at' => null,
             'failed_at' => null,
+            'superseded_at' => null,
             'last_error' => null,
+            'superseded_reason' => null,
         ];
     }
 
@@ -37,6 +39,15 @@ class OrderNotificationDeliveryFactory extends Factory
             'sent_at' => now(),
             'failed_at' => null,
             'last_error' => null,
+        ]);
+    }
+
+    public function superseded(): static
+    {
+        return $this->state(fn (): array => [
+            'status' => OrderNotificationStatus::Superseded,
+            'superseded_at' => now(),
+            'superseded_reason' => 'El pedido cambio de estado antes del envio.',
         ]);
     }
 }

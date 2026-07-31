@@ -906,30 +906,139 @@ document.querySelectorAll('[data-checkout-revalidation-form]').forEach(function 
 document.querySelectorAll('[data-reservation-countdown]').forEach(function (countdown) {
     const value = countdown.querySelector('[data-reservation-countdown-value]');
     const status = countdown.querySelector('[data-reservation-countdown-status]');
+    const pendingPage = countdown.closest('[data-pending-order-state]');
     const expirationUrl = countdown.dataset.expirationUrl || '';
+    const statusUrl = pendingPage?.dataset.statusUrl || '';
+    const pollInterval = Math.max(5000, Number.parseInt(pendingPage?.dataset.pollInterval || '10000', 10) || 10000);
+    const activeSections = pendingPage?.querySelectorAll('[data-pending-active]') || [];
+    const terminal = pendingPage?.querySelector('[data-pending-terminal]');
+    const terminalActions = pendingPage?.querySelector('[data-pending-terminal-actions]');
+    const terminalAlert = pendingPage?.querySelector('[data-pending-terminal-alert]');
+    const terminalReasonWrap = pendingPage?.querySelector('[data-pending-terminal-reason-wrap]');
+    const terminalReason = pendingPage?.querySelector('[data-pending-terminal-reason]');
+    const terminalRefund = pendingPage?.querySelector('[data-pending-terminal-refund]');
+    const terminalDate = pendingPage?.querySelector('[data-pending-terminal-date]');
+    const stateIcon = pendingPage?.querySelector('[data-pending-state-icon]');
+    const stateIconGlyph = pendingPage?.querySelector('[data-pending-state-icon-glyph]');
+    const stateTitle = pendingPage?.querySelector('[data-pending-state-title]');
+    const stateMessage = pendingPage?.querySelector('[data-pending-state-message]');
+    const detailLink = pendingPage?.querySelector('[data-pending-detail-link]');
+    const shopLink = pendingPage?.querySelector('[data-pending-shop-link]');
     let expiresAt = Date.parse(countdown.dataset.expiresAt || '');
     let serverNow = Date.parse(countdown.dataset.serverNow || '');
     let startedAt = Date.now();
     let timer = null;
+    let statusTimer = null;
     let expirationRequested = false;
+    let statusRequestRunning = false;
+    let terminalState = false;
 
     if (!value || !expirationUrl || !Number.isFinite(expiresAt) || !Number.isFinite(serverNow)) return;
 
-    function restart(responseData) {
+    function stopTimers() {
+        if (timer !== null) window.clearInterval(timer);
+        if (statusTimer !== null) window.clearInterval(statusTimer);
+        timer = null;
+        statusTimer = null;
+    }
+
+    function syncClock(responseData) {
         const updatedExpiration = Date.parse(responseData.reservation_expires_at || '');
         const updatedServerNow = Date.parse(responseData.server_now || '');
 
         if (Number.isFinite(updatedExpiration)) expiresAt = updatedExpiration;
         if (Number.isFinite(updatedServerNow)) serverNow = updatedServerNow;
         startedAt = Date.now();
+    }
+
+    function renderTerminalState(responseData) {
+        terminalState = true;
+        stopTimers();
+        activeSections.forEach(function (section) { section.hidden = true; });
+
+        const hasTerminalDetails = Boolean(responseData.reason || responseData.refund_message || responseData.occurred_at);
+
+        if (terminal) terminal.hidden = !hasTerminalDetails;
+        if (terminalActions) terminalActions.hidden = false;
+        if (stateTitle) stateTitle.textContent = responseData.title || 'El pedido ya no esta disponible para pago';
+        if (stateMessage) stateMessage.textContent = responseData.message || 'Revisa el detalle del pedido para conocer su estado.';
+
+        const tone = ['danger', 'success', 'warning'].includes(responseData.tone)
+            ? responseData.tone
+            : 'warning';
+
+        stateIcon?.classList.remove('status-pending', 'status-failed', 'status-success');
+        stateIcon?.classList.add(tone === 'danger' ? 'status-failed' : (tone === 'success' ? 'status-success' : 'status-pending'));
+        if (stateIconGlyph) stateIconGlyph.className = 'bi ' + (responseData.icon || 'bi-info-lg');
+
+        stateTitle?.classList.remove('text-warning', 'text-danger', 'text-success');
+        stateTitle?.classList.add(tone === 'danger' ? 'text-danger' : (tone === 'success' ? 'text-success' : 'text-warning'));
+
+        terminalAlert?.classList.remove('alert-danger', 'alert-success', 'alert-warning');
+        terminalAlert?.classList.add('alert-' + tone);
+
+        if (terminalReasonWrap) terminalReasonWrap.hidden = !responseData.reason;
+        if (terminalReason) terminalReason.textContent = responseData.reason || '';
+        if (terminalRefund) {
+            terminalRefund.hidden = !responseData.refund_message;
+            terminalRefund.textContent = responseData.refund_message || '';
+        }
+        if (terminalDate) {
+            terminalDate.hidden = !responseData.occurred_at;
+            terminalDate.textContent = responseData.occurred_at || '';
+        }
+        if (detailLink && responseData.detail_url) detailLink.href = responseData.detail_url;
+        if (shopLink && responseData.shop_url) shopLink.href = responseData.shop_url;
+
+        const cancelModal = document.getElementById('cancelPendingOrderModal');
+        if (cancelModal) window.bootstrap?.Modal.getOrCreateInstance(cancelModal)?.hide();
+    }
+
+    async function checkOrderStatus() {
+        if (!statusUrl || statusRequestRunning || terminalState || document.visibilityState === 'hidden') return;
+
+        statusRequestRunning = true;
+
+        try {
+            const response = await fetch(statusUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (!response.ok) throw new Error('No se pudo consultar el estado del pedido.');
+
+            const responseData = await response.json();
+
+            if (responseData.terminal || !responseData.can_continue_payment) {
+                renderTerminalState(responseData);
+                return;
+            }
+
+            syncClock(responseData);
+            render();
+        } catch (error) {
+            // El contador local continua; la siguiente consulta volvera a validar el estado real.
+        } finally {
+            statusRequestRunning = false;
+        }
+    }
+
+    function restart(responseData) {
+        syncClock(responseData);
         expirationRequested = false;
         countdown.classList.remove('is-expired');
+        if (timer !== null) window.clearInterval(timer);
         timer = window.setInterval(render, 1000);
         render();
     }
 
     async function requestExpiration() {
-        if (expirationRequested) return;
+        if (expirationRequested || terminalState) return;
 
         expirationRequested = true;
         if (timer !== null) window.clearInterval(timer);
@@ -985,6 +1094,14 @@ document.querySelectorAll('[data-reservation-countdown]').forEach(function (coun
 
     render();
     if (!expirationRequested) timer = window.setInterval(render, 1000);
+    if (statusUrl) {
+        statusTimer = window.setInterval(checkOrderStatus, pollInterval);
+        checkOrderStatus();
+        window.addEventListener('focus', checkOrderStatus);
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') checkOrderStatus();
+        });
+    }
 });
 
 document.querySelectorAll('[data-checkout-page]').forEach(function (page) {

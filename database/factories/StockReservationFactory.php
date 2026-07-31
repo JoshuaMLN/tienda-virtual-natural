@@ -35,4 +35,12 @@ class StockReservationFactory extends Factory
             'consumed_at' => now(),
         ]);
     }
+
+    public function restocked(): static
+    {
+        return $this->consumed()->state(fn (): array => [
+            'restocked_at' => now(),
+            'restock_reason' => 'Cancelacion pagada',
+        ]);
+    }
 }

@@ -13,6 +13,12 @@ use Throwable;
 
 class OrderNotificationDeliveryService
 {
+    private const STALE_SENDING_AFTER_SECONDS = 120;
+
+    private const SUPERSEDED_BY_CANCELLATION = 'El pedido fue cancelado antes de enviar esta comunicacion.';
+
+    private const SUPERSEDED_BY_EXPIRATION = 'La reserva vencio antes de enviar esta comunicacion.';
+
     public function __construct(
         private readonly OrderNotificationRecipientResolver $recipients,
     ) {}
@@ -36,6 +42,8 @@ class OrderNotificationDeliveryService
                 ->get();
 
             if ($existing->isNotEmpty()) {
+                $this->supersedeObsoleteCreatedDeliveries($lockedOrder->getKey(), $type);
+
                 return $existing;
             }
 
@@ -53,10 +61,51 @@ class OrderNotificationDeliveryService
                 ]);
 
                 $deliveries->push($delivery);
+            }
+
+            $this->supersedeObsoleteCreatedDeliveries($lockedOrder->getKey(), $type);
+
+            foreach ($deliveries as $delivery) {
                 $this->dispatchAfterCommit((int) $delivery->getKey());
             }
 
             return $deliveries;
+        }, 5);
+    }
+
+    public function shouldDeferAttempt(int $deliveryId): bool
+    {
+        return DB::transaction(function () use ($deliveryId): bool {
+            $delivery = OrderNotificationDelivery::query()
+                ->whereKey($deliveryId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($delivery === null
+                || ! in_array($delivery->type, [
+                    OrderNotificationType::Cancelled,
+                    OrderNotificationType::Expired,
+                ], true)
+                || in_array($delivery->status, [
+                    OrderNotificationStatus::Sent,
+                    OrderNotificationStatus::Failed,
+                    OrderNotificationStatus::Superseded,
+                ], true)) {
+                return false;
+            }
+
+            $createdDeliveries = OrderNotificationDelivery::query()
+                ->where('order_id', $delivery->order_id)
+                ->where('type', OrderNotificationType::Created->value)
+                ->lockForUpdate()
+                ->get();
+
+            $this->supersedeQueued($createdDeliveries, $delivery->type);
+            $this->supersedeStaleSending($createdDeliveries, $delivery->type);
+
+            return $createdDeliveries->contains(
+                fn (OrderNotificationDelivery $created): bool => $created->status === OrderNotificationStatus::Sending,
+            );
         }, 5);
     }
 
@@ -72,6 +121,7 @@ class OrderNotificationDeliveryService
                 || in_array($delivery->status, [
                     OrderNotificationStatus::Sent,
                     OrderNotificationStatus::Failed,
+                    OrderNotificationStatus::Superseded,
                 ], true)) {
                 return null;
             }
@@ -94,7 +144,7 @@ class OrderNotificationDeliveryService
                 'last_error' => null,
             ]);
 
-            return $delivery->load('order.items');
+            return $delivery->load('order.items', 'order.statusHistories');
         }, 5);
     }
 
@@ -134,7 +184,10 @@ class OrderNotificationDeliveryService
                 ->lockForUpdate()
                 ->first();
 
-            if ($delivery === null || $delivery->status === OrderNotificationStatus::Sent) {
+            if ($delivery === null || in_array($delivery->status, [
+                OrderNotificationStatus::Sent,
+                OrderNotificationStatus::Superseded,
+            ], true)) {
                 return;
             }
 
@@ -162,5 +215,78 @@ class OrderNotificationDeliveryService
     private function errorMessage(Throwable $exception): string
     {
         return mb_substr($exception->getMessage(), 0, 5_000);
+    }
+
+    private function supersedeObsoleteCreatedDeliveries(
+        int $orderId,
+        OrderNotificationType $terminalType,
+    ): void {
+        if (! in_array($terminalType, [
+            OrderNotificationType::Cancelled,
+            OrderNotificationType::Expired,
+        ], true)) {
+            return;
+        }
+
+        $createdDeliveries = OrderNotificationDelivery::query()
+            ->where('order_id', $orderId)
+            ->where('type', OrderNotificationType::Created->value)
+            ->lockForUpdate()
+            ->get();
+
+        $this->supersedeQueued($createdDeliveries, $terminalType);
+    }
+
+    /** @param Collection<int, OrderNotificationDelivery> $createdDeliveries */
+    private function supersedeQueued(
+        Collection $createdDeliveries,
+        OrderNotificationType $terminalType,
+    ): void {
+        $reason = $this->supersededReason($terminalType);
+
+        foreach ($createdDeliveries as $created) {
+            if ($created->status !== OrderNotificationStatus::Queued) {
+                continue;
+            }
+
+            $created->applyDeliveryMutation([
+                'status' => OrderNotificationStatus::Superseded,
+                'superseded_at' => now(),
+                'superseded_reason' => $reason,
+                'failed_at' => null,
+                'last_error' => null,
+            ]);
+        }
+    }
+
+    /** @param Collection<int, OrderNotificationDelivery> $createdDeliveries */
+    private function supersedeStaleSending(
+        Collection $createdDeliveries,
+        OrderNotificationType $terminalType,
+    ): void {
+        foreach ($createdDeliveries as $created) {
+            if ($created->status !== OrderNotificationStatus::Sending
+                || ($created->last_attempt_at !== null
+                    && $created->last_attempt_at->isAfter(
+                        now()->subSeconds(self::STALE_SENDING_AFTER_SECONDS),
+                    ))) {
+                continue;
+            }
+
+            $created->applyDeliveryMutation([
+                'status' => OrderNotificationStatus::Superseded,
+                'superseded_at' => now(),
+                'superseded_reason' => $this->supersededReason($terminalType),
+                'failed_at' => null,
+                'last_error' => null,
+            ]);
+        }
+    }
+
+    private function supersededReason(OrderNotificationType $terminalType): string
+    {
+        return $terminalType === OrderNotificationType::Cancelled
+            ? self::SUPERSEDED_BY_CANCELLATION
+            : self::SUPERSEDED_BY_EXPIRATION;
     }
 }

@@ -449,8 +449,50 @@ class CustomerOrderDetailHttpTest extends TestCase
 
         $cancelledResponse->assertOk();
         $expiredResponse->assertOk();
+        $cancelledResponse
+            ->assertSee('Pedido cancelado por la tienda')
+            ->assertSee('No se registro un motivo para esta cancelacion.');
         $this->assertSame(['Pedido creado', 'Pedido cancelado'], $this->timelineTitles($cancelledResponse));
         $this->assertSame(['Pedido creado', 'Pedido vencido'], $this->timelineTitles($expiredResponse));
+    }
+
+    public function test_admin_cancellation_displays_customer_visible_reason_without_actor_identity(): void
+    {
+        $customer = User::factory()->create();
+        $admin = User::factory()->admin()->create([
+            'name' => 'Operacion Interna Secreta',
+            'email' => 'admin-interno@example.test',
+        ]);
+        $order = $this->order($customer, 16, [
+            'order_status' => OrderStatus::Cancelled,
+            'payment_status' => PaymentStatus::RefundPending,
+            'delivery_status' => DeliveryStatus::Cancelled,
+            'cancelled_at' => now()->addMinutes(5),
+        ]);
+        $this->history(
+            $order,
+            OrderHistoryDomain::Order,
+            OrderStatus::Processing->value,
+            OrderStatus::Cancelled->value,
+            5,
+            [
+                'actor_id' => $admin->id,
+                'actor_name' => $admin->name,
+                'actor_email' => $admin->email,
+                'reason' => 'El producto presento un problema de calidad',
+                'metadata' => ['source' => 'admin'],
+            ],
+        );
+
+        $this->actingAs($customer)
+            ->get(route('account.orders.show', $order->code))
+            ->assertOk()
+            ->assertSee('Pedido cancelado por la tienda')
+            ->assertSee('El producto presento un problema de calidad')
+            ->assertSee('El reembolso al medio de pago original esta pendiente de confirmacion.')
+            ->assertSee('Cancelado el 22 de julio de 2026 a las 10:05 a. m.')
+            ->assertDontSee($admin->name)
+            ->assertDontSee($admin->email);
     }
 
     public function test_foreign_detail_returns_404_and_own_detail_contains_responsive_markers(): void

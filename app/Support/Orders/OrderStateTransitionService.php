@@ -26,8 +26,9 @@ class OrderStateTransitionService
     private const PAYMENT_TRANSITIONS = [
         'pending' => ['paid', 'failed', 'expired'],
         'failed' => ['pending', 'paid', 'expired'],
-        'paid' => ['refunded'],
+        'paid' => ['refund_pending'],
         'expired' => [],
+        'refund_pending' => ['refunded'],
         'refunded' => [],
     ];
 
@@ -137,7 +138,12 @@ class OrderStateTransitionService
             $current = $locked->payment_status;
 
             if ($current === $target) {
-                if (in_array($target, [PaymentStatus::Paid, PaymentStatus::Expired, PaymentStatus::Refunded], true)) {
+                if (in_array($target, [
+                    PaymentStatus::Paid,
+                    PaymentStatus::Expired,
+                    PaymentStatus::RefundPending,
+                    PaymentStatus::Refunded,
+                ], true)) {
                     $locked->releasePendingPaymentSlot();
                 }
 
@@ -180,7 +186,12 @@ class OrderStateTransitionService
                 $attributes['delivery_estimated_to'] = $estimatedDates->to;
             }
 
-            if (in_array($target, [PaymentStatus::Paid, PaymentStatus::Expired, PaymentStatus::Refunded], true)) {
+            if (in_array($target, [
+                PaymentStatus::Paid,
+                PaymentStatus::Expired,
+                PaymentStatus::RefundPending,
+                PaymentStatus::Refunded,
+            ], true)) {
                 $attributes['pending_payment_owner_id'] = null;
             }
 

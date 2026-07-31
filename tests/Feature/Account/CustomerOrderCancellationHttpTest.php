@@ -178,6 +178,8 @@ class CustomerOrderCancellationHttpTest extends TestCase
         $this->get(route('account.orders.show', $order->code))
             ->assertOk()
             ->assertSee('Pedido cancelado')
+            ->assertSee('Cancelaste este pedido')
+            ->assertSee('Cancelado por el cliente')
             ->assertDontSee(route('account.orders.cancel', $order->code), false);
 
         $movementCount = $product->inventoryMovements()->count();

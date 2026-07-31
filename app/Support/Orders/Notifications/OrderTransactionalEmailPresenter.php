@@ -3,11 +3,13 @@
 namespace App\Support\Orders\Notifications;
 
 use App\Enums\OrderNotificationType;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderNotificationDelivery;
 use App\Support\Money\Money;
 use App\Support\Orders\CustomerOrderDateFormatter;
+use App\Support\Orders\OrderCancellationDetailsResolver;
 
 class OrderTransactionalEmailPresenter
 {
@@ -16,6 +18,7 @@ class OrderTransactionalEmailPresenter
     public function __construct(
         private readonly OrderEmailThumbnailService $thumbnails,
         private readonly CustomerOrderDateFormatter $dates,
+        private readonly OrderCancellationDetailsResolver $cancellations,
     ) {}
 
     /** @return array<string, mixed> */
@@ -23,6 +26,9 @@ class OrderTransactionalEmailPresenter
     {
         $order = $delivery->order;
         $event = $this->event($delivery->type, $order);
+        $cancellation = $delivery->type === OrderNotificationType::Cancelled
+            ? $this->cancellations->resolve($order)
+            : null;
         $items = [];
         $embeddedImages = [];
         $embeddedBytes = 0;
@@ -78,6 +84,13 @@ class OrderTransactionalEmailPresenter
                 && $order->reservation_expires_at !== null
                     ? $this->dates->descriptive($order->reservation_expires_at)
                     : null,
+            'cancellation' => $cancellation === null
+                ? null
+                : [
+                    'title' => $cancellation->title,
+                    'reason' => $cancellation->reason,
+                    'refund_message' => $cancellation->refundMessage,
+                ],
             'action_label' => $event['action_label'],
             'action_url' => $order->user_id !== null
                 ? route('account.orders.show', $order->code)
@@ -121,7 +134,12 @@ class OrderTransactionalEmailPresenter
                 'summary' => "Tu pedido {$order->code} fue cancelado.",
                 'status_label' => 'Cancelado',
                 'status_tone' => 'cancelled',
-                'notice' => 'La reserva de stock fue liberada y el pedido ya no puede pagarse.',
+                'notice' => in_array($order->payment_status, [
+                    PaymentStatus::RefundPending,
+                    PaymentStatus::Refunded,
+                ], true)
+                    ? 'El pedido ya no continuara con la entrega.'
+                    : 'La reserva de stock fue liberada y el pedido ya no puede pagarse.',
                 'action_label' => 'Ver pedido',
             ],
             OrderNotificationType::Expired => [

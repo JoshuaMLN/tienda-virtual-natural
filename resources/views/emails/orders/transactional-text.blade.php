@@ -5,6 +5,14 @@ Hola {{ $recipient_name }},
 
 {{ $summary }}
 
+@if ($cancellation ?? null)
+{{ mb_strtoupper($cancellation['title']) }}
+Motivo: {{ $cancellation['reason'] }}
+@if ($cancellation['refund_message'])
+{{ $cancellation['refund_message'] }}
+@endif
+
+@endif
 @if ($has_items)
 PRODUCTOS INCLUIDOS
 @foreach ($items as $item)

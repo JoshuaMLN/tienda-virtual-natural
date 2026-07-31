@@ -110,6 +110,23 @@ class OrderFactory extends Factory
         ]);
     }
 
+    public function refundPending(): static
+    {
+        return $this->paid()->state(fn (): array => [
+            'order_status' => OrderStatus::Cancelled,
+            'payment_status' => PaymentStatus::RefundPending,
+            'delivery_status' => DeliveryStatus::Cancelled,
+            'cancelled_at' => now(),
+        ]);
+    }
+
+    public function refunded(): static
+    {
+        return $this->refundPending()->state(fn (): array => [
+            'payment_status' => PaymentStatus::Refunded,
+        ]);
+    }
+
     public function pickup(): static
     {
         return $this->state(fn (): array => [

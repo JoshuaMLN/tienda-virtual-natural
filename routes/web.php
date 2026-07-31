@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\LegalSettingsController as AdminLegalSettingsCont
 use App\Http\Controllers\Admin\NonWorkingDayController as AdminNonWorkingDayController;
 use App\Http\Controllers\Admin\OperationalSettingsController as AdminOperationalSettingsController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\OrderOperationController as AdminOrderOperationController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductSettingsController as AdminProductSettingsController;
 use App\Http\Controllers\Admin\StockController as AdminStockController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\CheckoutFiscalController;
 use App\Http\Controllers\CheckoutPendingOrderCancellationController;
 use App\Http\Controllers\CheckoutPendingOrderController;
 use App\Http\Controllers\CheckoutPendingOrderExpirationController;
+use App\Http\Controllers\CheckoutPendingOrderStatusController;
 use App\Http\Controllers\CheckoutRevalidationController;
 use App\Http\Controllers\CheckoutReviewController;
 use App\Http\Controllers\HomeController;
@@ -82,6 +84,8 @@ Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'customer'])->
             ->name('confirm');
         Route::get('/pedidos/{order:code}/pendiente', CheckoutPendingOrderController::class)
             ->name('order.pending');
+        Route::get('/pedidos/{order:code}/estado', CheckoutPendingOrderStatusController::class)
+            ->name('order.status');
         Route::delete('/pedidos/{order:code}/cancelar', CheckoutPendingOrderCancellationController::class)
             ->name('order.cancel');
         Route::post('/pedidos/{order:code}/vencimiento', CheckoutPendingOrderExpirationController::class)
@@ -249,6 +253,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/pedidos', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::get('/pedidos/{order:code}', [AdminOrderController::class, 'show'])->name('orders.show');
+        Route::patch('/pedidos/{order:code}/iniciar-preparacion', [AdminOrderOperationController::class, 'startPreparation'])
+            ->name('orders.start-preparation');
+        Route::patch('/pedidos/{order:code}/marcar-enviado', [AdminOrderOperationController::class, 'markShipped'])
+            ->name('orders.mark-shipped');
+        Route::patch('/pedidos/{order:code}/marcar-listo-recojo', [AdminOrderOperationController::class, 'markReadyForPickup'])
+            ->name('orders.mark-ready-pickup');
+        Route::patch('/pedidos/{order:code}/confirmar-entrega', [AdminOrderOperationController::class, 'confirmDelivery'])
+            ->name('orders.confirm-delivery');
+        Route::patch('/pedidos/{order:code}/confirmar-recojo', [AdminOrderOperationController::class, 'confirmPickup'])
+            ->name('orders.confirm-pickup');
+        Route::patch('/pedidos/{order:code}/cancelar', [AdminOrderOperationController::class, 'cancel'])
+            ->name('orders.cancel');
         Route::view('/pagos', 'admin.payments.index')->name('payments.index');
         Route::get('/stock', [AdminStockController::class, 'index'])->name('stock.index');
         Route::patch('/stock/{product}/alerta', [AdminStockController::class, 'updateThreshold'])->name('stock.threshold.update');

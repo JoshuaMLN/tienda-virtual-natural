@@ -192,6 +192,12 @@ archivo `.env.example` documenta solamente nombres y valores de ejemplo seguros.
 
 ## Pruebas
 
+Los comandos Artisan con `--env=testing` cargan `.env.testing`, no las
+variables de `phpunit.xml`. Antes de usarlos, crea el archivo local desde
+`.env.testing.example`; esta plantilla usa SQLite en memoria y evita operar
+sobre la base de desarrollo. No ejecutes `migrate:fresh` contra una base con
+datos que necesites conservar.
+
 ```bash
 composer test
 npm run build

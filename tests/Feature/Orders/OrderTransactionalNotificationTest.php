@@ -2,12 +2,17 @@
 
 namespace Tests\Feature\Orders;
 
+use App\Enums\DeliveryStatus;
+use App\Enums\OrderHistoryDomain;
 use App\Enums\OrderNotificationStatus;
 use App\Enums\OrderNotificationType;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Jobs\SendOrderTransactionalEmail;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderNotificationDelivery;
+use App\Models\OrderStatusHistory;
 use App\Models\User;
 use App\Notifications\OrderTransactionalNotification;
 use App\Support\Orders\CustomerOrderDateFormatter;
@@ -15,8 +20,10 @@ use App\Support\Orders\Notifications\OrderEmailThumbnail;
 use App\Support\Orders\Notifications\OrderEmailThumbnailService;
 use App\Support\Orders\Notifications\OrderNotificationDeliveryService;
 use App\Support\Orders\Notifications\OrderTransactionalEmailPresenter;
+use App\Support\Orders\OrderCancellationDetailsResolver;
 use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -127,6 +134,135 @@ class OrderTransactionalNotificationTest extends TestCase
         Queue::assertPushed(SendOrderTransactionalEmail::class, 1);
     }
 
+    public function test_terminal_event_supersedes_a_queued_creation_before_sending(): void
+    {
+        Queue::fake();
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'cliente@example.test']);
+        $order = Order::factory()->for($user)->create([
+            'customer_email' => 'cliente@example.test',
+        ]);
+        $service = app(OrderNotificationDeliveryService::class);
+        $created = $service->record($order, OrderNotificationType::Created)->sole();
+
+        $service->record($order, OrderNotificationType::Cancelled);
+
+        $created->refresh();
+        $this->assertSame(OrderNotificationStatus::Superseded, $created->status);
+        $this->assertNotNull($created->superseded_at);
+        $this->assertSame(
+            'El pedido fue cancelado antes de enviar esta comunicacion.',
+            $created->superseded_reason,
+        );
+        $this->assertNull($created->last_error);
+
+        (new SendOrderTransactionalEmail($created->id))->handle($service);
+
+        $this->assertSame(0, $created->refresh()->attempts);
+        Notification::assertNothingSent();
+    }
+
+    public function test_sent_creation_is_preserved_when_a_terminal_event_is_recorded(): void
+    {
+        Queue::fake();
+        $order = Order::factory()->create();
+        $created = OrderNotificationDelivery::factory()
+            ->for($order)
+            ->sent()
+            ->create(['type' => OrderNotificationType::Created]);
+
+        app(OrderNotificationDeliveryService::class)->record(
+            $order,
+            OrderNotificationType::Cancelled,
+        );
+
+        $this->assertSame(OrderNotificationStatus::Sent, $created->refresh()->status);
+        $this->assertNull($created->superseded_at);
+        $this->assertNull($created->superseded_reason);
+    }
+
+    public function test_expiration_supersedes_a_queued_creation_with_its_own_reason(): void
+    {
+        Queue::fake();
+        $order = Order::factory()->create();
+        $created = OrderNotificationDelivery::factory()
+            ->for($order)
+            ->create(['type' => OrderNotificationType::Created]);
+
+        app(OrderNotificationDeliveryService::class)->record(
+            $order,
+            OrderNotificationType::Expired,
+        );
+
+        $this->assertSame(OrderNotificationStatus::Superseded, $created->refresh()->status);
+        $this->assertSame(
+            'La reserva vencio antes de enviar esta comunicacion.',
+            $created->superseded_reason,
+        );
+    }
+
+    public function test_cancellation_waits_for_a_sending_creation_then_supersedes_its_retry(): void
+    {
+        Queue::fake();
+        Notification::fake();
+        $order = Order::factory()->create();
+        $created = OrderNotificationDelivery::factory()->for($order)->create([
+            'type' => OrderNotificationType::Created,
+            'status' => OrderNotificationStatus::Sending,
+            'attempts' => 1,
+            'last_attempt_at' => now(),
+        ]);
+        $cancelled = OrderNotificationDelivery::factory()->for($order)->create([
+            'type' => OrderNotificationType::Cancelled,
+            'recipient_email' => 'cancelacion@example.test',
+        ]);
+        $service = app(OrderNotificationDeliveryService::class);
+        $job = new SendOrderTransactionalEmail($cancelled->id);
+
+        $job->handle($service);
+
+        $this->assertSame(OrderNotificationStatus::Queued, $cancelled->refresh()->status);
+        $this->assertSame(0, $cancelled->attempts);
+        Queue::assertPushed(
+            SendOrderTransactionalEmail::class,
+            fn (SendOrderTransactionalEmail $redispatched): bool => $redispatched->deliveryId === $cancelled->id
+                && $redispatched->delay !== null,
+        );
+        Notification::assertNothingSent();
+
+        $service->markRetryableFailure($created->id, new RuntimeException('SMTP temporal'));
+        $job->handle($service);
+
+        $this->assertSame(OrderNotificationStatus::Superseded, $created->refresh()->status);
+        $this->assertSame(OrderNotificationStatus::Sent, $cancelled->refresh()->status);
+        $this->assertSame(1, $cancelled->attempts);
+        Notification::assertSentOnDemand(OrderTransactionalNotification::class);
+    }
+
+    public function test_stale_sending_creation_does_not_block_cancellation_indefinitely(): void
+    {
+        Queue::fake();
+        Notification::fake();
+        $order = Order::factory()->create();
+        $created = OrderNotificationDelivery::factory()->for($order)->create([
+            'type' => OrderNotificationType::Created,
+            'status' => OrderNotificationStatus::Sending,
+            'attempts' => 1,
+            'last_attempt_at' => now()->subMinutes(3),
+        ]);
+        $cancelled = OrderNotificationDelivery::factory()->for($order)->create([
+            'type' => OrderNotificationType::Cancelled,
+        ]);
+        $service = app(OrderNotificationDeliveryService::class);
+
+        (new SendOrderTransactionalEmail($cancelled->id))->handle($service);
+
+        $this->assertSame(OrderNotificationStatus::Superseded, $created->refresh()->status);
+        $this->assertSame(OrderNotificationStatus::Sent, $cancelled->refresh()->status);
+        Queue::assertNothingPushed();
+        Notification::assertSentOnDemand(OrderTransactionalNotification::class);
+    }
+
     public function test_database_guarantees_uniqueness_and_delivery_identity_is_immutable(): void
     {
         $delivery = OrderNotificationDelivery::factory()->create([
@@ -165,6 +301,7 @@ class OrderTransactionalNotificationTest extends TestCase
 
         $this->assertInstanceOf(ShouldQueueAfterCommit::class, $job);
         $this->assertInstanceOf(ShouldBeUnique::class, $job);
+        $this->assertInstanceOf(ShouldBeUniqueUntilProcessing::class, $job);
         $this->assertSame(3, $job->tries);
         $this->assertSame([60, 300], $job->backoff());
         $this->assertSame((string) $delivery->id, $job->uniqueId());
@@ -333,6 +470,49 @@ class OrderTransactionalNotificationTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_cancelled_email_exposes_reason_and_refund_without_admin_identity(): void
+    {
+        $customer = User::factory()->create();
+        $admin = User::factory()->admin()->create([
+            'name' => 'Administrador Interno',
+            'email' => 'interno@example.test',
+        ]);
+        $order = Order::factory()->for($customer)->create([
+            'order_status' => OrderStatus::Cancelled,
+            'payment_status' => PaymentStatus::RefundPending,
+            'delivery_status' => DeliveryStatus::Cancelled,
+            'cancelled_at' => now(),
+        ]);
+        OrderStatusHistory::factory()->for($order)->create([
+            'domain' => OrderHistoryDomain::Order,
+            'from_status' => OrderStatus::Processing->value,
+            'to_status' => OrderStatus::Cancelled->value,
+            'actor_id' => $admin->id,
+            'actor_name' => $admin->name,
+            'actor_email' => $admin->email,
+            'reason' => 'El producto no supero el control de calidad',
+            'metadata' => ['source' => 'admin'],
+        ]);
+        $delivery = OrderNotificationDelivery::factory()->for($order)->create([
+            'type' => OrderNotificationType::Cancelled,
+        ]);
+
+        $mail = (new OrderTransactionalNotification($delivery))
+            ->toMail(new AnonymousNotifiable);
+        $text = view('emails.orders.transactional-text', $mail->viewData)->render();
+        $serializedData = json_encode($mail->viewData, JSON_THROW_ON_ERROR);
+
+        $this->assertSame('Pedido cancelado por la tienda', $mail->viewData['cancellation']['title']);
+        $this->assertSame('El producto no supero el control de calidad', $mail->viewData['cancellation']['reason']);
+        $this->assertSame(
+            'El reembolso al medio de pago original esta pendiente de confirmacion.',
+            $mail->viewData['cancellation']['refund_message'],
+        );
+        $this->assertStringContainsString('Motivo: El producto no supero el control de calidad', $text);
+        $this->assertStringNotContainsString($admin->name, $serializedData);
+        $this->assertStringNotContainsString($admin->email, $serializedData);
+    }
+
     public function test_trusted_remote_image_is_embedded_and_cached_without_a_second_download(): void
     {
         Storage::fake('local');
@@ -413,6 +593,23 @@ class OrderTransactionalNotificationTest extends TestCase
         );
     }
 
+    public function test_created_email_templates_tolerate_absent_cancellation_data(): void
+    {
+        $delivery = OrderNotificationDelivery::factory()
+            ->create(['type' => OrderNotificationType::Created])
+            ->load('order.items');
+        $data = app(OrderTransactionalEmailPresenter::class)->present($delivery);
+        unset($data['cancellation']);
+
+        $html = view('emails.orders.transactional', $data)->render();
+        $text = view('emails.orders.transactional-text', $data)->render();
+
+        $this->assertStringContainsString('Pedido recibido', $html);
+        $this->assertStringContainsString('Pedido recibido', $text);
+        $this->assertStringNotContainsString('Motivo:', $html);
+        $this->assertStringNotContainsString('Motivo:', $text);
+    }
+
     public function test_presenter_limits_total_embedded_image_weight_and_reuses_fallback(): void
     {
         $order = Order::factory()->create();
@@ -451,6 +648,7 @@ class OrderTransactionalNotificationTest extends TestCase
         $presenter = new OrderTransactionalEmailPresenter(
             $thumbnails,
             app(CustomerOrderDateFormatter::class),
+            app(OrderCancellationDetailsResolver::class),
         );
 
         $data = $presenter->present($delivery);
