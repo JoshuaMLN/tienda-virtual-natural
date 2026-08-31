@@ -16,8 +16,9 @@ El proyecto puede desplegarse como demo o entorno de staging. Actualmente:
 - El scheduler vence reservas y devuelve el stock automaticamente.
 - El acceso de clientes, Google OAuth, correo, carrito y checkout son reales.
 - Culqi y la confirmacion real del pago corresponden al Sprint 7.
-- El historial del cliente y la administracion completa de pedidos siguen en
-  fases posteriores del Sprint 6.
+- El historial y detalle de pedidos del cliente, junto con operaciones
+  administrativas de pedidos, estan implementados y documentados en el Sprint
+  6, que continua parcialmente en progreso.
 
 No habilites ventas ni cobros reales hasta integrar y validar el proveedor de
 pago, completar la identidad legal final y publicar terminos y privacidad
@@ -342,10 +343,12 @@ cuenta local existente con el mismo correo.
 ## Scheduler obligatorio
 
 El scheduler es obligatorio para liberar en segundo plano el stock de pedidos
-cuya reserva vencio. `routes/console.php` programa cada minuto:
+cuya reserva vencio y para detectar recojos o pagos de reenvio que requieren
+seguimiento manual. `routes/console.php` programa:
 
 ```bash
 php artisan orders:expire-pending
+php artisan orders:reconcile-fulfillment
 ```
 
 Configura una sola entrada cron en uno de los nodos de aplicacion:
@@ -360,6 +363,7 @@ solapamientos. Verifica:
 ```bash
 php artisan schedule:list
 php artisan orders:expire-pending --batch=100
+php artisan orders:reconcile-fulfillment --batch=100
 ```
 
 En hosting compartido, crea la misma tarea desde la seccion `Cron Jobs`. En
@@ -367,7 +371,8 @@ Laravel Cloud, Forge u otro proveedor administrado, registra `schedule:run` como
 tarea programada cada minuto.
 
 Sin cron, el checkout puede reconciliar una reserva cuando el cliente vuelve,
-pero el stock no se libera proactivamente. Esa proteccion no reemplaza el
+pero el stock no se libera proactivamente y los vencimientos de recojo o reenvio
+no pasan oportunamente a seguimiento manual. Esa proteccion no reemplaza el
 scheduler.
 
 ## Worker de colas

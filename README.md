@@ -1,74 +1,23 @@
 # VitaNatural
 
-Ecommerce de productos naturales desarrollado con Laravel. Incluye catalogo
-publico, administracion de productos e inventario, carrito de compras persistente
-y una cuenta real para clientes.
+VitaNatural es un ecommerce de productos naturales desarrollado como una
+aplicacion web Laravel. Incluye tienda publica, administracion, cuentas de
+clientes, carrito persistente y flujos de checkout y pedidos en evolucion.
 
-Los Sprints 0 al 5 estan completados. El Sprint 6 esta en desarrollo y ya
-incluye seguridad administrativa, configuracion de entrega, checkout real y
-creacion de pedidos pendientes con reserva de inventario.
+## Stack principal
 
-## Funcionalidades implementadas
-
-### Tienda publica
-
-- Catalogo con categorias, marcas, ofertas, busqueda y filtros combinables.
-- Detalle de producto con imagen principal, galeria y control de disponibilidad.
-- Carrito para invitados con validacion de stock y sincronizacion de precios.
-- Carrito persistente por cliente y fusion segura al iniciar sesion o registrarse.
-- Ajustes informados cuando cambia el precio, stock o visibilidad de un producto.
-- Navegacion y footer adaptados al estado invitado o autenticado.
-
-### Administracion
-
-- Acceso administrativo separado y protegido por rol.
-- Administracion de categorias, marcas, productos e imagenes.
-- Inventario, movimientos de stock, alertas y dashboard administrativo.
-- Configuracion de umbrales de stock por producto y visibilidad publica.
-- Configuracion operativa, legal, de recojo y tarifas para Lima y Callao.
-
-### Clientes y cuenta
-
-- Registro e inicio de sesion de clientes.
-- Verificacion de correo y recuperacion de contrasena.
-- Inicio de sesion y vinculacion segura con Google.
-- Perfil con nombre, telefono, correo y avatar recortable.
-- Cambio de contrasena y gestion de metodos de acceso.
-- Direcciones guardadas para Lima Metropolitana y Callao con UBIGEO canonico.
-- Menu de cuenta responsive y cierre de sesion con confirmacion.
-- Checkout protegido para clientes autenticados con correo verificado.
-- Checkout por etapas con contacto, entrega, comprobante y terminos versionados.
-- Revalidacion de precio, stock, cobertura y tarifa antes de confirmar.
-- Pedidos idempotentes con reserva temporal, cancelacion y vencimiento automatico.
-- Historial y detalle privado de pedidos con estados, linea de tiempo y comprobantes disponibles.
-- Correos en cola para creacion, cancelacion y vencimiento, con plantilla responsive, texto plano e imagenes CID optimizadas.
-
-## Alcance actual
-
-El checkout ya crea pedidos pendientes y reserva inventario, pero todavia no
-realiza cobros. El cliente ya puede consultar y cancelar sus pedidos elegibles;
-la gestion administrativa y el registro de comprobantes se completaran en las
-siguientes fases del Sprint 6. Los pagos con Culqi corresponden al Sprint 7;
-cupones y promociones quedan para sprints posteriores.
-
-## Tecnologias
-
-- PHP 8.3 o superior.
-- Laravel 13.8 o superior dentro de la rama 13.x.
+- PHP 8.3 y Laravel 13.
 - MySQL.
-- Blade, JavaScript, Bootstrap 5.3 y Vite.
-- Bootstrap Icons instalado localmente.
-- Laravel Socialite para Google OAuth.
-- PHPUnit para pruebas automatizadas.
+- Blade, JavaScript, Bootstrap 5 y Vite.
+- PHPUnit para backend y Playwright para pruebas E2E de navegador.
 
-## Requisitos
+## Requisitos basicos
 
-- PHP 8.3+ con las extensiones requeridas por Laravel.
-- Composer.
+- PHP 8.3 o superior y Composer.
 - Node.js y npm.
-- MySQL.
+- MySQL para el entorno normal de desarrollo.
 
-## Instalacion local
+## Inicio rapido local
 
 ```bash
 git clone https://github.com/JoshuaMLN/tienda-virtual-natural.git
@@ -77,149 +26,31 @@ composer install
 npm install
 ```
 
-Crea el archivo de entorno y genera la clave de la aplicacion:
+Crea `.env` desde `.env.example`, configura la conexion MySQL local y genera la
+clave de aplicacion. Luego prepara la base local y los assets:
 
 ```bash
-cp .env.example .env
 php artisan key:generate
-```
-
-En PowerShell puedes reemplazar el primer comando por:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Configura la conexion MySQL en `.env` y prepara la aplicacion:
-
-```bash
 php artisan migrate --seed
 php artisan storage:link
 npm run build
 ```
 
-Inicia el entorno local:
+Inicia el entorno de desarrollo:
 
 ```bash
 composer run dev
 ```
 
-Este comando inicia el servidor, la cola, el scheduler, los logs y Vite. La
-aplicacion estara disponible normalmente en `http://127.0.0.1:8000`.
-
-Para probar los correos transaccionales sin levantar todos los servicios, inicia
-el worker en una terminal independiente:
-
-```bash
-php artisan queue:work database --tries=3 --timeout=60
-```
-
-El worker permanece activo. Despues de modificar jobs, notificaciones o
-plantillas de correo, detenlo con `Ctrl+C` y vuelve a ejecutar el comando, o
-solicita una recarga ordenada:
-
-```bash
-php artisan queue:restart
-```
-
-Para inspeccionar y reintentar un trabajo fallido concreto:
-
-```bash
-php artisan queue:failed
-php artisan queue:retry <id>
-```
-
-Revisa primero la causa del fallo. Los correos de pedido respetan un limite
-historico de tres intentos por destinatario y evento.
-
-## Scheduler
-
-El vencimiento de pedidos pendientes depende del scheduler de Laravel. Para
-ejecutarlo de forma aislada durante desarrollo:
-
-```bash
-php artisan schedule:work
-```
-
-Tambien puedes procesar manualmente un lote para diagnostico:
-
-```bash
-php artisan orders:expire-pending --batch=100
-```
-
-En produccion configura una unica entrada cron que ejecute el scheduler cada
-minuto desde la raiz del proyecto:
-
-```cron
-* * * * * cd /ruta/al/proyecto && php artisan schedule:run >> /dev/null 2>&1
-```
-
-En despliegues con varios servidores, el comando debe ejecutarse desde un solo
-nodo de scheduler. La expiracion tambien se reconcilia al entrar al checkout o
-abrir un pedido vencido, pero esa proteccion no reemplaza el cron.
-
-La configuracion completa de entorno, Brevo, Google OAuth, servidor web, colas,
-seguridad y backups esta en [Despliegue en produccion](docs/DEPLOYMENT.md).
-
-## Configuracion de servicios
-
-Para probar correos reales, configura las variables `MAIL_*` de `.env` con un
-proveedor SMTP. Sin credenciales, Laravel puede registrar los mensajes usando el
-mailer `log`. El correo se utiliza para verificacion de cuenta, recuperacion de
-contrasena y eventos transaccionales de pedidos. Para estos ultimos tambien debe
-estar ejecutandose `php artisan queue:work database`.
-
-El acceso con Google requiere configurar:
-
-```dotenv
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
-```
-
-La URI de redireccion debe coincidir exactamente con la registrada en Google
-Cloud para el cliente OAuth utilizado en el entorno local. Produccion debe usar
-credenciales y una URI independientes.
-
-La duracion de la opcion "Recordarme" se configura en dias:
-
-```dotenv
-AUTH_REMEMBER_DAYS=30
-```
-
-Nunca publiques `.env`, credenciales, claves privadas ni secretos OAuth. El
-archivo `.env.example` documenta solamente nombres y valores de ejemplo seguros.
-
-## Pruebas
-
-Los comandos Artisan con `--env=testing` cargan `.env.testing`, no las
-variables de `phpunit.xml`. Antes de usarlos, crea el archivo local desde
-`.env.testing.example`; esta plantilla usa SQLite en memoria y evita operar
-sobre la base de desarrollo. No ejecutes `migrate:fresh` contra una base con
-datos que necesites conservar.
-
-```bash
-composer test
-npm run build
-```
-
-Validaciones adicionales:
-
-```bash
-node --check public/js/app.js
-php artisan view:cache
-php vendor/bin/pint --test
-```
-
-La cantidad vigente de pruebas y aserciones se registra en el estado del Sprint
-6 despues de cada fase.
+Las migraciones modifican la base configurada en el entorno actual. Consulta la
+guia de desarrollo antes de ejecutar operaciones destructivas.
 
 ## Documentacion
 
-- [Roadmap general](docs/SPRINTS.md)
-- [Roadmap del Sprint 6](docs/SPRINT_6_ROADMAP.md)
-- [Estado del Sprint 6](docs/SPRINT_6_STATUS.md)
-- [Despliegue en produccion](docs/DEPLOYMENT.md)
-
-Los roadmaps y estados de los sprints anteriores tambien se encuentran en
-[`docs/`](docs/).
+- [Indice de documentacion](docs/README.md)
+- [Arquitectura](docs/ARCHITECTURE.md)
+- [Desarrollo local](docs/DEVELOPMENT.md)
+- [Pruebas](docs/TESTING.md)
+- [Estado actual](docs/PROJECT_STATE.md)
+- [Despliegue y operaciones](docs/DEPLOYMENT.md)
+- [Planificacion de Sprints](docs/SPRINTS.md)
