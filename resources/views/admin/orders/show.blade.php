@@ -19,7 +19,7 @@
     </div>
 </div>
 
-@if($detail['actions'] !== [])
+@if($detail['actions'] !== [] || $detail['delivery_tracking']['can_record_attempt'])
     <section class="admin-card admin-order-operation p-3 p-lg-4 mb-4" aria-labelledby="admin-order-operation-title">
         <div class="admin-order-operation-copy">
             <span class="admin-order-section-icon" aria-hidden="true">
@@ -33,6 +33,17 @@
             </div>
         </div>
         <div class="admin-order-operation-actions">
+            @if($detail['delivery_tracking']['can_record_attempt'])
+                <button
+                    class="btn btn-vn-primary"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#admin-delivery-attempt-modal"
+                >
+                    <i class="bi bi-clipboard-check" aria-hidden="true"></i>
+                    Registrar resultado de entrega
+                </button>
+            @endif
             @foreach($detail['actions'] as $action)
                 <button
                     class="btn {{ $action['destructive'] ? 'btn-outline-danger' : 'btn-vn-primary' }}"
@@ -152,7 +163,106 @@
                     Reserva vigente hasta el {{ $detail['delivery']['reservation_expires_at'] }}.
                 </div>
             @endif
+
+            @if($detail['delivery_tracking']['pickup_ready_at'])
+                <div class="admin-order-fulfillment-summary mt-3">
+                    <div>
+                        <span>Disponible desde</span>
+                        <strong>{{ $detail['delivery_tracking']['pickup_ready_at'] }}</strong>
+                    </div>
+                    <div>
+                        <span>Fecha limite de recojo</span>
+                        <strong>{{ $detail['delivery_tracking']['pickup_deadline_at'] }}</strong>
+                    </div>
+                </div>
+
+                @if($detail['delivery_tracking']['is_pickup_overdue'])
+                    <div class="alert alert-warning d-flex gap-2 mt-3 mb-0" role="status">
+                        <i class="bi bi-exclamation-triangle flex-shrink-0" aria-hidden="true"></i>
+                        <span>El plazo de recojo vencio. El pedido requiere coordinacion manual y no sera cancelado ni descartado automaticamente.</span>
+                    </div>
+                @endif
+            @endif
         </section>
+
+        @if(!$detail['delivery']['is_pickup'] && ($detail['delivery_attempts'] !== [] || $detail['delivery_tracking']['can_record_attempt'] || $detail['delivery_tracking']['status_value'] !== 'active'))
+            <section class="admin-card p-3 p-lg-4" aria-labelledby="admin-order-delivery-attempts-title">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 fw-black mb-1" id="admin-order-delivery-attempts-title">Intentos de entrega</h2>
+                        <p class="small text-muted mb-0">Solo las incidencias atribuibles al cliente consumen un intento.</p>
+                    </div>
+                    <x-admin.status-badge :status="$detail['delivery_tracking']['status']" />
+                </div>
+
+                <div class="admin-order-fulfillment-summary mb-3">
+                    <div>
+                        <span>Ciclo actual</span>
+                        <strong>{{ $detail['delivery_tracking']['cycle'] }} de {{ $detail['delivery_tracking']['max_cycles'] }}</strong>
+                    </div>
+                    <div>
+                        <span>Intentos consumidos</span>
+                        <strong>{{ $detail['delivery_tracking']['counted_attempts'] }} de {{ $detail['delivery_tracking']['attempts_per_cycle'] }}</strong>
+                    </div>
+                </div>
+
+                @if($detail['delivery_tracking']['reshipment_payment_due_at'])
+                    <div class="alert alert-warning d-flex gap-2 mb-3" role="status">
+                        <i class="bi bi-credit-card flex-shrink-0" aria-hidden="true"></i>
+                        <span>
+                            No se admiten nuevas visitas hasta confirmar otro pago de envio.
+                            Plazo: {{ $detail['delivery_tracking']['reshipment_payment_due_at'] }}.
+                        </span>
+                    </div>
+                @endif
+
+                @if($detail['delivery_attempts'] === [])
+                    <p class="small text-muted mb-0">Todavia no se registraron resultados de entrega.</p>
+                @else
+                    <div class="admin-order-delivery-attempt-list">
+                        @foreach($detail['delivery_attempts'] as $attempt)
+                            <article class="admin-order-delivery-attempt is-{{ $attempt['result_value'] }}">
+                                <span class="admin-order-delivery-attempt-icon" aria-hidden="true">
+                                    <i class="bi {{ $attempt['result_value'] === 'delivered' ? 'bi-check-lg' : 'bi-exclamation-lg' }}"></i>
+                                </span>
+                                <div>
+                                    <div class="admin-order-delivery-attempt-heading">
+                                        <strong>Ciclo {{ $attempt['cycle'] }}, visita {{ $attempt['attempt_number'] }}</strong>
+                                        <span>{{ $attempt['occurred_at'] }}</span>
+                                    </div>
+                                    <p class="mb-1">
+                                        <strong>{{ $attempt['result'] }}</strong>
+                                        @if($attempt['attribution'])
+                                            <span aria-hidden="true">&middot;</span>
+                                            {{ $attempt['attribution'] }}
+                                        @endif
+                                    </p>
+                                    <p class="small text-muted mb-1">
+                                        Responsable: {{ $attempt['responsible_name'] }}
+                                        @if($attempt['consumes_attempt'])
+                                            <span aria-hidden="true">&middot;</span>
+                                            Intento {{ $attempt['counted_attempt_number'] }} consumido
+                                        @else
+                                            <span aria-hidden="true">&middot;</span>
+                                            No consume intento
+                                        @endif
+                                    </p>
+                                    @if($attempt['reason'])
+                                        <p class="small mb-1"><strong>Motivo:</strong> {{ $attempt['reason'] }}</p>
+                                    @endif
+                                    <p class="small text-muted mb-0">
+                                        Registrado por {{ $attempt['recorded_by'] }}
+                                        @if($attempt['recorded_by_email'])
+                                            ({{ $attempt['recorded_by_email'] }})
+                                        @endif
+                                    </p>
+                                </div>
+                            </article>
+                        @endforeach
+                    </div>
+                @endif
+            </section>
+        @endif
 
         <section class="admin-card p-3 p-lg-4" aria-labelledby="admin-order-reservations-title">
             <h2 class="h5 fw-black mb-3" id="admin-order-reservations-title">Reservas de inventario</h2>
@@ -545,6 +655,87 @@
     </div>
 </div>
 
+@if($detail['delivery_tracking']['can_record_attempt'])
+    <div
+        class="modal fade admin-order-action-modal"
+        id="admin-delivery-attempt-modal"
+        tabindex="-1"
+        aria-labelledby="admin-delivery-attempt-modal-title"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="{{ route('admin.orders.delivery-attempts.store', ['order' => $order->code]) }}" method="POST" data-admin-order-action-form data-delivery-attempt-form>
+                    @csrf
+                    <input type="hidden" name="operation_token" value="{{ old('operation_token', $detail['delivery_tracking']['operation_token']) }}">
+                    @foreach($backQuery as $key => $value)
+                        @if($value !== null && $value !== '')
+                            <input type="hidden" name="return[{{ $key }}]" value="{{ $value }}">
+                        @endif
+                    @endforeach
+
+                    <div class="modal-header">
+                        <div>
+                            <h2 class="modal-title fs-5 fw-black" id="admin-delivery-attempt-modal-title">Registrar resultado de entrega</h2>
+                            <p class="small text-muted mb-0">Ciclo {{ $detail['delivery_tracking']['cycle'] }} de {{ $detail['delivery_tracking']['max_cycles'] }}</p>
+                        </div>
+                        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body d-grid gap-3">
+                        <div>
+                            <label class="form-label fw-bold" for="delivery-attempt-result">Resultado <span class="text-danger" aria-hidden="true">*</span></label>
+                            <select class="form-select @error('result') is-invalid @enderror" id="delivery-attempt-result" name="result" required data-delivery-attempt-result>
+                                <option value="">Selecciona un resultado</option>
+                                @foreach($detail['delivery_tracking']['result_options'] as $result)
+                                    <option value="{{ $result->value }}" @selected(old('result') === $result->value)>{{ $result->label() }}</option>
+                                @endforeach
+                            </select>
+                            @error('result')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div data-delivery-attempt-incident-field hidden>
+                            <label class="form-label fw-bold" for="delivery-attempt-attribution">Atribucion <span class="text-danger" aria-hidden="true">*</span></label>
+                            <select class="form-select @error('attribution') is-invalid @enderror" id="delivery-attempt-attribution" name="attribution" data-delivery-attempt-attribution>
+                                <option value="">Selecciona una atribucion</option>
+                                @foreach($detail['delivery_tracking']['attribution_options'] as $attribution)
+                                    <option value="{{ $attribution->value }}" @selected(old('attribution') === $attribution->value)>{{ $attribution->label() }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">Solo una incidencia atribuible al cliente consume un intento.</div>
+                            @error('attribution')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div>
+                            <label class="form-label fw-bold" for="delivery-attempt-responsible">Responsable o transportista <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input class="form-control @error('responsible_name') is-invalid @enderror" id="delivery-attempt-responsible" name="responsible_name" type="text" maxlength="120" value="{{ old('responsible_name') }}" required>
+                            @error('responsible_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div>
+                            <label class="form-label fw-bold" for="delivery-attempt-occurred-at">Fecha y hora <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input class="form-control @error('occurred_at') is-invalid @enderror" id="delivery-attempt-occurred-at" name="occurred_at" type="datetime-local" value="{{ old('occurred_at', $detail['delivery_tracking']['default_occurred_at']) }}" required>
+                            @error('occurred_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div data-delivery-attempt-incident-field hidden>
+                            <label class="form-label fw-bold" for="delivery-attempt-reason">Motivo de la incidencia <span class="text-danger" aria-hidden="true">*</span></label>
+                            <textarea class="form-control @error('attempt_reason') is-invalid @enderror" id="delivery-attempt-reason" name="attempt_reason" rows="3" minlength="5" maxlength="500" data-delivery-attempt-reason>{{ old('attempt_reason') }}</textarea>
+                            @error('attempt_reason')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                        <button class="btn btn-vn-primary" type="submit">
+                            <span data-submit-label><i class="bi bi-save" aria-hidden="true"></i> Registrar resultado</span>
+                            <span class="d-none" data-submit-loading><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Procesando</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endif
+
 @foreach($detail['actions'] as $action)
     <div
         class="modal fade admin-order-action-modal"
@@ -634,6 +825,28 @@
 
 <script>
     window.addEventListener('load', () => {
+        const deliveryAttemptForm = document.querySelector('[data-delivery-attempt-form]');
+
+        if (deliveryAttemptForm) {
+            const result = deliveryAttemptForm.querySelector('[data-delivery-attempt-result]');
+            const attribution = deliveryAttemptForm.querySelector('[data-delivery-attempt-attribution]');
+            const reason = deliveryAttemptForm.querySelector('[data-delivery-attempt-reason]');
+            const incidentFields = deliveryAttemptForm.querySelectorAll('[data-delivery-attempt-incident-field]');
+            const syncIncidentFields = () => {
+                const isIncident = result?.value === 'incident';
+
+                incidentFields.forEach((field) => {
+                    field.hidden = !isIncident;
+                });
+
+                if (attribution) attribution.required = isIncident;
+                if (reason) reason.required = isIncident;
+            };
+
+            result?.addEventListener('change', syncIncidentFields);
+            syncIncidentFields();
+        }
+
         document.querySelectorAll('[data-admin-order-action-form]').forEach((form) => {
             form.addEventListener('submit', () => {
                 const button = form.querySelector('button[type="submit"]');
@@ -653,6 +866,14 @@
 
             if (cancelModal) {
                 bootstrap.Modal.getOrCreateInstance(cancelModal).show();
+            }
+        @endif
+
+        @if($errors->hasAny(['operation_token', 'result', 'attribution', 'responsible_name', 'occurred_at', 'attempt_reason']))
+            const deliveryAttemptModal = document.getElementById('admin-delivery-attempt-modal');
+
+            if (deliveryAttemptModal) {
+                bootstrap.Modal.getOrCreateInstance(deliveryAttemptModal).show();
             }
         @endif
     });

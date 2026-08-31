@@ -64,6 +64,8 @@ class CheckoutOrderCreationTest extends TestCase
         ]);
         $this->reviewPickup($user, [$product->id => 2]);
         $reviewReference = session('checkout.draft.review.fingerprint');
+        $quotedEstimateFrom = session('checkout.draft.delivery_quote.estimated_from');
+        $quotedEstimateTo = session('checkout.draft.delivery_quote.estimated_to');
         $terms = $this->activeTerms();
         $termsBody = $terms->body;
         $termsFingerprint = session('checkout.draft.review.terms_content_fingerprint');
@@ -89,6 +91,8 @@ class CheckoutOrderCreationTest extends TestCase
         $this->assertSame(5900, $order->items->sole()->unit_price_cents);
         $this->assertSame(11_800, $order->total_cents);
         $this->assertSame(ReservationStatus::Active, $order->stockReservations->sole()->status);
+        $this->assertSame($quotedEstimateFrom, $order->delivery_estimated_from->toDateString());
+        $this->assertSame($quotedEstimateTo, $order->delivery_estimated_to->toDateString());
         $this->assertSame('2026-07-21 10:20:00', $order->reservation_expires_at->format('Y-m-d H:i:s'));
         $this->assertSame($order->reservation_expires_at->format('Y-m-d H:i:s'), $order->stockReservations->sole()->expires_at->format('Y-m-d H:i:s'));
         $this->assertNotNull($order->cart_cleaned_at);
@@ -99,6 +103,22 @@ class CheckoutOrderCreationTest extends TestCase
         $this->assertSame($termsFingerprint, $order->terms_content_fingerprint);
         $this->assertSame($termsBody, $order->terms_snapshot['body']);
         $this->assertSame($terms->title, $order->terms_snapshot['title']);
+        $this->assertSame(
+            data_get($order->terms_snapshot, 'settings_snapshot.delivery_attempts_per_cycle'),
+            $order->delivery_attempts_per_cycle,
+        );
+        $this->assertSame(
+            data_get($order->terms_snapshot, 'settings_snapshot.delivery_max_automatic_cycles'),
+            $order->delivery_max_automatic_cycles,
+        );
+        $this->assertSame(
+            data_get($order->terms_snapshot, 'settings_snapshot.reshipment_payment_days'),
+            $order->reshipment_payment_days,
+        );
+        $this->assertSame(
+            data_get($order->terms_snapshot, 'settings_snapshot.pickup_hold_days'),
+            $order->pickup_hold_days,
+        );
         $this->assertSame(4, $order->statusHistories->count());
         $this->assertSame(1, $order->statusHistories->where('domain', OrderHistoryDomain::Reservation)->count());
         $this->assertSame(3, $product->refresh()->stock);

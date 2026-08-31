@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('orders:expire-pending')
     ->everyMinute()
     ->withoutOverlapping(5);
+
+Schedule::command('orders:reconcile-fulfillment')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10);

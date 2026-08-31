@@ -168,6 +168,7 @@ class LegalDocumentTest extends TestCase
             ->assertSee('Terminos y condiciones')
             ->assertSee('Version 1')
             ->assertSee('No se aceptan devoluciones por cambio de opinion')
+            ->assertSee('desde que la tienda los marca como listos')
             ->assertSee('Este sitio funciona en modo demostrativo')
             ->assertSee(route('shop.privacy'), false);
 

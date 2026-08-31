@@ -168,6 +168,7 @@ class StockReservationTest extends TestCase
             metadata: ['provider_reference' => 'PAY-123'],
         );
 
+        $this->assertSame(OrderStatus::Confirmed, $paid->order_status);
         $this->assertSame(PaymentStatus::Paid, $paid->payment_status);
         $this->assertSame(ReservationStatus::Consumed, $reservation->refresh()->status);
         $this->assertSame(6, $product->refresh()->stock);
@@ -176,6 +177,13 @@ class StockReservationTest extends TestCase
             'order_id' => $order->id,
             'domain' => OrderHistoryDomain::Payment->value,
             'to_status' => PaymentStatus::Paid->value,
+            'reason' => 'Pago confirmado por el proveedor',
+        ]);
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'domain' => OrderHistoryDomain::Order->value,
+            'from_status' => OrderStatus::PendingPayment->value,
+            'to_status' => OrderStatus::Confirmed->value,
             'reason' => 'Pago confirmado por el proveedor',
         ]);
 

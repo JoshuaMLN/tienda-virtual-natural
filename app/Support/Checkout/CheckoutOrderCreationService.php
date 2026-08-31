@@ -278,11 +278,14 @@ class CheckoutOrderCreationService
             'terms_content_fingerprint' => $review->termsContentFingerprint,
             'terms_accepted_at' => CarbonImmutable::parse($review->reviewedAt),
             'terms_snapshot' => $this->termsSnapshot($terms),
+            ...$this->fulfillmentPolicyAttributes($terms),
             'shipping_tax_affectation' => TaxAffectation::Taxed,
             'shipping_tax_rate_bps' => TaxAffectation::Taxed->taxRateBasisPoints(),
             ...$quote->amounts,
             'delivery_business_days_min' => $quote->deliveryBusinessDaysMin,
             'delivery_business_days_max' => $quote->deliveryBusinessDaysMax,
+            'delivery_estimated_from' => $quote->estimatedFrom,
+            'delivery_estimated_to' => $quote->estimatedTo,
             'reservation_expires_at' => $expiration,
         ];
     }
@@ -319,6 +322,52 @@ class CheckoutOrderCreationService
             'settings_fingerprint' => $terms->settings_fingerprint,
             'published_at' => $terms->published_at?->toAtomString(),
         ];
+    }
+
+    /** @return array<string, int> */
+    private function fulfillmentPolicyAttributes(LegalDocument $terms): array
+    {
+        $settings = is_array($terms->settings_snapshot) ? $terms->settings_snapshot : [];
+
+        return [
+            'delivery_attempts_per_cycle' => $this->boundedPolicyValue(
+                $settings['delivery_attempts_per_cycle'] ?? null,
+                1,
+                10,
+                3,
+            ),
+            'delivery_max_automatic_cycles' => $this->boundedPolicyValue(
+                $settings['delivery_max_automatic_cycles'] ?? null,
+                1,
+                5,
+                2,
+            ),
+            'reshipment_payment_days' => $this->boundedPolicyValue(
+                $settings['reshipment_payment_days'] ?? null,
+                1,
+                30,
+                7,
+            ),
+            'pickup_hold_days' => $this->boundedPolicyValue(
+                $settings['pickup_hold_days'] ?? null,
+                1,
+                60,
+                14,
+            ),
+        ];
+    }
+
+    private function boundedPolicyValue(
+        mixed $value,
+        int $minimum,
+        int $maximum,
+        int $fallback,
+    ): int {
+        if (! is_numeric($value)) {
+            return $fallback;
+        }
+
+        return min($maximum, max($minimum, (int) $value));
     }
 
     private function reservationMinutes(): int

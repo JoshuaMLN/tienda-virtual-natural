@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\Auth\PasswordResetLinkController as AdminPassword
 use App\Http\Controllers\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DeliveryAttemptController as AdminDeliveryAttemptController;
 use App\Http\Controllers\Admin\LegalDocumentController as AdminLegalDocumentController;
 use App\Http\Controllers\Admin\LegalSettingsController as AdminLegalSettingsController;
 use App\Http\Controllers\Admin\NonWorkingDayController as AdminNonWorkingDayController;
@@ -259,8 +260,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('orders.mark-shipped');
         Route::patch('/pedidos/{order:code}/marcar-listo-recojo', [AdminOrderOperationController::class, 'markReadyForPickup'])
             ->name('orders.mark-ready-pickup');
-        Route::patch('/pedidos/{order:code}/confirmar-entrega', [AdminOrderOperationController::class, 'confirmDelivery'])
-            ->name('orders.confirm-delivery');
+        Route::post('/pedidos/{order:code}/intentos-entrega', [AdminDeliveryAttemptController::class, 'store'])
+            ->name('orders.delivery-attempts.store');
         Route::patch('/pedidos/{order:code}/confirmar-recojo', [AdminOrderOperationController::class, 'confirmPickup'])
             ->name('orders.confirm-pickup');
         Route::patch('/pedidos/{order:code}/cancelar', [AdminOrderOperationController::class, 'cancel'])

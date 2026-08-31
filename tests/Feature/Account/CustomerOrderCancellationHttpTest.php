@@ -208,7 +208,7 @@ class CustomerOrderCancellationHttpTest extends TestCase
             ->assertSessionHas('order_error');
 
         $this->assertSame(PaymentStatus::Paid, $order->refresh()->payment_status);
-        $this->assertSame(OrderStatus::PendingPayment, $order->order_status);
+        $this->assertSame(OrderStatus::Confirmed, $order->order_status);
         $this->assertSame(ReservationStatus::Consumed, $reservation->refresh()->status);
         $this->assertSame(5, $product->refresh()->stock);
         $this->assertSame($movementCount, $product->inventoryMovements()->count());

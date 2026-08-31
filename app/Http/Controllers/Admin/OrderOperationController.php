@@ -31,11 +31,6 @@ class OrderOperationController extends Controller
         return $this->perform($request, $order, AdminOrderAction::MarkReadyForPickup);
     }
 
-    public function confirmDelivery(AdminOrderActionRequest $request, Order $order): RedirectResponse
-    {
-        return $this->perform($request, $order, AdminOrderAction::ConfirmDelivery);
-    }
-
     public function confirmPickup(AdminOrderActionRequest $request, Order $order): RedirectResponse
     {
         return $this->perform($request, $order, AdminOrderAction::ConfirmPickup);

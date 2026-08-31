@@ -335,7 +335,7 @@ class AdminOrderHttpTest extends TestCase
         $order = Order::factory()->create();
 
         foreach ([
-            [OrderHistoryDomain::Order, OrderStatus::PendingPayment->value, OrderStatus::Processing->value],
+            [OrderHistoryDomain::Order, OrderStatus::Confirmed->value, OrderStatus::Processing->value],
             [OrderHistoryDomain::Payment, PaymentStatus::Pending->value, PaymentStatus::Paid->value],
             [OrderHistoryDomain::Delivery, DeliveryStatus::Pending->value, DeliveryStatus::Preparing->value],
             [OrderHistoryDomain::Reservation, ReservationStatus::Active->value, ReservationStatus::Consumed->value],
@@ -547,6 +547,6 @@ class AdminOrderHttpTest extends TestCase
             ->patch(route('admin.orders.start-preparation', $order->code))
             ->assertForbidden();
 
-        $this->assertSame(OrderStatus::PendingPayment, $order->refresh()->order_status);
+        $this->assertSame(OrderStatus::Confirmed, $order->refresh()->order_status);
     }
 }

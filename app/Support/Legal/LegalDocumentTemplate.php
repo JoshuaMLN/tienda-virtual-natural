@@ -75,7 +75,7 @@ La cobertura, tarifa y plazo estimado se muestran antes de confirmar. Cada tarif
 
 Tras agotar un ciclo, el cliente dispone de **{$reshipmentDays} dias calendario** para pagar un nuevo envio o coordinar recojo cuando este disponible. Se gestionan hasta **{$cycles} ciclos automaticos**; despues, el caso pasa a atencion manual.
 
-Los pedidos listos para recojo se conservan inicialmente durante **{$pickupDays} dias calendario** desde la notificacion. Al vencer el plazo se contactara al cliente antes de adoptar una solucion; el pedido no se descarta ni cancela silenciosamente.
+Los pedidos listos para recojo se conservan inicialmente durante **{$pickupDays} dias calendario** desde que la tienda los marca como listos. Al vencer el plazo se contactara al cliente antes de adoptar una solucion; el pedido no se descarta ni cancela silenciosamente.
 
 ## 6. Cancelaciones y reembolsos
 

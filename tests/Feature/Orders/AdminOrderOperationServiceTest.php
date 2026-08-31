@@ -3,6 +3,8 @@
 namespace Tests\Feature\Orders;
 
 use App\Enums\AdminOrderAction;
+use App\Enums\DeliveryAttemptAttribution;
+use App\Enums\DeliveryAttemptResult;
 use App\Enums\DeliveryStatus;
 use App\Enums\OrderHistoryDomain;
 use App\Enums\OrderNotificationType;
@@ -20,12 +22,14 @@ use App\Models\StockReservation;
 use App\Models\User;
 use App\Support\Orders\AdminOrderOperationService;
 use App\Support\Orders\InvalidStateTransitionException;
+use App\Support\Orders\OrderFulfillmentService;
 use App\Support\Orders\OrderStateTransitionService;
 use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AdminOrderOperationServiceTest extends TestCase
@@ -34,6 +38,8 @@ class AdminOrderOperationServiceTest extends TestCase
 
     private AdminOrderOperationService $operations;
 
+    private OrderFulfillmentService $fulfillment;
+
     private User $admin;
 
     protected function setUp(): void
@@ -41,6 +47,7 @@ class AdminOrderOperationServiceTest extends TestCase
         parent::setUp();
 
         $this->operations = app(AdminOrderOperationService::class);
+        $this->fulfillment = app(OrderFulfillmentService::class);
         $this->admin = User::factory()->admin()->create();
     }
 
@@ -63,12 +70,19 @@ class AdminOrderOperationServiceTest extends TestCase
 
         $order = $this->operations->perform($order, AdminOrderAction::MarkShipped, $this->admin);
         $this->assertSame(DeliveryStatus::Shipped, $order->delivery_status);
-        $this->assertSame(
-            [AdminOrderAction::ConfirmDelivery],
-            $this->operations->availableActions($order),
-        );
+        $this->assertSame([], $this->operations->availableActions($order));
 
-        $order = $this->operations->perform($order, AdminOrderAction::ConfirmDelivery, $this->admin);
+        $this->fulfillment->recordDeliveryAttempt(
+            $order,
+            $this->admin,
+            (string) Str::uuid(),
+            DeliveryAttemptResult::Delivered,
+            DeliveryAttemptAttribution::Unattributed,
+            'Transportista asignado',
+            null,
+            now(),
+        );
+        $order->refresh();
         $this->assertSame(OrderStatus::Completed, $order->order_status);
         $this->assertSame(DeliveryStatus::Delivered, $order->delivery_status);
         $this->assertNotNull($order->completed_at);
@@ -185,6 +199,7 @@ class AdminOrderOperationServiceTest extends TestCase
         [$order, $product] = $this->orderWithReservation(
             paymentStatus: PaymentStatus::Paid,
             reservationStatus: ReservationStatus::Consumed,
+            orderStatus: OrderStatus::Confirmed,
         );
 
         $this->operations->perform($order, AdminOrderAction::Cancel, $this->admin, 'Cancelacion aprobada');
@@ -279,7 +294,7 @@ class AdminOrderOperationServiceTest extends TestCase
         }
 
         $order->refresh();
-        $this->assertSame(OrderStatus::PendingPayment, $order->order_status);
+        $this->assertSame(OrderStatus::Confirmed, $order->order_status);
         $this->assertSame(DeliveryStatus::Pending, $order->delivery_status);
         $this->assertSame($historyCount, OrderStatusHistory::query()->count());
     }

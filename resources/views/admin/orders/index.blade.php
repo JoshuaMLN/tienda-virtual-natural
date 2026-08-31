@@ -105,6 +105,21 @@
             </div>
 
             <div>
+                <label class="form-label" for="admin-fulfillment-status">Seguimiento</label>
+                <select class="form-select @error('seguimiento') is-invalid @enderror" id="admin-fulfillment-status" name="seguimiento">
+                    <option value="">Todos</option>
+                    @foreach($fulfillmentFilters as $filter)
+                        <option value="{{ $filter->value }}" @selected(($filters['seguimiento'] ?? null) === $filter->value)>
+                            {{ $filter->label() }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('seguimiento')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div>
                 <label class="form-label" for="admin-order-from">Desde</label>
                 <input
                     class="form-control @error('desde') is-invalid @enderror"

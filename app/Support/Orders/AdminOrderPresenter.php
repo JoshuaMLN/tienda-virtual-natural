@@ -2,11 +2,15 @@
 
 namespace App\Support\Orders;
 
+use App\Enums\DeliveryAttemptAttribution;
+use App\Enums\DeliveryAttemptResult;
 use App\Enums\DeliveryStatus;
+use App\Enums\DeliveryTrackingStatus;
 use App\Enums\OrderHistoryDomain;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
+use App\Models\DeliveryAttempt;
 use App\Models\FiscalDocument;
 use App\Models\FiscalDocumentDelivery;
 use App\Models\Order;
@@ -16,6 +20,7 @@ use App\Models\StockReservation;
 use App\Support\Money\Money;
 use DateTimeInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class AdminOrderPresenter
 {
@@ -24,6 +29,7 @@ class AdminOrderPresenter
         private readonly CustomerOrderDateFormatter $dates,
         private readonly CustomerOrderDetailPresenter $customerDetails,
         private readonly AdminOrderOperationService $operations,
+        private readonly OrderFulfillmentService $fulfillment,
     ) {}
 
     /** @return array<string, mixed> */
@@ -69,6 +75,10 @@ class AdminOrderPresenter
                 ->map(fn (FiscalDocument $document): array => $this->document($document))
                 ->all(),
             'communications' => $this->communications($order),
+            'delivery_tracking' => $this->deliveryTracking($order),
+            'delivery_attempts' => $order->deliveryAttempts
+                ->map(fn (DeliveryAttempt $attempt): array => $this->deliveryAttempt($attempt))
+                ->all(),
             'terms' => [
                 'version' => $order->terms_document_version,
                 'accepted_at' => $this->formatDate($order->terms_accepted_at),
@@ -120,6 +130,16 @@ class AdminOrderPresenter
                 : 'El pedido se cancelo antes de iniciar la entrega.';
         }
 
+        if ($order->delivery_tracking_status === DeliveryTrackingStatus::AwaitingReshipmentPayment) {
+            $delivery['value'] = DeliveryTrackingStatus::AwaitingReshipmentPayment->label();
+            $delivery['explanation'] = 'El ciclo de entrega se agoto. No se pueden registrar nuevas visitas hasta confirmar otro pago de envio.';
+        } elseif ($order->delivery_tracking_status === DeliveryTrackingStatus::ManualFollowUp) {
+            $delivery['value'] = DeliveryTrackingStatus::ManualFollowUp->label();
+            $delivery['explanation'] = $order->delivery_method->value === 'pickup'
+                ? 'El plazo de recojo vencio y requiere coordinacion, sin cancelar ni descartar el pedido.'
+                : 'Se agotaron los ciclos automaticos o vencio el plazo del reenvio.';
+        }
+
         return [
             'order' => [
                 'label' => 'Pedido',
@@ -128,6 +148,56 @@ class AdminOrderPresenter
             ],
             'payment' => $payment,
             'delivery' => $delivery,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function deliveryTracking(Order $order): array
+    {
+        $currentCycleAttempts = $order->deliveryAttempts
+            ->where('cycle', $order->delivery_current_cycle);
+        $countedAttempts = $currentCycleAttempts
+            ->where('consumes_attempt', true)
+            ->count();
+
+        return [
+            'status' => $order->delivery_tracking_status->label(),
+            'status_value' => $order->delivery_tracking_status->value,
+            'cycle' => $order->delivery_current_cycle,
+            'max_cycles' => $order->delivery_max_automatic_cycles,
+            'counted_attempts' => $countedAttempts,
+            'attempts_per_cycle' => $order->delivery_attempts_per_cycle,
+            'can_record_attempt' => $this->fulfillment->canRecordDeliveryAttempt($order),
+            'operation_token' => (string) Str::uuid(),
+            'default_occurred_at' => now()->setTimezone(config('app.timezone'))->format('Y-m-d\TH:i'),
+            'result_options' => DeliveryAttemptResult::cases(),
+            'attribution_options' => DeliveryAttemptAttribution::cases(),
+            'reshipment_payment_due_at' => $this->formatDate($order->reshipment_payment_due_at),
+            'pickup_ready_at' => $this->formatDate($order->pickup_ready_at),
+            'pickup_deadline_at' => $this->formatDate($order->pickup_deadline_at),
+            'is_pickup_overdue' => $order->pickup_deadline_at?->lte(now()) === true
+                && $order->delivery_status === DeliveryStatus::ReadyForPickup,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function deliveryAttempt(DeliveryAttempt $attempt): array
+    {
+        return [
+            'cycle' => $attempt->cycle,
+            'attempt_number' => $attempt->attempt_number,
+            'counted_attempt_number' => $attempt->counted_attempt_number,
+            'result' => $attempt->result->label(),
+            'result_value' => $attempt->result->value,
+            'attribution' => $attempt->result === DeliveryAttemptResult::Incident
+                ? $attempt->attribution->label()
+                : null,
+            'consumes_attempt' => $attempt->consumes_attempt,
+            'responsible_name' => $attempt->responsible_name,
+            'reason' => $attempt->reason,
+            'recorded_by' => $attempt->recorded_by_name ?: 'Sistema',
+            'recorded_by_email' => $attempt->recorded_by_email,
+            'occurred_at' => $this->formatDate($attempt->occurred_at),
         ];
     }
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DeliveryMethod;
 use App\Enums\DeliveryStatus;
+use App\Enums\DeliveryTrackingStatus;
 use App\Enums\FiscalDocumentType;
 use App\Enums\FiscalIdentityDocumentType;
 use App\Enums\OrderStatus;
@@ -38,6 +39,12 @@ class Order extends Model
         'order_status',
         'payment_status',
         'delivery_status',
+        'delivery_tracking_status',
+        'delivery_current_cycle',
+        'delivery_attempts_per_cycle',
+        'delivery_max_automatic_cycles',
+        'reshipment_payment_days',
+        'pickup_hold_days',
         'delivery_method',
         'delivery_recipient_name',
         'delivery_phone',
@@ -79,6 +86,11 @@ class Order extends Model
         'delivery_window_starts_at',
         'delivery_estimated_from',
         'delivery_estimated_to',
+        'reshipment_payment_due_at',
+        'pickup_ready_at',
+        'pickup_deadline_at',
+        'delivery_manual_follow_up_at',
+        'delivery_tracking_completed_at',
         'reservation_expires_at',
         'paid_at',
         'cancelled_at',
@@ -143,6 +155,24 @@ class Order extends Model
             ['reservation_expires_at' => $expiresAt],
             ['reservation_expires_at'],
         );
+    }
+
+    /**
+     * @internal Used by the fulfillment tracking service.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function applyFulfillmentMutation(array $attributes): void
+    {
+        $this->applyLifecycleMutation($attributes, [
+            'delivery_tracking_status',
+            'delivery_current_cycle',
+            'reshipment_payment_due_at',
+            'pickup_ready_at',
+            'pickup_deadline_at',
+            'delivery_manual_follow_up_at',
+            'delivery_tracking_completed_at',
+        ]);
     }
 
     /** @internal Used by the checkout cart cleanup coordinator. */
@@ -227,6 +257,13 @@ class Order extends Model
         return $this->hasMany(OrderNotificationDelivery::class);
     }
 
+    public function deliveryAttempts(): HasMany
+    {
+        return $this->hasMany(DeliveryAttempt::class)
+            ->oldest('cycle')
+            ->oldest('attempt_number');
+    }
+
     public function saleDocument(): HasOne
     {
         return $this->hasOne(FiscalDocument::class)->where('sale_document_slot', 'sale');
@@ -245,6 +282,7 @@ class Order extends Model
             'order_status' => OrderStatus::class,
             'payment_status' => PaymentStatus::class,
             'delivery_status' => DeliveryStatus::class,
+            'delivery_tracking_status' => DeliveryTrackingStatus::class,
             'delivery_method' => DeliveryMethod::class,
             'fiscal_document_type' => FiscalDocumentType::class,
             'fiscal_identity_document_type' => FiscalIdentityDocumentType::class,
@@ -263,9 +301,19 @@ class Order extends Model
             'total_cents' => 'integer',
             'delivery_business_days_min' => 'integer',
             'delivery_business_days_max' => 'integer',
+            'delivery_current_cycle' => 'integer',
+            'delivery_attempts_per_cycle' => 'integer',
+            'delivery_max_automatic_cycles' => 'integer',
+            'reshipment_payment_days' => 'integer',
+            'pickup_hold_days' => 'integer',
             'delivery_window_starts_at' => 'datetime',
             'delivery_estimated_from' => 'immutable_date',
             'delivery_estimated_to' => 'immutable_date',
+            'reshipment_payment_due_at' => 'datetime',
+            'pickup_ready_at' => 'datetime',
+            'pickup_deadline_at' => 'datetime',
+            'delivery_manual_follow_up_at' => 'datetime',
+            'delivery_tracking_completed_at' => 'datetime',
             'reservation_expires_at' => 'datetime',
             'paid_at' => 'datetime',
             'cancelled_at' => 'datetime',

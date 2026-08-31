@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
 class OrderStateTransitionService
 {
     private const ORDER_TRANSITIONS = [
-        'pending_payment' => ['processing', 'cancelled', 'expired'],
+        'pending_payment' => ['confirmed', 'cancelled', 'expired'],
+        'confirmed' => ['processing', 'cancelled'],
         'processing' => ['completed', 'cancelled'],
         'completed' => [],
         'cancelled' => [],
@@ -69,11 +70,13 @@ class OrderStateTransitionService
 
             $this->ensureAllowed('pedido', self::ORDER_TRANSITIONS, $current->value, $target->value);
 
-            if ($target === OrderStatus::Processing && $locked->payment_status !== PaymentStatus::Paid) {
+            if (in_array($target, [OrderStatus::Confirmed, OrderStatus::Processing], true)
+                && $locked->payment_status !== PaymentStatus::Paid) {
                 throw new InvalidStateTransitionException('pedido', $current->value, $target->value, 'El pedido solo puede procesarse despues de confirmar el pago.');
             }
 
-            if ($target === OrderStatus::Processing && $this->hasActiveReservations($locked)) {
+            if (in_array($target, [OrderStatus::Confirmed, OrderStatus::Processing], true)
+                && $this->hasActiveReservations($locked)) {
                 throw new InvalidStateTransitionException('pedido', $current->value, $target->value, 'Las reservas deben consumirse antes de procesar el pedido.');
             }
 
@@ -147,6 +150,17 @@ class OrderStateTransitionService
                     $locked->releasePendingPaymentSlot();
                 }
 
+                if ($target === PaymentStatus::Paid
+                    && $locked->order_status === OrderStatus::PendingPayment) {
+                    return $this->transitionOrder(
+                        $locked->refresh(),
+                        OrderStatus::Confirmed,
+                        $actor,
+                        $reason,
+                        $metadata,
+                    );
+                }
+
                 return $locked;
             }
 
@@ -154,6 +168,10 @@ class OrderStateTransitionService
 
             if ($target === PaymentStatus::Paid && in_array($locked->order_status, [OrderStatus::Cancelled, OrderStatus::Expired], true)) {
                 throw new InvalidStateTransitionException('pago', $current->value, $target->value, 'No se puede pagar un pedido cancelado o vencido.');
+            }
+
+            if ($target === PaymentStatus::Paid && $locked->order_status !== OrderStatus::PendingPayment) {
+                throw new InvalidStateTransitionException('pago', $current->value, $target->value, 'Solo un pedido pendiente de pago puede confirmar su pago inicial.');
             }
 
             if ($target === PaymentStatus::Expired && $locked->order_status !== OrderStatus::PendingPayment) {
@@ -175,15 +193,18 @@ class OrderStateTransitionService
 
             if ($target === PaymentStatus::Paid) {
                 $paidAt = now();
-                $estimatedDates = $this->calendar->estimate(
-                    $locked->delivery_business_days_min,
-                    $locked->delivery_business_days_max,
-                    $paidAt,
-                );
                 $attributes['paid_at'] = $paidAt;
                 $attributes['delivery_window_starts_at'] = $paidAt;
-                $attributes['delivery_estimated_from'] = $estimatedDates->from;
-                $attributes['delivery_estimated_to'] = $estimatedDates->to;
+
+                if ($locked->delivery_estimated_from === null || $locked->delivery_estimated_to === null) {
+                    $estimatedDates = $this->calendar->estimate(
+                        $locked->delivery_business_days_min,
+                        $locked->delivery_business_days_max,
+                        $paidAt,
+                    );
+                    $attributes['delivery_estimated_from'] = $estimatedDates->from;
+                    $attributes['delivery_estimated_to'] = $estimatedDates->to;
+                }
             }
 
             if (in_array($target, [
@@ -198,7 +219,19 @@ class OrderStateTransitionService
             $locked->applyStateMutation($attributes);
             $this->history->record($locked, OrderHistoryDomain::Payment, $current->value, $target->value, $actor, $reason, $metadata);
 
-            return $locked->refresh();
+            $updated = $locked->refresh();
+
+            if ($target === PaymentStatus::Paid) {
+                return $this->transitionOrder(
+                    $updated,
+                    OrderStatus::Confirmed,
+                    $actor,
+                    $reason,
+                    $metadata,
+                );
+            }
+
+            return $updated;
         });
     }
 

@@ -17,7 +17,9 @@ use App\Models\User;
 use App\Support\Orders\InvalidStateTransitionException;
 use App\Support\Orders\OrderStateTransitionService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 use Tests\TestCase;
 
@@ -150,6 +152,7 @@ class OrderDomainTest extends TestCase
             'Pago confirmado',
             ['provider_reference' => 'PAY-100'],
         );
+        $this->assertSame(OrderStatus::Confirmed, $order->order_status);
         $order = $service->transitionOrder($order, OrderStatus::Processing, $actor);
         $order = $service->transitionDelivery($order, DeliveryStatus::Preparing, $actor);
         $order = $service->transitionDelivery($order, DeliveryStatus::Shipped, $actor);
@@ -171,6 +174,14 @@ class OrderDomainTest extends TestCase
             'domain' => OrderHistoryDomain::Payment->value,
             'from_status' => PaymentStatus::Pending->value,
             'to_status' => PaymentStatus::Paid->value,
+            'actor_id' => $actor->id,
+            'reason' => 'Pago confirmado',
+        ]);
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'domain' => OrderHistoryDomain::Order->value,
+            'from_status' => OrderStatus::PendingPayment->value,
+            'to_status' => OrderStatus::Confirmed->value,
             'actor_id' => $actor->id,
             'reason' => 'Pago confirmado',
         ]);
@@ -219,6 +230,7 @@ class OrderDomainTest extends TestCase
 
         $paid = $this->states()->transitionPayment($order, PaymentStatus::Paid);
 
+        $this->assertSame(OrderStatus::Confirmed, $paid->order_status);
         $this->assertSame('2026-07-21', $paid->delivery_estimated_from->toDateString());
         $this->assertSame('2026-07-23', $paid->delivery_estimated_to->toDateString());
 
@@ -229,11 +241,73 @@ class OrderDomainTest extends TestCase
         $this->assertSame('2026-07-23', $paid->delivery_estimated_to->toDateString());
     }
 
+    public function test_payment_confirmation_preserves_the_dates_accepted_during_checkout(): void
+    {
+        CarbonImmutable::setTestNow('2026-07-20 10:00:00');
+        $order = Order::factory()->create([
+            'delivery_business_days_min' => 1,
+            'delivery_business_days_max' => 2,
+            'delivery_estimated_from' => '2026-07-21',
+            'delivery_estimated_to' => '2026-07-22',
+        ]);
+
+        NonWorkingDay::factory()->create(['date' => '2026-07-21']);
+        CarbonImmutable::setTestNow('2026-07-21 08:00:00');
+
+        $paid = $this->states()->transitionPayment($order, PaymentStatus::Paid);
+
+        $this->assertSame('2026-07-21', $paid->delivery_estimated_from->toDateString());
+        $this->assertSame('2026-07-22', $paid->delivery_estimated_to->toDateString());
+        $this->assertSame('2026-07-21 08:00:00', $paid->delivery_window_starts_at->format('Y-m-d H:i:s'));
+
+        $processing = $this->states()->transitionOrder($paid, OrderStatus::Processing);
+        $preparing = $this->states()->transitionDelivery($processing, DeliveryStatus::Preparing);
+
+        $this->assertSame('2026-07-21', $preparing->delivery_estimated_from->toDateString());
+        $this->assertSame('2026-07-22', $preparing->delivery_estimated_to->toDateString());
+    }
+
+    public function test_payment_and_order_confirmation_roll_back_together(): void
+    {
+        $order = Order::factory()->create();
+        $historyCount = $order->statusHistories()->count();
+
+        DB::statement(<<<'SQL'
+            CREATE TRIGGER fail_confirmed_order
+            BEFORE UPDATE OF order_status ON orders
+            WHEN NEW.order_status = 'confirmed'
+            BEGIN
+                SELECT RAISE(ABORT, 'forced confirmation rollback');
+            END
+            SQL);
+
+        try {
+            $this->states()->transitionPayment($order, PaymentStatus::Paid);
+            $this->fail('La confirmacion compuesta debio revertirse por completo.');
+        } catch (QueryException $exception) {
+            $this->assertStringContainsString('forced confirmation rollback', $exception->getMessage());
+        }
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::PendingPayment, $order->order_status);
+        $this->assertSame(PaymentStatus::Pending, $order->payment_status);
+        $this->assertNull($order->paid_at);
+        $this->assertNull($order->delivery_window_starts_at);
+        $this->assertSame($historyCount, $order->statusHistories()->count());
+    }
+
     public function test_invalid_transitions_are_rejected_without_mutating_state_or_history(): void
     {
         $service = $this->states();
         $unpaid = Order::factory()->create();
         $initialHistoryCount = $unpaid->statusHistories()->count();
+
+        $this->assertInvalidTransition(
+            fn () => $service->transitionOrder($unpaid, OrderStatus::Confirmed),
+            'pedido',
+            OrderStatus::PendingPayment->value,
+            OrderStatus::Confirmed->value,
+        );
 
         $this->assertInvalidTransition(
             fn () => $service->transitionOrder($unpaid, OrderStatus::Processing),
@@ -308,10 +382,10 @@ class OrderDomainTest extends TestCase
         $this->assertInvalidTransition(
             fn () => $service->transitionOrder($reserved, OrderStatus::Processing),
             'pedido',
-            OrderStatus::PendingPayment->value,
+            OrderStatus::Confirmed->value,
             OrderStatus::Processing->value,
         );
-        $this->assertSame(OrderStatus::PendingPayment, $reserved->refresh()->order_status);
+        $this->assertSame(OrderStatus::Confirmed, $reserved->refresh()->order_status);
 
         $preparing = Order::factory()->paid()->create();
         $preparing = $service->transitionDelivery($preparing, DeliveryStatus::Preparing);
@@ -319,7 +393,7 @@ class OrderDomainTest extends TestCase
         $this->assertInvalidTransition(
             fn () => $service->transitionOrder($preparing, OrderStatus::Cancelled),
             'pedido',
-            OrderStatus::PendingPayment->value,
+            OrderStatus::Confirmed->value,
             OrderStatus::Cancelled->value,
         );
 

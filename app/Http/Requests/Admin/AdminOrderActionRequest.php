@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\AdminFulfillmentFilter;
 use App\Enums\DeliveryMethod;
 use App\Enums\DeliveryStatus;
 use App\Enums\OrderStatus;
@@ -33,6 +34,7 @@ class AdminOrderActionRequest extends FormRequest
             'return.estado_pago' => ['nullable', Rule::enum(PaymentStatus::class)],
             'return.estado_entrega' => ['nullable', Rule::enum(DeliveryStatus::class)],
             'return.modalidad' => ['nullable', Rule::enum(DeliveryMethod::class)],
+            'return.seguimiento' => ['nullable', Rule::enum(AdminFulfillmentFilter::class)],
             'return.desde' => ['nullable', 'date_format:Y-m-d'],
             'return.hasta' => ['nullable', 'date_format:Y-m-d'],
             'return.page' => ['nullable', 'integer', 'min:1'],

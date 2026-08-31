@@ -166,8 +166,22 @@ class OrderInvariantValidator
             throw new DomainException('El plazo de entrega en dias de atencion no es valido.');
         }
 
-        if (($order['delivery_estimated_from'] ?? null) !== null || ($order['delivery_estimated_to'] ?? null) !== null) {
-            throw new DomainException('Las fechas estimadas se definen al confirmar el pago.');
+        $estimatedFrom = $order['delivery_estimated_from'] ?? null;
+        $estimatedTo = $order['delivery_estimated_to'] ?? null;
+
+        if (($estimatedFrom === null) !== ($estimatedTo === null)) {
+            throw new DomainException('El rango estimado de entrega debe guardarse completo.');
+        }
+
+        if ($estimatedFrom !== null
+            && (! $this->validDate($estimatedFrom)
+                || ! $this->validDate($estimatedTo)
+                || $estimatedTo < $estimatedFrom)) {
+            throw new DomainException('El rango estimado de entrega no es valido.');
+        }
+
+        if (array_key_exists('checkout_idempotency_key', $order) && $estimatedFrom === null) {
+            throw new DomainException('El pedido debe conservar las fechas aceptadas en el checkout.');
         }
     }
 
@@ -372,5 +386,14 @@ class OrderInvariantValidator
     private function hasValue(array $attributes, string $column): bool
     {
         return is_string($attributes[$column] ?? null) && trim($attributes[$column]) !== '';
+    }
+
+    private function validDate(mixed $value): bool
+    {
+        if (! is_string($value) || preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $parts) !== 1) {
+            return false;
+        }
+
+        return checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1]);
     }
 }

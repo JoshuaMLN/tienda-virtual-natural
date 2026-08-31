@@ -21,6 +21,7 @@ class AdminOrderOperationService
 {
     public function __construct(
         private readonly OrderStateTransitionService $states,
+        private readonly OrderFulfillmentService $fulfillment,
         private readonly StockReservationService $reservations,
         private readonly OrderNotificationDeliveryService $notifications,
     ) {}
@@ -40,8 +41,6 @@ class AdminOrderOperationService
             $actions[] = AdminOrderAction::MarkShipped;
         } elseif ($this->canMarkReadyForPickup($order)) {
             $actions[] = AdminOrderAction::MarkReadyForPickup;
-        } elseif ($this->canConfirmDelivery($order)) {
-            $actions[] = AdminOrderAction::ConfirmDelivery;
         } elseif ($this->canConfirmPickup($order)) {
             $actions[] = AdminOrderAction::ConfirmPickup;
         }
@@ -88,30 +87,9 @@ class AdminOrderOperationService
 
                     return match ($action) {
                         AdminOrderAction::StartPreparation => $this->startPreparation($locked, $actor, $metadata),
-                        AdminOrderAction::MarkShipped => $this->states->transitionDelivery(
-                            $locked,
-                            DeliveryStatus::Shipped,
-                            $actor,
-                            metadata: $metadata,
-                        ),
-                        AdminOrderAction::MarkReadyForPickup => $this->states->transitionDelivery(
-                            $locked,
-                            DeliveryStatus::ReadyForPickup,
-                            $actor,
-                            metadata: $metadata,
-                        ),
-                        AdminOrderAction::ConfirmDelivery => $this->complete(
-                            $locked,
-                            DeliveryStatus::Delivered,
-                            $actor,
-                            $metadata,
-                        ),
-                        AdminOrderAction::ConfirmPickup => $this->complete(
-                            $locked,
-                            DeliveryStatus::PickedUp,
-                            $actor,
-                            $metadata,
-                        ),
+                        AdminOrderAction::MarkShipped => $this->fulfillment->markShipped($locked, $actor, $metadata),
+                        AdminOrderAction::MarkReadyForPickup => $this->fulfillment->markPickupReady($locked, $actor, $metadata),
+                        AdminOrderAction::ConfirmPickup => $this->fulfillment->confirmPickup($locked, $actor, $metadata),
                         AdminOrderAction::Cancel => $this->cancel($locked, $actor, $reason, $metadata),
                     };
                 }, 5);
@@ -130,40 +108,16 @@ class AdminOrderOperationService
     /** @param array<string, mixed> $metadata */
     private function startPreparation(Order $order, User $actor, array $metadata): Order
     {
-        if ($order->order_status === OrderStatus::PendingPayment) {
-            $order = $this->states->transitionOrder(
-                $order,
-                OrderStatus::Processing,
-                $actor,
-                metadata: $metadata,
-            );
-        }
+        $order = $this->states->transitionOrder(
+            $order,
+            OrderStatus::Processing,
+            $actor,
+            metadata: $metadata,
+        );
 
         return $this->states->transitionDelivery(
             $order,
             DeliveryStatus::Preparing,
-            $actor,
-            metadata: $metadata,
-        );
-    }
-
-    /** @param array<string, mixed> $metadata */
-    private function complete(
-        Order $order,
-        DeliveryStatus $deliveryStatus,
-        User $actor,
-        array $metadata,
-    ): Order {
-        $order = $this->states->transitionDelivery(
-            $order,
-            $deliveryStatus,
-            $actor,
-            metadata: $metadata,
-        );
-
-        return $this->states->transitionOrder(
-            $order,
-            OrderStatus::Completed,
             $actor,
             metadata: $metadata,
         );
@@ -185,7 +139,7 @@ class AdminOrderOperationService
             );
             $this->notifications->record($cancelled, OrderNotificationType::Cancelled);
 
-            return $cancelled;
+            return $this->fulfillment->closeTracking($cancelled);
         }
 
         $this->reservations->restockConsumedForCancellation(
@@ -219,7 +173,7 @@ class AdminOrderOperationService
         );
         $this->notifications->record($cancelled, OrderNotificationType::Cancelled);
 
-        return $cancelled;
+        return $this->fulfillment->closeTracking($cancelled);
     }
 
     private function validatedReason(AdminOrderAction $action, ?string $reason): string
@@ -245,7 +199,7 @@ class AdminOrderOperationService
     private function canStartPreparation(Order $order): bool
     {
         return $order->payment_status === PaymentStatus::Paid
-            && in_array($order->order_status, [OrderStatus::PendingPayment, OrderStatus::Processing], true)
+            && $order->order_status === OrderStatus::Confirmed
             && $order->delivery_status === DeliveryStatus::Pending;
     }
 
@@ -265,14 +219,6 @@ class AdminOrderOperationService
             && $order->delivery_status === DeliveryStatus::Preparing;
     }
 
-    private function canConfirmDelivery(Order $order): bool
-    {
-        return $order->delivery_method === DeliveryMethod::HomeDelivery
-            && $order->payment_status === PaymentStatus::Paid
-            && $order->order_status === OrderStatus::Processing
-            && $order->delivery_status === DeliveryStatus::Shipped;
-    }
-
     private function canConfirmPickup(Order $order): bool
     {
         return $order->delivery_method === DeliveryMethod::Pickup
@@ -283,7 +229,11 @@ class AdminOrderOperationService
 
     private function canCancel(Order $order): bool
     {
-        if (! in_array($order->order_status, [OrderStatus::PendingPayment, OrderStatus::Processing], true)) {
+        if (! in_array($order->order_status, [
+            OrderStatus::PendingPayment,
+            OrderStatus::Confirmed,
+            OrderStatus::Processing,
+        ], true)) {
             return false;
         }
 
@@ -317,8 +267,6 @@ class AdminOrderOperationService
                 && in_array($order->delivery_status, [DeliveryStatus::Shipped, DeliveryStatus::Delivered], true),
             AdminOrderAction::MarkReadyForPickup => $order->delivery_method === DeliveryMethod::Pickup
                 && in_array($order->delivery_status, [DeliveryStatus::ReadyForPickup, DeliveryStatus::PickedUp], true),
-            AdminOrderAction::ConfirmDelivery => $order->order_status === OrderStatus::Completed
-                && $order->delivery_status === DeliveryStatus::Delivered,
             AdminOrderAction::ConfirmPickup => $order->order_status === OrderStatus::Completed
                 && $order->delivery_status === DeliveryStatus::PickedUp,
             AdminOrderAction::Cancel => $order->order_status === OrderStatus::Cancelled

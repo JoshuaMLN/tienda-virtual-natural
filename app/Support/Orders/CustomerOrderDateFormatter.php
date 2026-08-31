@@ -48,6 +48,26 @@ class CustomerOrderDateFormatter
         return 'del '.$start->translatedFormat('j \d\e F \d\e Y').' al '.$end->translatedFormat('j \d\e F \d\e Y');
     }
 
+    public function availabilityRange(DateTimeInterface $from, DateTimeInterface $to): string
+    {
+        $start = $this->local($from)->startOfDay();
+        $end = $this->local($to)->startOfDay();
+
+        if ($start->isSameDay($end)) {
+            return 'el '.$start->translatedFormat('j \d\e F \d\e Y');
+        }
+
+        if ($start->year === $end->year && $start->month === $end->month) {
+            return 'entre el '.$start->format('j').' y el '.$end->translatedFormat('j \d\e F \d\e Y');
+        }
+
+        if ($start->year === $end->year) {
+            return 'entre el '.$start->translatedFormat('j \d\e F').' y el '.$end->translatedFormat('j \d\e F \d\e Y');
+        }
+
+        return 'entre el '.$start->translatedFormat('j \d\e F \d\e Y').' y el '.$end->translatedFormat('j \d\e F \d\e Y');
+    }
+
     private function local(DateTimeInterface $date): CarbonImmutable
     {
         return CarbonImmutable::instance($date)

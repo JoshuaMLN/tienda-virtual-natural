@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\DeliveryMethod;
 use App\Enums\DeliveryStatus;
+use App\Enums\DeliveryTrackingStatus;
 use App\Enums\FiscalDocumentType;
 use App\Enums\FiscalIdentityDocumentType;
 use App\Enums\OrderStatus;
@@ -35,6 +36,12 @@ class OrderFactory extends Factory
             'order_status' => OrderStatus::PendingPayment,
             'payment_status' => PaymentStatus::Pending,
             'delivery_status' => DeliveryStatus::Pending,
+            'delivery_tracking_status' => DeliveryTrackingStatus::Active,
+            'delivery_current_cycle' => 1,
+            'delivery_attempts_per_cycle' => 3,
+            'delivery_max_automatic_cycles' => 2,
+            'reshipment_payment_days' => 7,
+            'pickup_hold_days' => 14,
             'delivery_method' => DeliveryMethod::HomeDelivery,
             'delivery_recipient_name' => fake()->name(),
             'delivery_phone' => '9'.fake()->numerify('########'),
@@ -94,6 +101,7 @@ class OrderFactory extends Factory
             );
 
             return [
+                'order_status' => OrderStatus::Confirmed,
                 'payment_status' => PaymentStatus::Paid,
                 'paid_at' => $paidAt,
                 'delivery_window_starts_at' => $paidAt,
@@ -140,6 +148,38 @@ class OrderFactory extends Factory
             'delivery_address' => null,
             'delivery_reference' => null,
             'pickup_address' => 'Av. Javier Prado 1234, San Isidro',
+        ]);
+    }
+
+    public function shipped(): static
+    {
+        return $this->processing()->state(fn (): array => [
+            'delivery_status' => DeliveryStatus::Shipped,
+        ]);
+    }
+
+    public function readyForPickup(): static
+    {
+        return $this->processing()->pickup()->state(fn (): array => [
+            'delivery_status' => DeliveryStatus::ReadyForPickup,
+            'pickup_ready_at' => now(),
+            'pickup_deadline_at' => now()->addDays(14),
+        ]);
+    }
+
+    public function awaitingReshipmentPayment(): static
+    {
+        return $this->shipped()->state(fn (): array => [
+            'delivery_tracking_status' => DeliveryTrackingStatus::AwaitingReshipmentPayment,
+            'reshipment_payment_due_at' => now()->addDays(7),
+        ]);
+    }
+
+    public function manualFollowUp(): static
+    {
+        return $this->shipped()->state(fn (): array => [
+            'delivery_tracking_status' => DeliveryTrackingStatus::ManualFollowUp,
+            'delivery_manual_follow_up_at' => now(),
         ]);
     }
 

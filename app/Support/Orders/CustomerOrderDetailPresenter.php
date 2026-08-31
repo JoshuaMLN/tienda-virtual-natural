@@ -4,6 +4,8 @@ namespace App\Support\Orders;
 
 use App\Enums\CustomerOrderStatus;
 use App\Enums\DeliveryMethod;
+use App\Enums\DeliveryStatus;
+use App\Enums\DeliveryTrackingStatus;
 use App\Enums\FiscalDocumentType;
 use App\Enums\TaxAffectation;
 use App\Models\Order;
@@ -134,11 +136,14 @@ class CustomerOrderDetailPresenter
         if ($order->paid_at !== null
             && $order->delivery_estimated_from !== null
             && $order->delivery_estimated_to !== null) {
-            $estimate = $this->dates->dateRange(
+            $estimate = $this->dates->availabilityRange(
                 $order->delivery_estimated_from,
                 $order->delivery_estimated_to,
             );
         }
+
+        $primaryNotice = $this->deliveryTrackingNotice($order)
+            ?? $this->deliveryEstimateNotice($order, $estimate);
 
         return [
             'is_pickup' => $isPickup,
@@ -157,8 +162,82 @@ class CustomerOrderDetailPresenter
             'reference' => $isPickup ? null : $order->delivery_reference,
             'reservation_expires_at' => $reservationExpiration,
             'estimate' => $estimate,
-            'estimate_label' => $isPickup ? 'Recojo disponible' : 'Entrega estimada',
+            'estimate_label' => $isPickup ? 'Preparacion estimada' : 'Entrega estimada',
+            'primary_notice' => $primaryNotice,
         ];
+    }
+
+    /** @return array{tone: string, icon: string, title: string, message: string}|null */
+    private function deliveryEstimateNotice(Order $order, ?string $estimate): ?array
+    {
+        if ($estimate === null
+            || $order->paid_at === null
+            || in_array($order->delivery_status, [
+                DeliveryStatus::Delivered,
+                DeliveryStatus::PickedUp,
+                DeliveryStatus::Cancelled,
+            ], true)) {
+            return null;
+        }
+
+        if ($order->delivery_method === DeliveryMethod::Pickup) {
+            return [
+                'tone' => 'success',
+                'icon' => 'bi-shop',
+                'title' => 'Preparacion para recojo',
+                'message' => "Estimamos que tu pedido estara listo para recoger {$estimate}. Te avisaremos cuando puedas acercarte.",
+            ];
+        }
+
+        return [
+            'tone' => 'success',
+            'icon' => $order->delivery_status === DeliveryStatus::Shipped ? 'bi-truck' : 'bi-calendar-check',
+            'title' => $order->delivery_status === DeliveryStatus::Shipped ? 'Pedido en camino' : 'Entrega estimada',
+            'message' => "Estimamos que tu pedido llegara {$estimate}.",
+        ];
+    }
+
+    /** @return array{tone: string, icon: string, title: string, message: string}|null */
+    private function deliveryTrackingNotice(Order $order): ?array
+    {
+        if ($order->delivery_tracking_status === DeliveryTrackingStatus::AwaitingReshipmentPayment) {
+            $deadline = $order->reshipment_payment_due_at
+                ? ' antes del '.$this->dates->descriptive($order->reshipment_payment_due_at)
+                : '';
+
+            return [
+                'tone' => 'warning',
+                'icon' => 'bi-credit-card',
+                'title' => 'Nuevo envio pendiente',
+                'message' => "Necesitamos confirmar un nuevo pago de envio{$deadline} antes de programar otra visita.",
+            ];
+        }
+
+        if ($order->delivery_tracking_status === DeliveryTrackingStatus::ManualFollowUp
+            || ($order->delivery_status === DeliveryStatus::ReadyForPickup
+                && $order->pickup_deadline_at?->lte(now()) === true)) {
+            return [
+                'tone' => 'warning',
+                'icon' => 'bi-headset',
+                'title' => 'Coordinacion necesaria',
+                'message' => $order->delivery_method === DeliveryMethod::Pickup
+                    ? 'El plazo inicial de recojo termino. Tu pedido no fue cancelado ni descartado; la tienda coordinara contigo.'
+                    : 'Este pedido requiere seguimiento personalizado de la tienda antes de continuar.',
+            ];
+        }
+
+        if ($order->delivery_method === DeliveryMethod::Pickup
+            && $order->delivery_status === DeliveryStatus::ReadyForPickup
+            && $order->pickup_deadline_at !== null) {
+            return [
+                'tone' => 'success',
+                'icon' => 'bi-calendar-check',
+                'title' => 'Tu pedido esta listo para recoger',
+                'message' => 'Puedes recoger tu pedido hasta el '.$this->dates->descriptive($order->pickup_deadline_at),
+            ];
+        }
+
+        return null;
     }
 
     /** @return array<string, mixed> */

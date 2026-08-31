@@ -6,6 +6,7 @@ use App\Enums\CustomerOrderFilter;
 use App\Enums\CustomerOrderStatus;
 use App\Enums\DeliveryMethod;
 use App\Enums\DeliveryStatus;
+use App\Enums\DeliveryTrackingStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
@@ -48,6 +49,7 @@ class CustomerOrderStatusResolverTest extends TestCase
                 'reservation_expires_at' => now()->addMinute(),
             ]),
             CustomerOrderStatus::PaymentConfirmed->value => $this->order(13, [
+                'order_status' => OrderStatus::Confirmed,
                 'payment_status' => PaymentStatus::Paid,
             ]),
             CustomerOrderStatus::Preparing->value => $this->order(3, [
@@ -64,6 +66,18 @@ class CustomerOrderStatusResolverTest extends TestCase
                 'payment_status' => PaymentStatus::Paid,
                 'delivery_status' => DeliveryStatus::ReadyForPickup,
                 'delivery_method' => DeliveryMethod::Pickup,
+            ]),
+            CustomerOrderStatus::AwaitingReshipmentPayment->value => $this->order(15, [
+                'order_status' => OrderStatus::Processing,
+                'payment_status' => PaymentStatus::Paid,
+                'delivery_status' => DeliveryStatus::Shipped,
+                'delivery_tracking_status' => DeliveryTrackingStatus::AwaitingReshipmentPayment,
+            ]),
+            CustomerOrderStatus::ManualFollowUp->value => $this->order(16, [
+                'order_status' => OrderStatus::Processing,
+                'payment_status' => PaymentStatus::Paid,
+                'delivery_status' => DeliveryStatus::Shipped,
+                'delivery_tracking_status' => DeliveryTrackingStatus::ManualFollowUp,
             ]),
             CustomerOrderStatus::Delivered->value => $this->order(6, [
                 'order_status' => OrderStatus::Completed,
@@ -128,6 +142,10 @@ class CustomerOrderStatusResolverTest extends TestCase
             'payment_status' => PaymentStatus::Failed,
             'reservation_expires_at' => now()->addMinute(),
         ]);
+        $confirmed = $this->order(30, [
+            'order_status' => OrderStatus::Confirmed,
+            'payment_status' => PaymentStatus::Paid,
+        ]);
         $preparing = $this->order(22, [
             'order_status' => OrderStatus::Processing,
             'payment_status' => PaymentStatus::Paid,
@@ -170,6 +188,7 @@ class CustomerOrderStatusResolverTest extends TestCase
             CustomerOrderFilter::All->value => [
                 $pending->code,
                 $failed->code,
+                $confirmed->code,
                 $preparing->code,
                 $inTransit->code,
                 $readyForPickup->code,
@@ -180,7 +199,7 @@ class CustomerOrderStatusResolverTest extends TestCase
                 $expiredByDate->code,
             ],
             CustomerOrderFilter::Pending->value => [$pending->code, $failed->code],
-            CustomerOrderFilter::Preparing->value => [$preparing->code],
+            CustomerOrderFilter::Preparing->value => [$confirmed->code, $preparing->code],
             CustomerOrderFilter::Fulfillment->value => [$inTransit->code, $readyForPickup->code],
             CustomerOrderFilter::Completed->value => [$delivered->code, $pickedUp->code],
             CustomerOrderFilter::Closed->value => [$cancelled->code, $refunded->code, $expiredByDate->code],

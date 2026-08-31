@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AdminFulfillmentFilter;
 use App\Enums\DeliveryMethod;
 use App\Enums\DeliveryStatus;
+use App\Enums\DeliveryTrackingStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
@@ -24,6 +26,7 @@ class OrderController extends Controller
         'estado_pago',
         'estado_entrega',
         'modalidad',
+        'seguimiento',
         'desde',
         'hasta',
         'page',
@@ -55,6 +58,7 @@ class OrderController extends Controller
             'paymentStatuses' => PaymentStatus::cases(),
             'deliveryStatuses' => DeliveryStatus::cases(),
             'deliveryMethods' => DeliveryMethod::cases(),
+            'fulfillmentFilters' => AdminFulfillmentFilter::cases(),
             'detailQuery' => array_filter(
                 array_merge($filters, ['page' => $orders->currentPage()]),
                 fn (mixed $value): bool => $value !== null && $value !== '',
@@ -87,6 +91,10 @@ class OrderController extends Controller
             'notificationDeliveries' => fn ($query) => $query
                 ->latest('queued_at')
                 ->latest('id'),
+            'deliveryAttempts' => fn ($query) => $query
+                ->with('recordedBy:id,name,email')
+                ->oldest('cycle')
+                ->oldest('attempt_number'),
         ]);
 
         return response()->view('admin.orders.show', [
@@ -124,10 +132,33 @@ class OrderController extends Controller
                 ->where('delivery_status', $status))
             ->when($filters['modalidad'] ?? null, fn (Builder $query, string $method) => $query
                 ->where('delivery_method', $method))
+            ->when($filters['seguimiento'] ?? null, fn (Builder $query, string $filter) => $this
+                ->applyFulfillmentFilter($query, AdminFulfillmentFilter::from($filter)))
             ->when($filters['desde'] ?? null, fn (Builder $query, string $date) => $query
                 ->where('created_at', '>=', CarbonImmutable::parse($date, config('app.timezone'))->startOfDay()))
             ->when($filters['hasta'] ?? null, fn (Builder $query, string $date) => $query
                 ->where('created_at', '<=', CarbonImmutable::parse($date, config('app.timezone'))->endOfDay()));
+    }
+
+    private function applyFulfillmentFilter(Builder $query, AdminFulfillmentFilter $filter): Builder
+    {
+        return match ($filter) {
+            AdminFulfillmentFilter::PickupDueSoon => $query
+                ->where('delivery_method', DeliveryMethod::Pickup->value)
+                ->where('delivery_status', DeliveryStatus::ReadyForPickup->value)
+                ->where('pickup_deadline_at', '>', now())
+                ->where('pickup_deadline_at', '<=', now()->addHours(48)),
+            AdminFulfillmentFilter::PickupOverdue => $query
+                ->where('delivery_method', DeliveryMethod::Pickup->value)
+                ->where('delivery_status', DeliveryStatus::ReadyForPickup->value)
+                ->whereNotNull('pickup_deadline_at')
+                ->where('pickup_deadline_at', '<=', now()),
+            AdminFulfillmentFilter::ReshipmentPending => $query
+                ->where('delivery_tracking_status', DeliveryTrackingStatus::AwaitingReshipmentPayment->value),
+            AdminFulfillmentFilter::ManualFollowUp => $query
+                ->where('delivery_method', DeliveryMethod::HomeDelivery->value)
+                ->where('delivery_tracking_status', DeliveryTrackingStatus::ManualFollowUp->value),
+        };
     }
 
     /** @return array<string, string> */

@@ -2156,6 +2156,57 @@ a {
     padding: 1rem;
 }
 
+.customer-order-fulfillment-notice {
+    --fulfillment-bg: #f2f8ee;
+    --fulfillment-border: #c8ddb9;
+    --fulfillment-icon-bg: var(--vn-green-100);
+    --fulfillment-icon-color: var(--vn-green-800);
+    align-items: center;
+    background: var(--fulfillment-bg);
+    border: 1px solid var(--fulfillment-border);
+    border-radius: 8px;
+    display: grid;
+    gap: .85rem;
+    grid-template-columns: 42px minmax(0, 1fr);
+    padding: 1rem;
+}
+
+.customer-order-fulfillment-notice.is-warning {
+    --fulfillment-bg: #fff8e7;
+    --fulfillment-border: #efd596;
+    --fulfillment-icon-bg: #fbe8b5;
+    --fulfillment-icon-color: #805a08;
+}
+
+.customer-order-fulfillment-notice.is-info {
+    --fulfillment-bg: #eef6fc;
+    --fulfillment-border: #bed8eb;
+    --fulfillment-icon-bg: #dcecf8;
+    --fulfillment-icon-color: #245f86;
+}
+
+.customer-order-fulfillment-notice-icon {
+    align-items: center;
+    background: var(--fulfillment-icon-bg);
+    border-radius: 50%;
+    color: var(--fulfillment-icon-color);
+    display: inline-flex;
+    font-size: 1.1rem;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.customer-order-fulfillment-notice-copy {
+    min-width: 0;
+}
+
+.customer-order-fulfillment-notice-copy p {
+    color: #425044;
+    font-size: .88rem;
+    line-height: 1.5;
+}
+
 .customer-order-cancellation-notice {
     align-items: flex-start;
     background: #fff4f2;
@@ -3802,6 +3853,85 @@ body.admin-sidebar-open {
     padding: .75rem;
 }
 
+.admin-order-fulfillment-summary {
+    background: #f7f8f5;
+    border: 1px solid var(--vn-line);
+    border-radius: 6px;
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: .85rem;
+}
+
+.admin-order-fulfillment-summary > div {
+    display: grid;
+    gap: .2rem;
+    min-width: 0;
+}
+
+.admin-order-fulfillment-summary span {
+    color: var(--vn-muted);
+    font-size: .7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.admin-order-fulfillment-summary strong {
+    font-size: .84rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-order-delivery-attempt-list {
+    display: grid;
+}
+
+.admin-order-delivery-attempt {
+    --attempt-color: #b76000;
+    border-bottom: 1px solid var(--vn-line);
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: 34px minmax(0, 1fr);
+    padding: .9rem 0;
+}
+
+.admin-order-delivery-attempt:first-child {
+    padding-top: 0;
+}
+
+.admin-order-delivery-attempt:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.admin-order-delivery-attempt.is-delivered {
+    --attempt-color: var(--vn-green-700);
+}
+
+.admin-order-delivery-attempt-icon {
+    align-items: center;
+    background: color-mix(in srgb, var(--attempt-color) 12%, white);
+    border: 1px solid color-mix(in srgb, var(--attempt-color) 28%, white);
+    border-radius: 50%;
+    color: var(--attempt-color);
+    display: inline-flex;
+    height: 34px;
+    justify-content: center;
+    width: 34px;
+}
+
+.admin-order-delivery-attempt-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: .75rem;
+    justify-content: space-between;
+}
+
+.admin-order-delivery-attempt-heading > span {
+    color: var(--vn-muted);
+    font-size: .72rem;
+    text-align: right;
+}
+
 .admin-order-record-row {
     border-bottom: 1px solid var(--vn-line);
     display: grid;
@@ -4212,8 +4342,18 @@ body.admin-sidebar-open {
     }
 
     .admin-order-mobile-summary,
-    .admin-order-mobile-statuses {
+    .admin-order-mobile-statuses,
+    .admin-order-fulfillment-summary {
         grid-template-columns: 1fr;
+    }
+
+    .admin-order-delivery-attempt-heading {
+        flex-direction: column;
+        gap: .15rem;
+    }
+
+    .admin-order-delivery-attempt-heading > span {
+        text-align: left;
     }
 
     .admin-order-product-row {

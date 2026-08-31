@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\AdminFulfillmentFilter;
 use App\Enums\DeliveryMethod;
 use App\Enums\DeliveryStatus;
 use App\Enums\OrderStatus;
@@ -25,6 +26,7 @@ class ListAdminOrdersRequest extends FormRequest
             'estado_pago' => ['nullable', Rule::enum(PaymentStatus::class)],
             'estado_entrega' => ['nullable', Rule::enum(DeliveryStatus::class)],
             'modalidad' => ['nullable', Rule::enum(DeliveryMethod::class)],
+            'seguimiento' => ['nullable', Rule::enum(AdminFulfillmentFilter::class)],
             'desde' => ['nullable', 'date_format:Y-m-d'],
             'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
         ];
@@ -39,6 +41,7 @@ class ListAdminOrdersRequest extends FormRequest
             'estado_pago.enum' => 'El estado de pago seleccionado no es valido.',
             'estado_entrega.enum' => 'El estado de entrega seleccionado no es valido.',
             'modalidad.enum' => 'La modalidad seleccionada no es valida.',
+            'seguimiento.enum' => 'El seguimiento seleccionado no es valido.',
             'desde.date_format' => 'La fecha inicial no es valida.',
             'hasta.date_format' => 'La fecha final no es valida.',
             'hasta.after_or_equal' => 'La fecha final debe ser igual o posterior a la inicial.',
@@ -55,6 +58,7 @@ class ListAdminOrdersRequest extends FormRequest
             'estado_pago' => $this->filled('estado_pago') ? $this->input('estado_pago') : null,
             'estado_entrega' => $this->filled('estado_entrega') ? $this->input('estado_entrega') : null,
             'modalidad' => $this->filled('modalidad') ? $this->input('modalidad') : null,
+            'seguimiento' => $this->filled('seguimiento') ? $this->input('seguimiento') : null,
             'desde' => $this->filled('desde') ? $this->input('desde') : null,
             'hasta' => $this->filled('hasta') ? $this->input('hasta') : null,
         ]);

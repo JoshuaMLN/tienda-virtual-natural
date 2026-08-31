@@ -4,6 +4,7 @@ namespace Tests\Feature\Account;
 
 use App\Enums\DeliveryMethod;
 use App\Enums\DeliveryStatus;
+use App\Enums\DeliveryTrackingStatus;
 use App\Enums\FiscalDocumentType;
 use App\Enums\FiscalIdentityDocumentType;
 use App\Enums\OrderHistoryDomain;
@@ -315,7 +316,7 @@ class CustomerOrderDetailHttpTest extends TestCase
             ->assertDontSee('Entrega estimada');
     }
 
-    public function test_paid_pickup_displays_pickup_snapshot_and_estimate_but_not_a_reservation(): void
+    public function test_paid_pickup_explains_that_the_estimate_is_when_preparation_will_finish(): void
     {
         $customer = User::factory()->create();
         $order = $this->order($customer, 8, [
@@ -334,8 +335,67 @@ class CustomerOrderDetailHttpTest extends TestCase
             ->assertOk()
             ->assertSee('Recojo en tienda')
             ->assertSee('Av. Javier Prado 1234, San Isidro')
-            ->assertSee('Recojo disponible del 23 al 24 de julio de 2026')
+            ->assertSee('Preparacion para recojo')
+            ->assertSee('Estimamos que tu pedido estara listo para recoger entre el 23 y el 24 de julio de 2026. Te avisaremos cuando puedas acercarte.')
+            ->assertDontSee('Recojo disponible del 23 al 24 de julio de 2026')
             ->assertDontSee('Reserva vigente hasta');
+    }
+
+    public function test_paid_home_delivery_displays_a_prominent_estimate_below_the_heading(): void
+    {
+        $customer = User::factory()->create();
+        $order = $this->order($customer, 19, [
+            'order_status' => OrderStatus::Confirmed,
+            'payment_status' => PaymentStatus::Paid,
+            'delivery_method' => DeliveryMethod::HomeDelivery,
+            'delivery_status' => DeliveryStatus::Pending,
+            'paid_at' => now(),
+            'delivery_estimated_from' => '2026-08-05',
+            'delivery_estimated_to' => '2026-08-12',
+        ]);
+
+        $response = $this->actingAs($customer)
+            ->get(route('account.orders.show', $order->code))
+            ->assertOk()
+            ->assertSee('Entrega estimada')
+            ->assertSee('Estimamos que tu pedido llegara entre el 5 y el 12 de agosto de 2026.');
+
+        $this->assertStringContainsString(
+            'customer-order-detail-heading',
+            $response->getContent(),
+        );
+        $this->assertStringContainsString(
+            'customer-order-fulfillment-notice',
+            $response->getContent(),
+        );
+        $this->assertLessThan(
+            strpos($response->getContent(), 'customer-order-fulfillment-notice'),
+            strpos($response->getContent(), 'customer-order-detail-heading'),
+        );
+    }
+
+    public function test_ready_pickup_replaces_the_preparation_estimate_with_the_real_pickup_deadline(): void
+    {
+        $customer = User::factory()->create();
+        $order = $this->order($customer, 20, [
+            'order_status' => OrderStatus::Processing,
+            'payment_status' => PaymentStatus::Paid,
+            'delivery_method' => DeliveryMethod::Pickup,
+            'delivery_status' => DeliveryStatus::ReadyForPickup,
+            'pickup_address' => 'Av. Javier Prado 1234, San Isidro',
+            'paid_at' => now(),
+            'delivery_estimated_from' => '2026-08-05',
+            'delivery_estimated_to' => '2026-08-08',
+            'pickup_ready_at' => '2026-08-07 09:00:00',
+            'pickup_deadline_at' => '2026-08-21 09:00:00',
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('account.orders.show', $order->code))
+            ->assertOk()
+            ->assertSee('Tu pedido esta listo para recoger')
+            ->assertSee('Puedes recoger tu pedido hasta el 21 de agosto de 2026 a las 09:00 a. m.')
+            ->assertDontSee('Preparacion para recojo');
     }
 
     public function test_reservation_is_hidden_when_the_order_is_no_longer_pending(): void
@@ -351,6 +411,42 @@ class CustomerOrderDetailHttpTest extends TestCase
             ->get(route('account.orders.show', $order->code))
             ->assertOk()
             ->assertDontSee('Reserva vigente hasta');
+    }
+
+    public function test_customer_sees_reshipment_and_pickup_follow_up_without_internal_attempt_details(): void
+    {
+        $customer = User::factory()->create();
+        $reshipment = $this->order($customer, 17, [
+            'order_status' => OrderStatus::Processing,
+            'payment_status' => PaymentStatus::Paid,
+            'delivery_status' => DeliveryStatus::Shipped,
+            'delivery_tracking_status' => DeliveryTrackingStatus::AwaitingReshipmentPayment,
+            'reshipment_payment_due_at' => '2026-07-29 18:00:00',
+        ]);
+        $pickup = $this->order($customer, 18, [
+            'order_status' => OrderStatus::Processing,
+            'payment_status' => PaymentStatus::Paid,
+            'delivery_method' => DeliveryMethod::Pickup,
+            'delivery_status' => DeliveryStatus::ReadyForPickup,
+            'pickup_address' => 'Av. Javier Prado 1234, San Isidro',
+            'pickup_ready_at' => '2026-07-10 09:00:00',
+            'pickup_deadline_at' => now(),
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('account.orders.show', $reshipment->code))
+            ->assertOk()
+            ->assertSee('Pendiente de nuevo pago de envio')
+            ->assertSee('Nuevo envio pendiente')
+            ->assertSee('29 de julio de 2026')
+            ->assertDontSee('Intentos consumidos')
+            ->assertDontSee('Atribucion');
+
+        $this->get(route('account.orders.show', $pickup->code))
+            ->assertOk()
+            ->assertSee('Seguimiento manual')
+            ->assertSee('Coordinacion necesaria')
+            ->assertSee('no fue cancelado ni descartado');
     }
 
     public function test_home_delivery_timeline_contains_only_curated_customer_events(): void
@@ -371,7 +467,7 @@ class CustomerOrderDetailHttpTest extends TestCase
             'reason' => 'INTERNAL_REASON_X7',
             'metadata' => ['gateway_id' => 'movement-id-984321'],
         ]);
-        $this->history($order, OrderHistoryDomain::Order, OrderStatus::PendingPayment->value, OrderStatus::Processing->value, 2);
+        $this->history($order, OrderHistoryDomain::Order, OrderStatus::Confirmed->value, OrderStatus::Processing->value, 2);
         $this->history($order, OrderHistoryDomain::Delivery, DeliveryStatus::Pending->value, DeliveryStatus::Preparing->value, 3);
         $this->history($order, OrderHistoryDomain::Delivery, DeliveryStatus::Preparing->value, DeliveryStatus::Shipped->value, 4);
         $this->history($order, OrderHistoryDomain::Delivery, DeliveryStatus::Shipped->value, DeliveryStatus::Delivered->value, 5);

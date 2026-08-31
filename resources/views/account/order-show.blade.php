@@ -32,6 +32,19 @@
     </div>
 </div>
 
+@if($detail['delivery']['primary_notice'])
+    @php($primaryNotice = $detail['delivery']['primary_notice'])
+    <section class="customer-order-fulfillment-notice is-{{ $primaryNotice['tone'] }} mb-4" role="status" aria-labelledby="order-fulfillment-notice-title">
+        <span class="customer-order-fulfillment-notice-icon" aria-hidden="true">
+            <i class="bi {{ $primaryNotice['icon'] }}"></i>
+        </span>
+        <div class="customer-order-fulfillment-notice-copy">
+            <h2 class="h6 fw-black mb-1" id="order-fulfillment-notice-title">{{ $primaryNotice['title'] }}</h2>
+            <p class="mb-0">{{ $primaryNotice['message'] }}</p>
+        </div>
+    </section>
+@endif
+
 @if($detail['cancellation'])
     <section class="customer-order-cancellation-notice mb-4" aria-labelledby="order-cancellation-title">
         <span class="customer-order-cancellation-icon" aria-hidden="true">
@@ -146,9 +159,6 @@
             <i class="bi {{ $detail['delivery']['icon'] }}" aria-hidden="true"></i>
             <div>
                 <h2 class="h5 fw-black mb-0" id="order-delivery-title">{{ $detail['delivery']['method_label'] }}</h2>
-                @if($detail['delivery']['estimate'])
-                    <span class="small text-muted">{{ $detail['delivery']['estimate_label'] }} {{ $detail['delivery']['estimate'] }}</span>
-                @endif
             </div>
         </div>
 
@@ -174,6 +184,7 @@
                 <span>Reserva vigente hasta el {{ $detail['delivery']['reservation_expires_at'] }}</span>
             </div>
         @endif
+
     </section>
 
     <section class="account-card customer-order-timeline-card p-3 p-lg-4" aria-labelledby="order-timeline-title">

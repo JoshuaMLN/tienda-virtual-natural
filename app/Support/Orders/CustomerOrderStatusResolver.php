@@ -5,6 +5,7 @@ namespace App\Support\Orders;
 use App\Enums\CustomerOrderFilter;
 use App\Enums\CustomerOrderStatus;
 use App\Enums\DeliveryStatus;
+use App\Enums\DeliveryTrackingStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
@@ -32,6 +33,16 @@ class CustomerOrderStatusResolver
         if ($order->order_status === OrderStatus::Cancelled
             || $order->delivery_status === DeliveryStatus::Cancelled) {
             return CustomerOrderStatus::Cancelled;
+        }
+
+        if ($order->delivery_tracking_status === DeliveryTrackingStatus::AwaitingReshipmentPayment) {
+            return CustomerOrderStatus::AwaitingReshipmentPayment;
+        }
+
+        if ($order->delivery_tracking_status === DeliveryTrackingStatus::ManualFollowUp
+            || ($order->delivery_status === DeliveryStatus::ReadyForPickup
+                && $order->pickup_deadline_at?->lte($now) === true)) {
+            return CustomerOrderStatus::ManualFollowUp;
         }
 
         return match ($order->delivery_status) {
@@ -67,7 +78,8 @@ class CustomerOrderStatusResolver
             return CustomerOrderStatus::Preparing;
         }
 
-        if ($order->payment_status === PaymentStatus::Paid
+        if ($order->order_status === OrderStatus::Confirmed
+            && $order->payment_status === PaymentStatus::Paid
             && $order->delivery_status === DeliveryStatus::Pending) {
             return CustomerOrderStatus::PaymentConfirmed;
         }
@@ -114,8 +126,10 @@ class CustomerOrderStatusResolver
             ])
             ->where(function (Builder $query): void {
                 $query->where('delivery_status', DeliveryStatus::Preparing->value)
-                    ->orWhere('payment_status', PaymentStatus::Paid->value)
-                    ->orWhere('order_status', OrderStatus::Processing->value);
+                    ->orWhereIn('order_status', [
+                        OrderStatus::Confirmed->value,
+                        OrderStatus::Processing->value,
+                    ]);
             });
     }
 
