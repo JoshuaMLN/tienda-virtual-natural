@@ -3,6 +3,7 @@
 .env
 .env.*
 !.env.example
+!.env.e2e.example
 !.env.testing.example
 .phpactor.json
 .phpunit.result.cache
@@ -18,6 +19,9 @@
 /auth.json
 /coverage
 /node_modules
+/playwright/.auth/
+/playwright-report/
+/test-results/
 /npm-debug.log*
 /pnpm-debug.log*
 /public/build
@@ -34,3 +38,4 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+.playwright-cli/

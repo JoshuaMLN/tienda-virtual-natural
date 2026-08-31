@@ -4,9 +4,14 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "e2e:install": "playwright install chromium",
+        "e2e:reset": "php artisan e2e:reset --env=e2e",
+        "test:e2e": "npm run e2e:reset && playwright test"
     },
     "devDependencies": {
+        "@playwright/cli": "^0.1.18",
+        "@playwright/test": "^1.62.1",
         "@tailwindcss/vite": "^4.0.0",
         "bootstrap-icons": "^1.11.3",
         "concurrently": "^9.0.1",
