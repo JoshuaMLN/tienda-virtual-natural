@@ -489,6 +489,8 @@ Implementado en la Etapa 6.2:
 - Enlace al catalogo solo cuando el producto vigente conserva la visibilidad publica completa; productos eliminados u ocultos mantienen su snapshot sin enlace.
 - Informacion de contacto, domicilio o recojo y solicitud de boleta o factura con DNI, documento extranjero o RUC enmascarado.
 - Reserva visible solo mientras el pedido sigue pendiente y vigente; fechas estimadas visibles solo despues de confirmar el pago.
+- El rango exacto aceptado en checkout se conserva en el pedido y la confirmacion del pago ya no lo recalcula; iniciar la preparacion tampoco altera la expectativa historica del cliente.
+- El detalle muestra un aviso principal bajo el codigo: entrega estimada para domicilio, preparacion estimada para recojo y plazo real solo despues de marcarlo listo.
 - Timeline curado para creacion, pago, preparacion, envio, recojo, entrega, cancelacion, vencimiento y reembolso.
 - Eventos de reserva, IDs, actores, correos administrativos, razones y metadata interna excluidos de la presentacion.
 - Composicion responsive sin acceso horizontal y respuestas privadas sin cache publico.
@@ -499,6 +501,7 @@ Etapa 6.2 validada:
 - El usuario aprobo manualmente el detalle desktop y mobile, snapshots, imagenes, enlaces, importes, modalidades, privacidad fiscal, fechas y timeline.
 - La composicion final usa columnas verticales independientes en escritorio y conserva un orden de lectura logico en celular.
 - Los estados posteriores al pago quedan cubiertos por pruebas automatizadas hasta que Culqi habilite su recorrido manual real en el Sprint 7.
+- Ajuste de fechas y jerarquia visual implementado durante la validacion diferida; pendiente de nueva comprobacion manual en domicilio y recojo.
 - La etapa queda cerrada.
 
 Implementado en la Etapa 6.3:
@@ -604,7 +607,7 @@ Reglas cerradas:
 Planificado:
 - Etapa 7.1: bandeja, filtros y detalle administrativo de solo lectura. Completada.
 - Etapa 7.2: acciones contextuales, transiciones atomicas, auditoria y `refund_pending`. Completada.
-- Etapa 7.3: intentos y ciclos de entrega, bloqueo por nuevo pago y seguimiento de recojo.
+- Etapa 7.3: intentos y ciclos de entrega, bloqueo por nuevo pago y seguimiento de recojo. Implementada, pendiente de validacion manual.
 - Etapa 7.4: correos operativos, recordatorios, scheduler e idempotencia.
 - Etapa 7.5: registro y descarga privada de boleta o factura principal.
 - Etapa 7.6: correccion versionada de archivos, notas relacionadas y anulacion.
@@ -632,7 +635,7 @@ Completado en la Etapa 7.1:
 Completado en la Etapa 7.2:
 - `refund_pending` incorporado al enum, esquema, filtros, badges, estado comercial y linea de tiempo del cliente.
 - Flujo de reembolso restringido a `paid -> refund_pending -> refunded`; el panel no permite cambiar pagos manualmente.
-- Estado comercial `Pago confirmado` mientras el pedido pagado aun espera que un administrador inicie la preparacion.
+- Estado tecnico `confirmed` y estado comercial `Pago confirmado` mientras el pedido pagado aun espera que un administrador inicie la preparacion; la confirmacion del pago registra ambos historiales dentro de una transaccion.
 - `AdminOrderOperationService` coordina acciones bajo bloqueo pesimista, transaccion, validacion contextual e idempotencia.
 - Domicilio opera `pendiente -> preparando -> enviado -> entregado`; recojo opera `pendiente -> preparando -> listo -> recogido`.
 - Iniciar preparacion y finalizar entrega o recojo actualizan pedido y entrega atomicamente.
@@ -654,8 +657,49 @@ Completado en la Etapa 7.2:
 - Entorno Artisan de pruebas aislado mediante `.env.testing.example`, con SQLite en memoria, idioma y zona horaria equivalentes al desarrollo.
 - Suite completa aprobada con 598 pruebas y 4642 aserciones.
 
+Implementado en la Etapa 7.3:
+- Historial inmutable `delivery_attempts` con ciclo, numero de visita, numero consumido opcional, resultado, atribucion, responsable, motivo, fecha, token UUID y snapshot del administrador.
+- Claves unicas para token de operacion y secuencia por pedido/ciclo, referencias opcionales con `nullOnDelete` y pedido historico protegido con `restrictOnDelete`.
+- `OrderFulfillmentService` como unica puerta para resultados de entrega, fechas de recojo, cierre de seguimiento y reconciliacion de vencimientos.
+- Entrega exitosa completa entrega y pedido en una transaccion; se retiro la accion administrativa separada `Confirmar entrega`.
+- Incidencia atribuible al cliente consume intento; incidencias de tienda, transportista o no atribuibles se registran sin consumirlo.
+- Agotar un ciclo bloquea nuevas visitas y fija el plazo del nuevo pago de envio; agotar el ultimo ciclo pasa a seguimiento manual.
+- Politica por pedido congelada desde `terms_snapshot.settings_snapshot`, con limites acotados y respaldos de 3 intentos, 2 ciclos, 7 dias para reenvio y 14 dias para recojo en pedidos heredados.
+- Disponibilidad y fecha limite de recojo comienzan al marcar el pedido como listo; el vencimiento conserva pedido y mercaderia y requiere seguimiento manual.
+- Comando idempotente `orders:reconcile-fulfillment`, lote configurable y scheduler cada cinco minutos con `withoutOverlapping(10)`.
+- Panel administrativo con formulario contextual, motivo obligatorio de incidencia, atribucion separada, historial legible, resumen del ciclo y filtros persistentes.
+- Alertas agrupadas en el navbar para recojos por vencer en 48 horas, recojos vencidos, pagos de reenvio pendientes y seguimientos manuales.
+- Estado y detalle del cliente informan nuevo pago o coordinacion manual sin exponer intentos, atribuciones ni identidad administrativa.
+- Texto base legal alineado: el plazo de recojo inicia cuando la tienda marca el pedido como listo, no cuando el correo es entregado.
+- Migraciones `2026_07_31_000100_add_fulfillment_tracking_to_orders` y `2026_07_31_000200_create_delivery_attempts_table` aplicadas en la base local.
+- Pruebas de dominio, HTTP, privacidad, filtros, alertas, snapshots, restricciones, inmutabilidad, scheduler e idempotencia.
+- Prueba multiproceso con cuatro reintentos simultaneos confirma un solo intento persistido y un solo cupo consumido.
+- Comando `demo:create-paid-order` exclusivo de `local` y `testing` para crear pedidos pagados de validacion mediante correlativo, snapshots, calculo tributario, reserva, consumo y transicion de pago reales; no agrega controles de pago al panel ni opera en produccion.
+- Migracion `2026_08_04_000100_add_confirmed_to_orders_order_status` para normalizar pedidos historicos pagados que aun figuraban como `pending_payment`, liberando su ranura y conservando un evento tecnico de auditoria.
+- Suite focalizada aprobada con 69 pruebas y 602 aserciones; suite completa con 628 pruebas y 4889 aserciones.
+
 Pendiente:
-- Implementar y validar las Etapas 7.3 a 7.7 en orden.
+- Completar la validacion manual de la Etapa 7.3.
+- Implementar y validar las Etapas 7.4 a 7.7 en orden.
+
+## Matriz de validaciones postpago
+
+El comando `demo:create-paid-order` permite recuperar en `local` o `testing` las pruebas manuales que dependen de un pedido ya pagado. Crea el pedido mediante el dominio real, con reservas consumidas y snapshots historicos; no representa un pago real ni reemplaza Culqi.
+
+Validadas manualmente:
+- Etapa 6.2: detalle, snapshots, importes, timeline, reserva y soporte postpago. Queda solo la revalidacion de fechas y su nueva jerarquia visual.
+- Etapa 6.3: acciones del cliente, modal, responsive y soporte para pedidos pagados.
+- Etapa 7.1: bandeja, detalle administrativo, estados terminales, historial y reservas agrupadas en escritorio y celular.
+
+Pendientes manuales:
+- Etapa 6.2, fechas: domicilio conserva el rango aceptado despues de preparar y enviar; recojo muestra primero una preparacion estimada y luego el plazo real al quedar listo; ambos recorridos deben validarse en escritorio y celular.
+- Etapa 7.2, domicilio: acciones contextuales hasta `enviado`; recojo: preparacion, disponibilidad y confirmacion de recojo; cancelacion pagada: motivo, `refund_pending`, reposicion unica, detalle del cliente y correo.
+- Etapa 7.3, entrega: resultado exitoso, incidencias por las cuatro atribuciones, consumo selectivo, agotamiento de intentos, bloqueo, nuevo pago de envio, filtros, alertas, historial y privacidad del cliente.
+- Etapa 7.3, recojo: fecha limite desde la disponibilidad, filtros y alertas de recojos proximos o vencidos, y seguimiento manual sin cancelar ni descartar el pedido.
+
+Diferidas:
+- Segundo ciclo de entrega: requiere confirmar un nuevo pago de envio mediante Culqi en el Sprint 7.
+- Recorrido fiscal integral: requiere desarrollar Etapas 7.5 a 7.7; la validacion final con pago real y comprobante cargado es obligatoria antes de cerrar el Sprint 7.
 
 ## Fase 8: Integracion, pruebas y cierre
 

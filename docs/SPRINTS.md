@@ -37,7 +37,7 @@ Objetivo: administrar el catalogo desde el panel.
 
 Estado: completado.
 
-Detalle: `docs/SPRINT_2_ROADMAP.md`.
+Detalle: `plans/archive/SPRINT_2_ROADMAP.md`.
 
 Entregables:
 - CRUD de categorias.
@@ -53,7 +53,7 @@ Objetivo: controlar disponibilidad antes de vender.
 
 Estado: completado.
 
-Detalle: `docs/SPRINT_3_ROADMAP.md`.
+Detalle: `plans/archive/SPRINT_3_ROADMAP.md`.
 
 Entregables:
 - Stock real por producto.
@@ -68,7 +68,7 @@ Objetivo: carrito funcional en sesion.
 
 Estado: completado.
 
-Detalle: `docs/SPRINT_4_ROADMAP.md`.
+Detalle: `plans/archive/SPRINT_4_ROADMAP.md`.
 
 Entregables:
 - Agregar al carrito.
@@ -84,7 +84,7 @@ Objetivo: implementar identidad real de clientes y convertir el carrito de sesio
 
 Estado: completado.
 
-Detalle: `docs/SPRINT_5_ROADMAP.md`.
+Detalle: `plans/archive/SPRINT_5_ROADMAP.md`.
 
 Entregables:
 - Registro, login y logout con correo y contrasena.
@@ -102,7 +102,7 @@ Objetivo: crear pedidos reales desde el carrito de un cliente autenticado.
 
 Estado: en progreso.
 
-Detalle: `docs/SPRINT_6_ROADMAP.md`.
+Detalle: `plans/active/SPRINT_6_ROADMAP.md`.
 
 Entregables:
 - Autenticacion administrativa basica, rol de administrador y proteccion de todas las rutas `/admin`.

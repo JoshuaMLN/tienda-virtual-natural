@@ -33,7 +33,7 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - Una vez creado el pedido, sus precios, impuestos, envio, direccion y datos fiscales quedan congelados como snapshots historicos.
 - El codigo interno del pedido usa el formato neutral `PED-AAAA-NNNNNN`, con correlativo anual seguro ante concurrencia e independiente del ID, la marca y la numeracion fiscal.
 - Los estados de pedido, pago, entrega y reserva se modelan por separado.
-- Estados iniciales de pedido: `pending_payment`, `processing`, `completed`, `cancelled`, `expired`.
+- Estados de pedido: `pending_payment`, `confirmed`, `processing`, `completed`, `cancelled`, `expired`.
 - Estados de pago objetivo: `pending`, `paid`, `failed`, `expired`, `refund_pending`, `refunded`.
 - Estados iniciales de entrega: `pending`, `preparing`, `shipped`, `ready_for_pickup`, `delivered`, `picked_up`, `cancelled`.
 - Estados iniciales de reserva: `active`, `consumed`, `released`, `expired`.
@@ -53,7 +53,7 @@ Convertir el carrito persistente de un cliente autenticado y verificado en un pe
 - Las tarifas de distrito son importes finales con IGV incluido. Una tarifa `0` en un distrito activo representa entrega gratuita, aun cuando el umbral global de envio gratis este deshabilitado.
 - El plazo general de entrega sera configurable, inicialmente de 1 a 2 dias de atencion, y actuara como respaldo para los distritos sin un plazo propio.
 - Cada distrito puede sobrescribir opcionalmente el plazo minimo y maximo de entrega sin duplicar la configuracion global.
-- El recojo usa un plazo de preparacion propio e independiente. Una vez notificado como listo, se aplica el plazo de recojo configurable, inicialmente de 14 dias calendario.
+- El recojo usa un plazo de preparacion propio e independiente. Una vez marcado como listo por el administrador, se aplica el plazo de recojo configurable, inicialmente de 14 dias calendario.
 - El checkout convierte los plazos en fechas estimadas concretas desde el siguiente dia de atencion; el dia actual nunca cuenta como dia uno.
 - Los dias de atencion se resuelven desde horarios estructurados de lunes a viernes, sabado y domingo. Un fin de semana sin apertura y cierre completos no cuenta.
 - Las fechas de cierre extraordinario se administran en un calendario sencillo y tampoco cuentan para entrega ni preparacion de recojo.
@@ -476,6 +476,8 @@ Estado: Completada.
 - Enlazar un item al catalogo solo cuando el producto vigente siga siendo publicamente visible.
 - Construir una linea de tiempo curada para creacion, pago, preparacion, envio, recojo, entrega, cancelacion, vencimiento y reembolso.
 - Mostrar vencimiento mientras el pago siga pendiente y fechas definitivas solo despues de pagarse.
+- Conservar el rango exacto aceptado en checkout y no desplazarlo cuando el administrador inicie la preparacion.
+- Destacar bajo el codigo la estimacion de entrega o preparacion para recojo; al quedar listo, sustituirla por la fecha limite real de recojo.
 - Ajustar escritorio y celular y crear pruebas de snapshots, privacidad, timeline, modalidades y producto eliminado u oculto.
 
 Criterio de salida:
@@ -663,7 +665,7 @@ Criterio de salida:
 
 Resultado tecnico:
 - Nuevo estado de pago `refund_pending`, con transicion obligatoria `paid -> refund_pending -> refunded` y representacion comercial `Reembolso pendiente`.
-- Estado comercial `Pago confirmado` para distinguir un pedido pagado que aun no inicio preparacion.
+- Estado tecnico `confirmed` y estado comercial `Pago confirmado` para distinguir un pedido pagado que aun no inicio preparacion.
 - Servicio `AdminOrderOperationService` como unica puerta para iniciar preparacion, despachar, habilitar recojo, completar y cancelar.
 - Flujos separados y validados para entrega a domicilio y recojo, con actualizaciones compuestas dentro de una sola transaccion.
 - Seis rutas `PATCH` explicitas; no existe un endpoint administrativo que acepte estados arbitrarios ni controles para alterar pagos manualmente.
@@ -686,6 +688,8 @@ Resultado tecnico:
 
 ### Etapa 7.3: Intentos de entrega y seguimiento de recojo
 
+Estado: Implementada, pendiente de validacion manual.
+
 - Crear historial inmutable de intentos de entrega con ciclo, numero, fecha, resultado, responsable, motivo, atribucion y administrador.
 - Usar las reglas aceptadas por cada pedido desde `terms_snapshot.settings_snapshot`; los pedidos heredados usaran un respaldo explicito y probado.
 - Consumir intentos solo cuando el fallo sea atribuible al cliente.
@@ -697,6 +701,20 @@ Resultado tecnico:
 
 Criterio de salida:
 - Cada intento y plazo queda trazable, aplica la politica aceptada por el cliente y nunca cobra o cancela silenciosamente.
+
+Resultado tecnico:
+- `delivery_attempts` conserva un historial inmutable por pedido, ciclo y visita, con token UUID idempotente, secuencia protegida por base de datos, resultado, atribucion, responsable, motivo, fecha y snapshot del administrador.
+- `OrderFulfillmentService` centraliza el bloqueo pesimista, la finalizacion atomica de entrega y pedido, el consumo selectivo de intentos y el cierre de ciclos.
+- Solo una incidencia atribuible al cliente consume cupo; tienda, transportista y causas no atribuibles quedan auditadas sin penalizar al cliente.
+- El ultimo intento permitido bloquea nuevas visitas y deja el pedido pendiente de otro pago de envio; agotar el ultimo ciclo automatico lo pasa a seguimiento manual sin cancelar ni cobrar silenciosamente.
+- Los limites de intentos, ciclos, pago de reenvio y recojo se congelan desde el snapshot legal aceptado; pedidos heredados reciben respaldos acotados durante la migracion.
+- Marcar un recojo como listo inicia su plazo historico; vencerlo lo pasa a seguimiento manual sin cambiar el estado del pedido ni descartar sus productos.
+- El panel incorpora modal de resultado, historial de visitas, resumen por ciclo, estados comerciales, filtros y alertas agrupadas para recojos proximos, vencidos, reenvios y seguimiento manual.
+- El cliente ve `Pendiente de nuevo pago de envio` o `Seguimiento manual` y mensajes operativos sin acceder a atribuciones ni notas internas.
+- `orders:reconcile-fulfillment` se ejecuta cada cinco minutos sin solapamiento y puede procesarse manualmente por lotes.
+- `demo:create-paid-order` permite preparar datos realistas para la validacion manual mientras Culqi no existe. Solo funciona en `local` y `testing`, usa los servicios reales de creacion, reserva y pago, y no habilita cambios de pago desde el panel.
+- Dos migraciones aplicadas correctamente en la base local; pruebas focalizadas, restricciones unicas y concurrencia multiproceso aprobadas.
+- Suite completa aprobada con 628 pruebas y 4889 aserciones.
 
 ### Etapa 7.4: Correos operativos y recordatorios
 
@@ -752,6 +770,24 @@ Criterio de salida:
 
 Criterio de salida:
 - La operacion administrativa y fiscal queda integrada, auditable y preparada para recibir confirmaciones reales de Culqi.
+
+### Validaciones postpago diferidas y recuperadas
+
+El comando `php artisan demo:create-paid-order --email=tu-correo@example.com --method=home|pickup --items=1..5` crea en `local` o `testing` un pedido coherente con pago confirmado, reservas consumidas, snapshots e historial reales. Permite recuperar las validaciones manuales posteriores al pago que antes dependian de Culqi, pero no sustituye la integracion ni los webhooks reales del Sprint 7.
+
+Validaciones manuales aprobadas:
+- Etapa 6.2: detalle de cliente, snapshots, productos, importes, timeline, reserva consumida y canales de soporte posteriores al pago. La revalidacion puntual de fechas se mantiene abierta por el ajuste posterior descrito abajo.
+- Etapa 6.3: visibilidad de acciones, modal de cancelacion pendiente, responsive y soporte para pedidos pagados.
+- Etapa 7.1: bandeja administrativa, estados terminales, historial tecnico, reservas agrupadas y comportamiento responsive.
+
+Validaciones manuales pendientes y ejecutables con pedidos de demostracion:
+- Etapa 6.2, ajuste de fechas: para domicilio, confirmar que el aviso destacado bajo el codigo conserva el rango aceptado al iniciar preparacion y al enviar; para recojo, confirmar que la preparacion estimada se sustituye por el plazo real solo cuando el pedido queda listo. Validar ambos en escritorio y celular.
+- Etapa 7.2, operacion pagada: verificar acciones contextuales y transiciones de domicilio `confirmado -> procesando/preparando -> enviado`, de recojo `confirmado -> procesando/preparando -> listo -> recogido`, y cancelacion pagada antes de despacho con motivo, `refund_pending`, reposicion unica de stock, detalle del cliente y correo.
+- Etapa 7.3, seguimiento: registrar entrega exitosa e incidencias de tienda, transportista, no atribuibles y atribuibles al cliente; verificar el consumo selectivo de intentos, bloqueo al agotar el ciclo, estado y alerta de nuevo pago de envio, privacidad del detalle del cliente, fechas de recojo, filtros y alertas administrativas.
+
+Validaciones diferidas por funcionalidades no implementadas:
+- Ciclos posteriores de entrega: el primer ciclo puede llegar a `Pendiente de nuevo pago de envio`, pero pagar el reenvio e iniciar el siguiente ciclo depende de Culqi en el Sprint 7.
+- Recorrido fiscal integral `crear pedido -> pagar -> registrar comprobante -> descargar -> corregir/anular -> enviar`: requiere implementar las Etapas 7.5 a 7.7; su confirmacion extremo a extremo con pago real es criterio obligatorio de cierre del Sprint 7.
 
 Criterio de salida de la fase:
 - El administrador opera pedidos reales mediante acciones validas y auditadas, controla intentos y recojos sin saltarse el pago, y puede registrar, corregir y entregar de forma segura un comprobante previamente emitido en SUNAT.
