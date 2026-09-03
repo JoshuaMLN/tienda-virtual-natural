@@ -152,6 +152,83 @@ class OrderTransactionalEmailPresenter
                 'notice' => 'Los productos reservados fueron liberados y este pedido ya no puede pagarse.',
                 'action_label' => 'Ver pedido',
             ],
+            OrderNotificationType::Shipped => [
+                'subject' => "Tu pedido {$order->code} esta en camino",
+                'preheader' => "El pedido {$order->code} ya fue despachado.",
+                'heading' => 'Pedido en camino',
+                'summary' => "Tu pedido {$order->code} ya fue despachado y esta en camino.",
+                'status_label' => 'En camino',
+                'status_tone' => 'active',
+                'notice' => 'Te avisaremos cuando la entrega haya sido confirmada.',
+                'action_label' => 'Ver pedido',
+            ],
+            OrderNotificationType::PickupReady => [
+                'subject' => "Tu pedido {$order->code} esta listo para recoger",
+                'preheader' => "El pedido {$order->code} ya esta disponible para recojo.",
+                'heading' => 'Pedido listo para recoger',
+                'summary' => "Tu pedido {$order->code} ya esta disponible para recoger.",
+                'status_label' => 'Listo para recoger',
+                'status_tone' => 'active',
+                'notice' => $this->pickupDeadlineNotice($order),
+                'action_label' => 'Ver pedido',
+            ],
+            OrderNotificationType::Delivered => [
+                'subject' => "Tu pedido {$order->code} fue entregado",
+                'preheader' => "Confirmamos la entrega del pedido {$order->code}.",
+                'heading' => 'Pedido entregado',
+                'summary' => "Confirmamos que tu pedido {$order->code} fue entregado.",
+                'status_label' => 'Entregado',
+                'status_tone' => 'active',
+                'notice' => 'Gracias por confiar en nosotros.',
+                'action_label' => 'Ver pedido',
+            ],
+            OrderNotificationType::PickedUp => [
+                'subject' => "Tu pedido {$order->code} fue recogido",
+                'preheader' => "Confirmamos el recojo del pedido {$order->code}.",
+                'heading' => 'Pedido recogido',
+                'summary' => "Confirmamos que tu pedido {$order->code} fue recogido.",
+                'status_label' => 'Recogido',
+                'status_tone' => 'active',
+                'notice' => 'Gracias por confiar en nosotros.',
+                'action_label' => 'Ver pedido',
+            ],
+            OrderNotificationType::PickupMidpointReminder => [
+                'subject' => "Recuerda recoger tu pedido {$order->code}",
+                'preheader' => "Tu pedido {$order->code} sigue disponible para recojo.",
+                'heading' => 'Tu pedido sigue esperandote',
+                'summary' => "Tu pedido {$order->code} sigue disponible para recoger.",
+                'status_label' => 'Recojo pendiente',
+                'status_tone' => 'active',
+                'notice' => $this->pickupDeadlineNotice($order),
+                'action_label' => 'Ver pedido',
+            ],
+            OrderNotificationType::Pickup48HoursReminder => [
+                'subject' => "Tu pedido {$order->code} vence pronto",
+                'preheader' => "Quedan 48 horas para recoger el pedido {$order->code}.",
+                'heading' => 'Tu plazo de recojo vence pronto',
+                'summary' => "Quedan 48 horas para recoger tu pedido {$order->code}.",
+                'status_label' => 'Recojo pendiente',
+                'status_tone' => 'active',
+                'notice' => $this->pickupDeadlineNotice($order),
+                'action_label' => 'Ver pedido',
+            ],
+            OrderNotificationType::PickupDeadlineReminder => [
+                'subject' => "El plazo de recojo de tu pedido {$order->code} vencio",
+                'preheader' => "El pedido {$order->code} requiere coordinacion para su recojo.",
+                'heading' => 'Tu plazo de recojo vencio',
+                'summary' => "El plazo para recoger tu pedido {$order->code} vencio.",
+                'status_label' => 'Coordinacion necesaria',
+                'status_tone' => 'expired',
+                'notice' => 'Comunicate con nosotros para coordinar el recojo. Tu pedido no fue cancelado.',
+                'action_label' => 'Ver pedido',
+            ],
         };
+    }
+
+    private function pickupDeadlineNotice(Order $order): string
+    {
+        return $order->pickup_deadline_at === null
+            ? 'Te esperamos en el punto de recojo registrado en tu pedido.'
+            : 'Puedes recogerlo hasta el '.$this->dates->descriptive($order->pickup_deadline_at).'.';
     }
 }

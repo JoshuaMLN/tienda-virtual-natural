@@ -15,3 +15,7 @@ Schedule::command('orders:expire-pending')
 Schedule::command('orders:reconcile-fulfillment')
     ->everyFiveMinutes()
     ->withoutOverlapping(10);
+
+Schedule::command('orders:reconcile-notifications')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10);

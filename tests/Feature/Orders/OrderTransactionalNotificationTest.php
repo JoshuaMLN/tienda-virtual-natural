@@ -21,6 +21,7 @@ use App\Support\Orders\Notifications\OrderEmailThumbnailService;
 use App\Support\Orders\Notifications\OrderNotificationDeliveryService;
 use App\Support\Orders\Notifications\OrderTransactionalEmailPresenter;
 use App\Support\Orders\OrderCancellationDetailsResolver;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
@@ -30,6 +31,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\MailManager;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
@@ -44,6 +46,13 @@ use Tests\TestCase;
 class OrderTransactionalNotificationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_recipients_are_normalized_deduplicated_and_frozen_per_event(): void
     {
@@ -131,6 +140,109 @@ class OrderTransactionalNotificationTest extends TestCase
         $this->assertDatabaseHas('order_notification_deliveries', [
             'recipient_email' => 'cliente@example.test',
         ]);
+        Queue::assertPushed(SendOrderTransactionalEmail::class, 1);
+    }
+
+    public function test_pickup_reminders_are_scheduled_once_and_skip_dates_that_already_passed(): void
+    {
+        Queue::fake();
+        CarbonImmutable::setTestNow('2026-08-01 10:00:00');
+        $service = app(OrderNotificationDeliveryService::class);
+        $user = User::factory()->create(['email' => 'recojo@example.test']);
+        $order = Order::factory()->for($user)->readyForPickup()->create([
+            'customer_email' => 'recojo@example.test',
+            'pickup_ready_at' => now(),
+            'pickup_deadline_at' => now()->addDays(14),
+        ]);
+
+        $service->record($order, OrderNotificationType::PickupReady);
+        $service->schedulePickupReminders($order);
+        $this->assertSame(1, $order->notificationDeliveries()->count());
+
+        CarbonImmutable::setTestNow('2026-08-08 10:00:00');
+        $service->schedulePickupReminders($order);
+
+        CarbonImmutable::setTestNow('2026-08-13 10:00:00');
+        $service->schedulePickupReminders($order);
+
+        CarbonImmutable::setTestNow('2026-08-15 10:00:00');
+        $service->schedulePickupReminders($order);
+
+        $this->assertEqualsCanonicalizing([
+            OrderNotificationType::PickupReady->value,
+            OrderNotificationType::PickupMidpointReminder->value,
+            OrderNotificationType::Pickup48HoursReminder->value,
+            OrderNotificationType::PickupDeadlineReminder->value,
+        ], $order->notificationDeliveries()
+            ->get()
+            ->map(fn (OrderNotificationDelivery $delivery): string => $delivery->type->value)
+            ->all());
+        $this->assertSame(4, $order->notificationDeliveries()->count());
+        Queue::assertPushed(SendOrderTransactionalEmail::class, 4);
+
+        $shortHold = Order::factory()->for($user)->readyForPickup()->create([
+            'customer_email' => 'recojo@example.test',
+            'pickup_ready_at' => now(),
+            'pickup_deadline_at' => now()->addDay(),
+        ]);
+        CarbonImmutable::setTestNow(now()->addHours(12));
+        $service->schedulePickupReminders($shortHold);
+
+        CarbonImmutable::setTestNow(now()->addHours(12));
+        $service->schedulePickupReminders($shortHold);
+
+        $this->assertEqualsCanonicalizing([
+            OrderNotificationType::PickupMidpointReminder->value,
+            OrderNotificationType::PickupDeadlineReminder->value,
+        ], $shortHold->notificationDeliveries()
+            ->get()
+            ->map(fn (OrderNotificationDelivery $delivery): string => $delivery->type->value)
+            ->all());
+    }
+
+    public function test_pickup_completion_supersedes_queued_pickup_reminders_without_touching_sent_history(): void
+    {
+        Queue::fake();
+        Notification::fake();
+        $order = Order::factory()->readyForPickup()->create();
+        $queued = OrderNotificationDelivery::factory()->for($order)->create([
+            'type' => OrderNotificationType::PickupMidpointReminder,
+        ]);
+        $sent = OrderNotificationDelivery::factory()->for($order)->sent()->create([
+            'type' => OrderNotificationType::PickupReady,
+            'recipient_email' => 'ready@example.test',
+        ]);
+
+        app(OrderNotificationDeliveryService::class)->cancelPendingPickupReminders($order);
+
+        $this->assertSame(OrderNotificationStatus::Superseded, $queued->refresh()->status);
+        $this->assertSame('El pedido fue recogido antes de enviar este recordatorio.', $queued->superseded_reason);
+        $this->assertSame(OrderNotificationStatus::Sent, $sent->refresh()->status);
+
+        (new SendOrderTransactionalEmail($queued->id))
+            ->handle(app(OrderNotificationDeliveryService::class));
+
+        $this->assertSame(0, $queued->refresh()->attempts);
+        Notification::assertNothingSent();
+    }
+
+    public function test_scheduled_reconciliation_creates_due_pickup_reminders_idempotently(): void
+    {
+        Queue::fake();
+        CarbonImmutable::setTestNow('2026-08-01 10:00:00');
+        $user = User::factory()->create(['email' => 'scheduler@example.test']);
+        $order = Order::factory()->for($user)->readyForPickup()->create([
+            'customer_email' => 'scheduler@example.test',
+            'pickup_ready_at' => now()->subDays(4),
+            'pickup_deadline_at' => now(),
+        ]);
+
+        $this->assertSame(0, Artisan::call('orders:reconcile-notifications'));
+        $this->assertStringContainsString('Recordatorios de recojo reconciliados: 1', Artisan::output());
+        $this->assertSame(1, $order->notificationDeliveries()->count());
+
+        $this->assertSame(0, Artisan::call('orders:reconcile-notifications'));
+        $this->assertSame(1, $order->notificationDeliveries()->count());
         Queue::assertPushed(SendOrderTransactionalEmail::class, 1);
     }
 
@@ -431,6 +543,13 @@ class OrderTransactionalNotificationTest extends TestCase
         foreach ([
             [OrderNotificationType::Cancelled, 'fue cancelado'],
             [OrderNotificationType::Expired, 'vencio antes de completar el pago'],
+            [OrderNotificationType::Shipped, 'esta en camino'],
+            [OrderNotificationType::PickupReady, 'disponible para recoger'],
+            [OrderNotificationType::Delivered, 'fue entregado'],
+            [OrderNotificationType::PickedUp, 'fue recogido'],
+            [OrderNotificationType::PickupMidpointReminder, 'sigue disponible para recoger'],
+            [OrderNotificationType::Pickup48HoursReminder, 'Quedan 48 horas'],
+            [OrderNotificationType::PickupDeadlineReminder, 'plazo para recoger'],
         ] as [$type, $expectedText]) {
             $delivery = OrderNotificationDelivery::factory()
                 ->for($order)

@@ -2,11 +2,14 @@
 
 namespace App\Support\Orders\Notifications;
 
+use App\Enums\DeliveryMethod;
+use App\Enums\DeliveryStatus;
 use App\Enums\OrderNotificationStatus;
 use App\Enums\OrderNotificationType;
 use App\Jobs\SendOrderTransactionalEmail;
 use App\Models\Order;
 use App\Models\OrderNotificationDelivery;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -19,6 +22,8 @@ class OrderNotificationDeliveryService
 
     private const SUPERSEDED_BY_EXPIRATION = 'La reserva vencio antes de enviar esta comunicacion.';
 
+    private const SUPERSEDED_BY_PICKUP = 'El pedido fue recogido antes de enviar este recordatorio.';
+
     public function __construct(
         private readonly OrderNotificationRecipientResolver $recipients,
     ) {}
@@ -28,8 +33,10 @@ class OrderNotificationDeliveryService
      *
      * @return Collection<int, OrderNotificationDelivery>
      */
-    public function record(Order $order, OrderNotificationType $type): Collection
-    {
+    public function record(
+        Order $order,
+        OrderNotificationType $type,
+    ): Collection {
         return DB::transaction(function () use ($order, $type): Collection {
             $lockedOrder = Order::query()
                 ->whereKey($order->getKey())
@@ -71,6 +78,90 @@ class OrderNotificationDeliveryService
 
             return $deliveries;
         }, 5);
+    }
+
+    public function schedulePickupReminders(Order $order): void
+    {
+        if ($order->delivery_method !== DeliveryMethod::Pickup
+            || $order->delivery_status !== DeliveryStatus::ReadyForPickup
+            || $order->pickup_ready_at === null
+            || $order->pickup_deadline_at === null) {
+            return;
+        }
+
+        $readyAt = CarbonImmutable::instance($order->pickup_ready_at);
+        $deadlineAt = CarbonImmutable::instance($order->pickup_deadline_at);
+        $midpointAt = $readyAt->addSeconds((int) floor($readyAt->diffInSeconds($deadlineAt) / 2));
+        $now = CarbonImmutable::now();
+
+        foreach ([
+            [OrderNotificationType::PickupMidpointReminder, $midpointAt],
+            [OrderNotificationType::Pickup48HoursReminder, $deadlineAt->subHours(48)],
+            [OrderNotificationType::PickupDeadlineReminder, $deadlineAt],
+        ] as [$type, $dueAt]) {
+            if ($dueAt->lte($readyAt)
+                || $dueAt->gt($now)
+                || $dueAt->lt($now->subMinutes(5))) {
+                continue;
+            }
+
+            if ($type !== OrderNotificationType::PickupDeadlineReminder
+                && $now->gte($deadlineAt)) {
+                continue;
+            }
+
+            $this->record($order, $type);
+        }
+    }
+
+    public function reconcilePickupReminders(int $batchSize = 100): int
+    {
+        $ids = Order::query()
+            ->where('delivery_method', DeliveryMethod::Pickup->value)
+            ->where('delivery_status', DeliveryStatus::ReadyForPickup->value)
+            ->whereNotNull('pickup_ready_at')
+            ->whereNotNull('pickup_deadline_at')
+            ->orderBy('id')
+            ->limit(min(500, max(1, $batchSize)))
+            ->pluck('id');
+
+        foreach ($ids as $id) {
+            DB::transaction(function () use ($id): void {
+                $order = Order::query()->whereKey($id)->lockForUpdate()->first();
+
+                if ($order !== null) {
+                    $this->schedulePickupReminders($order);
+                }
+            }, 5);
+        }
+
+        return $ids->count();
+    }
+
+    public function cancelPendingPickupReminders(Order $order): void
+    {
+        $deliveries = OrderNotificationDelivery::query()
+            ->where('order_id', $order->getKey())
+            ->whereIn('type', array_map(
+                fn (OrderNotificationType $type): string => $type->value,
+                OrderNotificationType::pickupReminderTypes(),
+            ))
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($deliveries as $delivery) {
+            if ($delivery->status !== OrderNotificationStatus::Queued) {
+                continue;
+            }
+
+            $delivery->applyDeliveryMutation([
+                'status' => OrderNotificationStatus::Superseded,
+                'superseded_at' => now(),
+                'superseded_reason' => self::SUPERSEDED_BY_PICKUP,
+                'failed_at' => null,
+                'last_error' => null,
+            ]);
+        }
     }
 
     public function shouldDeferAttempt(int $deliveryId): bool

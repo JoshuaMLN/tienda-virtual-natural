@@ -8,11 +8,13 @@ use App\Enums\DeliveryMethod;
 use App\Enums\DeliveryStatus;
 use App\Enums\DeliveryTrackingStatus;
 use App\Enums\OrderHistoryDomain;
+use App\Enums\OrderNotificationType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\DeliveryAttempt;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\Orders\Notifications\OrderNotificationDeliveryService;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DomainException;
@@ -24,6 +26,7 @@ class OrderFulfillmentService
 {
     public function __construct(
         private readonly OrderStateTransitionService $states,
+        private readonly OrderNotificationDeliveryService $notifications,
     ) {}
 
     public function canRecordDeliveryAttempt(Order $order): bool
@@ -49,7 +52,10 @@ class OrderFulfillmentService
             'delivery_tracking_completed_at' => null,
         ]);
 
-        return $order->refresh();
+        $shipped = $order->refresh();
+        $this->notifications->record($shipped, OrderNotificationType::Shipped);
+
+        return $shipped;
     }
 
     /** @param array<string, mixed> $metadata */
@@ -69,7 +75,10 @@ class OrderFulfillmentService
             'delivery_tracking_completed_at' => null,
         ]);
 
-        return $order->refresh();
+        $ready = $order->refresh();
+        $this->notifications->record($ready, OrderNotificationType::PickupReady);
+
+        return $ready;
     }
 
     /** @param array<string, mixed> $metadata */
@@ -88,7 +97,11 @@ class OrderFulfillmentService
             metadata: $metadata,
         );
 
-        return $this->closeTracking($order);
+        $pickedUp = $this->closeTracking($order);
+        $this->notifications->cancelPendingPickupReminders($pickedUp);
+        $this->notifications->record($pickedUp, OrderNotificationType::PickedUp);
+
+        return $pickedUp;
     }
 
     public function closeTracking(Order $order): Order
@@ -218,7 +231,8 @@ class OrderFulfillmentService
                             $actor,
                             metadata: $metadata,
                         );
-                        $this->closeTracking($locked);
+                        $completed = $this->closeTracking($locked);
+                        $this->notifications->record($completed, OrderNotificationType::Delivered);
                     } elseif ($consumesAttempt
                         && $countedAttemptNumber >= $locked->delivery_attempts_per_cycle) {
                         $this->closeCurrentCycle($locked, $occurredAt);

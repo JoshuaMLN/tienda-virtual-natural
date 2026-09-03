@@ -719,6 +719,10 @@ Resultado tecnico:
 
 ### Etapa 7.4: Correos operativos y recordatorios
 
+Estado: Implementada y validada localmente; la validacion operativa de cola,
+scheduler y servicios externos es un requisito de preproduccion, cuando exista
+un entorno de despliegue.
+
 - Ampliar las notificaciones en cola para pedido en camino, listo para recoger, entregado y recogido.
 - No enviar correo al iniciar preparacion.
 - Programar recordatorios de recojo al quedar listo, a mitad del plazo, 48 horas antes y al vencer.
