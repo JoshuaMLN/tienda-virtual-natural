@@ -225,6 +225,19 @@ class CustomerAuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_customer_login_discards_an_administrative_intended_destination(): void
+    {
+        $user = User::factory()->create(['email' => 'cliente@example.com', 'password' => 'secret123']);
+
+        $this->get(route('admin.dashboard'))->assertRedirect(route('admin.login'));
+        $this->get(route('login'))->assertOk();
+
+        $this->post(route('login.store'), ['email' => 'cliente@example.com', 'password' => 'secret123'])
+            ->assertRedirect(route('account.profile'));
+
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_authenticated_customer_cannot_reopen_guest_auth_pages(): void
     {
         $user = User::factory()->create();

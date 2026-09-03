@@ -30,7 +30,13 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
         $this->cartMerge->mergeFor($request->user());
 
-        return redirect()->intended(route('account.profile'));
+        $intended = $request->session()->pull('url.intended');
+
+        if (is_string($intended) && ! $this->isAdministrativeDestination($intended)) {
+            return redirect()->to($intended);
+        }
+
+        return redirect()->route('account.profile');
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -58,5 +64,10 @@ class AuthenticatedSessionController extends Controller
         return redirect()
             ->route('shop.index')
             ->with('status', 'Sesion cerrada correctamente.');
+    }
+
+    private function isAdministrativeDestination(string $destination): bool
+    {
+        return str_starts_with('/'.ltrim((string) parse_url($destination, PHP_URL_PATH), '/'), '/admin');
     }
 }
