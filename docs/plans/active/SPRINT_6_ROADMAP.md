@@ -735,6 +735,14 @@ un entorno de despliegue.
 Criterio de salida:
 - El cliente recibe solo comunicaciones oportunas y el administrador puede auditar cada envio.
 
+Resultado tecnico:
+- Los eventos de envio, disponibilidad de recojo, entrega y recojo se registran y encolan despues del commit; iniciar preparacion no genera comunicacion.
+- Los recordatorios de recojo se reconcilian cada cinco minutos mediante `orders:reconcile-notifications`: solo se emiten en su ventana de cinco minutos, se omiten fechas coincidentes o ya vencidas al quedar listo y cada evento es idempotente por pedido, tipo y destinatario.
+- Confirmar el recojo invalida las comunicaciones de recojo aun pendientes y conserva el historial ya enviado.
+- Los destinatarios, la auditoria inmutable y los tres intentos con reintentos existentes se reutilizan para los nuevos eventos.
+- Pruebas focalizadas de notificaciones y operaciones: 45 pruebas, 320 aserciones, PASS.
+- Integracion local E2E aislada: reset protegido y migraciones PASS; flujo real de recojo, reconciliador, auditoria y cancelacion de avisos pendientes PASS con cola y notificaciones simuladas, sin correo externo.
+
 ### Etapa 7.5: Registro del comprobante principal
 
 Estado: Implementada y validada localmente.
