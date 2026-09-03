@@ -152,6 +152,7 @@
 - No actualices Graphify solo porque una tarea modifique documentacion, salvo que el alcance solicite expresamente actualizar su capa semantica.
 - Si Graphify y el repositorio discrepan, prevalece el codigo, la configuracion y la documentacion canonica vigente segun el hecho evaluado.
 - Evita consultas demasiado amplias cuando una pregunta focalizada pueda localizar mejor relaciones y dependencias.
+- El procedimiento local para consultar y actualizar el grafo estructural esta en [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#graphify).
 
 ## Comunicacion y cierre proporcional
 

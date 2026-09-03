@@ -18,7 +18,14 @@ export default defineConfig({
     ],
     server: {
         watch: {
-            ignored: ['**/storage/framework/views/**'],
+            ignored: [
+                '**/storage/framework/views/**',
+                '**/graphify-out/**',
+                '**/.playwright/**',
+                '**/.playwright-cli/**',
+                '**/playwright-report/**',
+                '**/test-results/**',
+            ],
         },
     },
 });
