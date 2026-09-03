@@ -4,7 +4,6 @@ namespace App\Support\Notifications\Providers;
 
 use App\Models\Product;
 use App\Support\Notifications\AdminNotification;
-use Illuminate\Database\Eloquent\Builder;
 
 class StockAlertNotificationProvider
 {
@@ -22,8 +21,8 @@ class StockAlertNotificationProvider
             ->count();
 
         if ($outOfStockCount > 0) {
-            $message = $outOfStockCount === 1 
-                ? '1 producto activo agotado' 
+            $message = $outOfStockCount === 1
+                ? '1 producto activo agotado'
                 : "{$outOfStockCount} productos activos agotados";
 
             $notifications[] = new AdminNotification(
@@ -44,8 +43,8 @@ class StockAlertNotificationProvider
             ->count();
 
         if ($lowStockCount > 0) {
-            $message = $lowStockCount === 1 
-                ? '1 producto activo por agotarse' 
+            $message = $lowStockCount === 1
+                ? '1 producto activo por agotarse'
                 : "{$lowStockCount} productos activos por agotarse";
 
             $notifications[] = new AdminNotification(

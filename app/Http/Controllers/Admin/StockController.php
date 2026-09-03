@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreInventoryMovementRequest;
-use App\Models\InventoryMovement;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Support\Inventory\InsufficientStockException;
 use App\Support\Inventory\InventoryService;

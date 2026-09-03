@@ -21,7 +21,7 @@ class AdminNotificationService
 
         foreach ($this->providers as $providerClass) {
             $provider = app($providerClass);
-            
+
             if (method_exists($provider, 'getNotifications')) {
                 $notifications = array_merge($notifications, $provider->getNotifications());
             }

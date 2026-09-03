@@ -114,7 +114,7 @@ class InventoryServiceTest extends TestCase
 
     private function service(): InventoryService
     {
-        return new InventoryService();
+        return new InventoryService;
     }
 
     private function product(int $stock): Product

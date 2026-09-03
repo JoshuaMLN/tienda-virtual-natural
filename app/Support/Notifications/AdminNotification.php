@@ -10,6 +10,5 @@ class AdminNotification
         public readonly string $title,
         public readonly string $message,
         public readonly ?string $url = null,
-    ) {
-    }
+    ) {}
 }
