@@ -908,6 +908,25 @@ Tareas:
 - Ejecutar migraciones, rutas, cache de vistas, Pint, build frontend, suite completa y Graphify.
 - Documentar scheduler, cola de correos y configuraciones necesarias para produccion.
 
+Validacion manual parcial realizada: checkout (etapas de contacto/entrega y
+comprobante, sin crear ni cobrar), listado y detalle de pedidos de cliente, y
+listado y detalle administrativo en 1920x1080, 1366x768 y 390x844. No se
+observaron desbordes horizontales ni errores de consola. El recorrido con pago
+real de Culqi permanece fuera de este Sprint.
+
+Cierre tecnico local registrado:
+- Migraciones locales, listado de rutas administrativas, cache de vistas y build
+  frontend: PASS.
+- PHPUnit completo: 659 pruebas y 5150 aserciones, PASS.
+- Reset E2E protegido y Playwright completo: 10/10 PASS. La suite incluye los
+  flujos fiscales y los recorridos administrativos pagados de domicilio,
+  incidencias y recojo.
+- Graphify fue actualizado tras los cambios de codigo de la fase.
+- Pint global: PASS tras corregir los hallazgos de formato pendientes.
+- La prueba de un worker, scheduler, almacenamiento y servicios externos reales
+  se realizara como requisito de preproduccion al disponer de despliegue; no es
+  una validacion local pendiente.
+
 Criterio de salida:
 - Sprint 7 puede iniciar un cobro sobre un pedido vigente, confirmar su reserva y actualizar estados sin redisenar checkout ni pedidos.
 

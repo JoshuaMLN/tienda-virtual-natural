@@ -13,17 +13,31 @@ de fases permanecen en los documentos de Sprint.
   inventario.
 - Historial y detalle de pedidos del cliente, junto con operaciones
   administrativas documentadas en el Sprint 6.
+- Comunicaciones operativas auditables para envio, entrega y recojo, con
+  recordatorios de recojo reconciliados por scheduler e idempotentes.
 
 ## Validado
 
-- PHPUnit: 631 tests, 4908 assertions, PASS.
+- PHPUnit: 659 tests, 5150 assertions, PASS.
 - Reset E2E protegido: PASS.
-- Playwright smoke: 5/5 PASS.
-- La infraestructura E2E se mantiene separada del entorno MySQL normal.
+- Playwright: 10/10 PASS, incluidos los flujos fiscales de customer y admin,
+  el envio manual del PDF vigente y las operaciones pagadas de domicilio y
+  recojo.
+- QA manual E2E de checkout, pedidos de cliente y pedidos administrativos en
+  1920x1080, 1366x768 y 390x844: PASS sin desborde horizontal ni errores de
+  consola en los recorridos revisados; no incluye un cobro real con Culqi.
+- Notificaciones y operaciones de la etapa 7.4: 45 pruebas focalizadas, 320
+  aserciones, PASS.
+- Integracion local E2E de la etapa 7.4: reset protegido, migracion, flujo de
+  recojo y reconciliacion de recordatorios, PASS sin correo externo.
+- La infraestructura E2E mantiene separadas la base MySQL y el almacenamiento
+  privado de los entornos locales normales.
 
 ## Parcial
 
-- El Sprint 6 continua en progreso segun su documento de estado.
+- El cierre tecnico local de la Fase 8 y del Sprint 6 esta completado. La
+  validacion operativa de los procesos de fondo corresponde a preproduccion,
+  cuando exista un entorno de despliegue.
 - La confirmacion real de pagos con Culqi corresponde al Sprint 7.
 - La emision fiscal automatizada no esta implementada; el alcance documentado
   registra comprobantes emitidos externamente.
@@ -38,5 +52,4 @@ de fases permanecen en los documentos de Sprint.
 
 ## Pendientes confirmados
 
-- Completar los elementos pendientes del Sprint 6 segun su roadmap y estado.
 - Integrar y validar la confirmacion backend de pagos con Culqi en el Sprint 7.
