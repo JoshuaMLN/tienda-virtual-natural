@@ -159,6 +159,13 @@ class AdminOrderPresenter
         $countedAttempts = $currentCycleAttempts
             ->where('consumes_attempt', true)
             ->count();
+        $canRecordAttempt = $this->fulfillment->canRecordDeliveryAttempt($order);
+        $shippedAt = $canRecordAttempt
+            ? $order->statusHistories
+                ->first(fn (OrderStatusHistory $history): bool => $history->domain === OrderHistoryDomain::Delivery
+                    && $history->to_status === DeliveryStatus::Shipped->value)
+                ?->created_at
+            : null;
 
         return [
             'status' => $order->delivery_tracking_status->label(),
@@ -167,9 +174,12 @@ class AdminOrderPresenter
             'max_cycles' => $order->delivery_max_automatic_cycles,
             'counted_attempts' => $countedAttempts,
             'attempts_per_cycle' => $order->delivery_attempts_per_cycle,
-            'can_record_attempt' => $this->fulfillment->canRecordDeliveryAttempt($order),
+            'can_record_attempt' => $canRecordAttempt,
             'operation_token' => (string) Str::uuid(),
-            'default_occurred_at' => now()->setTimezone(config('app.timezone'))->format('Y-m-d\TH:i'),
+            'default_occurred_at' => now()->setTimezone(config('app.timezone'))->format('Y-m-d\TH:i:s'),
+            'min_occurred_at' => $shippedAt?->copy()
+                ->setTimezone(config('app.timezone'))
+                ->format('Y-m-d\TH:i:s'),
             'result_options' => DeliveryAttemptResult::cases(),
             'attribution_options' => DeliveryAttemptAttribution::cases(),
             'reshipment_payment_due_at' => $this->formatDate($order->reshipment_payment_due_at),

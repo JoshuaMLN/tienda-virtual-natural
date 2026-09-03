@@ -38,7 +38,7 @@ class StoreDeliveryAttemptRequest extends FormRequest
                 'min:5',
                 'max:500',
             ],
-            'occurred_at' => ['required', 'date_format:Y-m-d\TH:i'],
+            'occurred_at' => ['required', 'date_format:Y-m-d\TH:i,Y-m-d\TH:i:s'],
             'return' => ['nullable', 'array'],
             'return.q' => ['nullable', 'string', 'max:120'],
             'return.estado_pedido' => ['nullable', Rule::enum(OrderStatus::class)],

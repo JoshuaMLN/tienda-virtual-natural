@@ -36,7 +36,7 @@ class DeliveryAttemptController extends Controller
                 $validated['responsible_name'],
                 $validated['attempt_reason'] ?? null,
                 CarbonImmutable::createFromFormat(
-                    'Y-m-d\TH:i',
+                    strlen($validated['occurred_at']) === 19 ? 'Y-m-d\TH:i:s' : 'Y-m-d\TH:i',
                     $validated['occurred_at'],
                     config('app.timezone'),
                 ),

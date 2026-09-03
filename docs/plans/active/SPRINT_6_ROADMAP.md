@@ -688,7 +688,8 @@ Resultado tecnico:
 
 ### Etapa 7.3: Intentos de entrega y seguimiento de recojo
 
-Estado: Implementada, pendiente de validacion manual.
+Estado: Implementada y validada en navegador E2E local para los flujos
+principales de domicilio, incidencias y recojo.
 
 - Crear historial inmutable de intentos de entrega con ciclo, numero, fecha, resultado, responsable, motivo, atribucion y administrador.
 - Usar las reglas aceptadas por cada pedido desde `terms_snapshot.settings_snapshot`; los pedidos heredados usaran un respaldo explicito y probado.
@@ -780,10 +781,17 @@ Validaciones manuales aprobadas:
 - Etapa 6.3: visibilidad de acciones, modal de cancelacion pendiente, responsive y soporte para pedidos pagados.
 - Etapa 7.1: bandeja administrativa, estados terminales, historial tecnico, reservas agrupadas y comportamiento responsive.
 
-Validaciones manuales pendientes y ejecutables con pedidos de demostracion:
-- Etapa 6.2, ajuste de fechas: para domicilio, confirmar que el aviso destacado bajo el codigo conserva el rango aceptado al iniciar preparacion y al enviar; para recojo, confirmar que la preparacion estimada se sustituye por el plazo real solo cuando el pedido queda listo. Validar ambos en escritorio y celular.
-- Etapa 7.2, operacion pagada: verificar acciones contextuales y transiciones de domicilio `confirmado -> procesando/preparando -> enviado`, de recojo `confirmado -> procesando/preparando -> listo -> recogido`, y cancelacion pagada antes de despacho con motivo, `refund_pending`, reposicion unica de stock, detalle del cliente y correo.
-- Etapa 7.3, seguimiento: registrar entrega exitosa e incidencias de tienda, transportista, no atribuibles y atribuibles al cliente; verificar el consumo selectivo de intentos, bloqueo al agotar el ciclo, estado y alerta de nuevo pago de envio, privacidad del detalle del cliente, fechas de recojo, filtros y alertas administrativas.
+Validaciones de navegador E2E completadas con datos de demostracion:
+- Etapa 6.2, ajuste de fechas: en 1366x768 el rango de domicilio se conserva
+  al iniciar preparacion y al enviar; en 390x844 la estimacion de recojo se
+  mantiene durante preparacion y se sustituye por la fecha limite al quedar
+  listo.
+- Etapa 7.2, operacion pagada: flujo principal de domicilio
+  `confirmado -> preparando -> enviado -> entregado` y de recojo
+  `confirmado -> preparando -> listo -> recogido`.
+- Etapa 7.3, seguimiento: incidencia de tienda sin consumo, incidencias
+  atribuibles al cliente hasta el bloqueo del ciclo y la alerta de nuevo pago
+  de envio.
 
 Validaciones diferidas por funcionalidades no implementadas:
 - Ciclos posteriores de entrega: el primer ciclo puede llegar a `Pendiente de nuevo pago de envio`, pero pagar el reenvio e iniciar el siguiente ciclo depende de Culqi en el Sprint 7.

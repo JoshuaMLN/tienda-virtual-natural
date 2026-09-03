@@ -713,7 +713,7 @@
 
                         <div>
                             <label class="form-label fw-bold" for="delivery-attempt-occurred-at">Fecha y hora <span class="text-danger" aria-hidden="true">*</span></label>
-                            <input class="form-control @error('occurred_at') is-invalid @enderror" id="delivery-attempt-occurred-at" name="occurred_at" type="datetime-local" value="{{ old('occurred_at', $detail['delivery_tracking']['default_occurred_at']) }}" required>
+                            <input class="form-control @error('occurred_at') is-invalid @enderror" id="delivery-attempt-occurred-at" name="occurred_at" type="datetime-local" step="1" min="{{ $detail['delivery_tracking']['min_occurred_at'] }}" value="{{ old('occurred_at', $detail['delivery_tracking']['default_occurred_at']) }}" required>
                             @error('occurred_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 

@@ -53,6 +53,7 @@ class AdminOrderOperationServiceTest extends TestCase
 
     public function test_home_delivery_flow_exposes_and_applies_only_the_next_contextual_action(): void
     {
+        Queue::fake();
         $order = Order::factory()->paid()->create();
 
         $this->assertSame(
@@ -63,6 +64,7 @@ class AdminOrderOperationServiceTest extends TestCase
         $order = $this->operations->perform($order, AdminOrderAction::StartPreparation, $this->admin);
         $this->assertSame(OrderStatus::Processing, $order->order_status);
         $this->assertSame(DeliveryStatus::Preparing, $order->delivery_status);
+        $this->assertDatabaseCount('order_notification_deliveries', 0);
         $this->assertSame(
             [AdminOrderAction::MarkShipped, AdminOrderAction::Cancel],
             $this->operations->availableActions($order),
@@ -70,6 +72,10 @@ class AdminOrderOperationServiceTest extends TestCase
 
         $order = $this->operations->perform($order, AdminOrderAction::MarkShipped, $this->admin);
         $this->assertSame(DeliveryStatus::Shipped, $order->delivery_status);
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::Shipped->value,
+        ]);
         $this->assertSame([], $this->operations->availableActions($order));
 
         $this->fulfillment->recordDeliveryAttempt(
@@ -85,24 +91,38 @@ class AdminOrderOperationServiceTest extends TestCase
         $order->refresh();
         $this->assertSame(OrderStatus::Completed, $order->order_status);
         $this->assertSame(DeliveryStatus::Delivered, $order->delivery_status);
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::Delivered->value,
+        ]);
         $this->assertNotNull($order->completed_at);
         $this->assertSame([], $this->operations->availableActions($order));
     }
 
     public function test_pickup_flow_uses_ready_and_picked_up_states(): void
     {
+        Queue::fake();
         $order = Order::factory()->paid()->pickup()->create();
 
         $order = $this->operations->perform($order, AdminOrderAction::StartPreparation, $this->admin);
+        $this->assertDatabaseCount('order_notification_deliveries', 0);
         $this->assertContains(AdminOrderAction::MarkReadyForPickup, $this->operations->availableActions($order));
         $this->assertNotContains(AdminOrderAction::MarkShipped, $this->operations->availableActions($order));
 
         $order = $this->operations->perform($order, AdminOrderAction::MarkReadyForPickup, $this->admin);
         $this->assertSame(DeliveryStatus::ReadyForPickup, $order->delivery_status);
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::PickupReady->value,
+        ]);
 
         $order = $this->operations->perform($order, AdminOrderAction::ConfirmPickup, $this->admin);
         $this->assertSame(OrderStatus::Completed, $order->order_status);
         $this->assertSame(DeliveryStatus::PickedUp, $order->delivery_status);
+        $this->assertDatabaseHas('order_notification_deliveries', [
+            'order_id' => $order->id,
+            'type' => OrderNotificationType::PickedUp->value,
+        ]);
     }
 
     public function test_unpaid_cancellation_releases_active_reservation_and_stock_atomically(): void

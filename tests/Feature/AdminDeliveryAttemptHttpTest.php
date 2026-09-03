@@ -7,9 +7,11 @@ use App\Enums\DeliveryAttemptAttribution;
 use App\Enums\DeliveryAttemptResult;
 use App\Enums\DeliveryStatus;
 use App\Enums\DeliveryTrackingStatus;
+use App\Enums\OrderHistoryDomain;
 use App\Enums\OrderStatus;
 use App\Models\DeliveryAttempt;
 use App\Models\Order;
+use App\Models\OrderStatusHistory;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,6 +64,32 @@ class AdminDeliveryAttemptHttpTest extends TestCase
             ->assertSee('No se encontro a una persona que pudiera recibir el pedido.')
             ->assertSee(route('admin.orders.delivery-attempts.store', $order->code), false)
             ->assertDontSee('Confirmar entrega');
+    }
+
+    public function test_delivery_attempt_form_uses_seconds_and_never_defaults_before_the_shipment(): void
+    {
+        CarbonImmutable::setTestNow('2026-07-31 10:00:30');
+        $order = Order::factory()->shipped()->create();
+        OrderStatusHistory::factory()->for($order)->create([
+            'domain' => OrderHistoryDomain::Delivery,
+            'from_status' => DeliveryStatus::Preparing->value,
+            'to_status' => DeliveryStatus::Shipped->value,
+            'created_at' => now()->subSeconds(10),
+        ]);
+
+        $this->get(route('admin.orders.show', $order->code))
+            ->assertOk()
+            ->assertSee('step="1"', false)
+            ->assertSee('min="2026-07-31T10:00:20"', false)
+            ->assertSee('value="2026-07-31T10:00:30"', false);
+
+        $this->post(route('admin.orders.delivery-attempts.store', $order->code), [
+            'operation_token' => (string) Str::uuid(),
+            'result' => DeliveryAttemptResult::Delivered->value,
+            'responsible_name' => 'Transporte Lima 01',
+            'occurred_at' => '2026-07-31T10:00:30',
+        ])->assertRedirect(route('admin.orders.show', $order->code))
+            ->assertSessionHas('success');
     }
 
     public function test_admin_can_register_an_incident_and_return_to_the_preserved_filter(): void
