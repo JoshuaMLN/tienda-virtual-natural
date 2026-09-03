@@ -6,6 +6,7 @@ use App\Enums\DeliveryAttemptAttribution;
 use App\Enums\DeliveryAttemptResult;
 use App\Enums\DeliveryStatus;
 use App\Enums\DeliveryTrackingStatus;
+use App\Enums\FiscalDocumentStatus;
 use App\Enums\OrderHistoryDomain;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
@@ -20,6 +21,7 @@ use App\Models\StockReservation;
 use App\Support\Money\Money;
 use DateTimeInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AdminOrderPresenter
@@ -54,6 +56,12 @@ class AdminOrderPresenter
         $base = $this->customerDetails->present($order, $commercialStatus);
         $reservations = $order->stockReservations
             ->map(fn (StockReservation $reservation): array => $this->reservation($reservation));
+        $paymentConfirmedAt = $order->statusHistories
+            ->first(fn (OrderStatusHistory $history): bool => $history->domain === OrderHistoryDomain::Payment
+                && $history->to_status === PaymentStatus::Paid->value)
+            ?->created_at;
+        $hasSaleDocument = $order->fiscalDocuments
+            ->contains(fn (FiscalDocument $document): bool => $document->type->isSaleDocument());
 
         return array_merge($base, [
             'commercial_status' => $commercialStatus,
@@ -72,8 +80,12 @@ class AdminOrderPresenter
             'reservations' => $reservations->all(),
             'history' => $this->groupedHistory($order),
             'documents' => $order->fiscalDocuments
-                ->map(fn (FiscalDocument $document): array => $this->document($document))
+                ->map(fn (FiscalDocument $document): array => $this->document($document, $order->code, $paymentConfirmedAt))
                 ->all(),
+            'fiscal_registration' => [
+                'can_register' => $order->payment_status === PaymentStatus::Paid && ! $hasSaleDocument,
+                'type' => $order->fiscal_document_type->label(),
+            ],
             'communications' => $this->communications($order),
             'delivery_tracking' => $this->deliveryTracking($order),
             'delivery_attempts' => $order->deliveryAttempts
@@ -490,20 +502,61 @@ class AdminOrderPresenter
     }
 
     /** @return array<string, mixed> */
-    private function document(FiscalDocument $document): array
-    {
+    private function document(
+        FiscalDocument $document,
+        string $orderCode,
+        ?DateTimeInterface $paymentConfirmedAt,
+    ): array {
         return [
+            'id' => $document->getKey(),
             'type' => $document->type->label(),
             'reference' => $document->series.'-'.$document->correlative,
+            'series' => $document->series,
+            'correlative' => $document->correlative,
+            'issued_date' => $document->issued_at->toDateString(),
             'status' => $document->status->label(),
             'issued_at' => $this->formatDate($document->issued_at),
             'has_pdf' => trim((string) $document->pdf_path) !== '',
             'has_xml' => trim((string) $document->xml_path) !== '',
+            'can_send' => $document->status === FiscalDocumentStatus::Issued
+                && trim((string) $document->pdf_path) !== ''
+                && Storage::disk('local')->exists($document->pdf_path),
+            'latest_delivery' => $document->deliveries->last() ? [
+                'status' => $document->deliveries->last()->status->label(),
+                'attempted_at' => $this->formatDate($document->deliveries->last()->attempted_at),
+                'error' => $document->deliveries->last()->error_message,
+            ] : null,
             'registrar' => $document->registrar_name ?: 'Sistema',
+            'download_url' => route('admin.orders.fiscal-documents.download', [
+                'order' => $orderCode,
+                'document' => $document->getKey(),
+            ]),
+            'payment_date_mismatch' => $document->type->isSaleDocument()
+                && $paymentConfirmedAt !== null
+                && $document->issued_at->format('Y-m-d') !== $paymentConfirmedAt->format('Y-m-d'),
             'parent_reference' => $document->parentDocument
                 ? $document->parentDocument->series.'-'.$document->parentDocument->correlative
                 : null,
             'annulment_reason' => $document->annulment_reason,
+            'can_correct' => $document->status === FiscalDocumentStatus::Issued,
+            'can_register_replacement' => $document->status === FiscalDocumentStatus::Annulled
+                && $document->type->isSaleDocument()
+                && ! $document->relatedDocuments->contains(fn (FiscalDocument $related): bool => $related->type === $document->type
+                    && $related->status === FiscalDocumentStatus::Issued
+                    && $related->sale_document_slot === null),
+            'file_versions' => $document->fileVersions->map(fn ($version): array => [
+                'version' => $version->version,
+                'reason' => $version->reason,
+                'actor' => $version->replaced_by_name ?: 'Sistema',
+                'recorded_at' => $this->formatDate($version->created_at),
+            ])->all(),
+            'corrections' => $document->corrections->map(fn ($correction): array => [
+                'before' => $correction->before_values,
+                'after' => $correction->after_values,
+                'reason' => $correction->reason,
+                'actor' => $correction->corrected_by_name ?: 'Sistema',
+                'recorded_at' => $this->formatDate($correction->created_at),
+            ])->all(),
         ];
     }
 

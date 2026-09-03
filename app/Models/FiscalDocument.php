@@ -59,7 +59,7 @@ class FiscalDocument extends Model
      */
     public function applyStatusMutation(array $attributes): void
     {
-        $allowed = ['status', 'annulled_at', 'annulled_by', 'annulled_by_name', 'annulled_by_email', 'annulment_reason'];
+        $allowed = ['status', 'annulled_at', 'annulled_by', 'annulled_by_name', 'annulled_by_email', 'annulment_reason', 'pdf_path', 'series', 'correlative', 'issued_at'];
         $unexpected = array_diff(array_keys($attributes), $allowed);
 
         if ($unexpected !== []) {
@@ -103,6 +103,16 @@ class FiscalDocument extends Model
     public function deliveries(): HasMany
     {
         return $this->hasMany(FiscalDocumentDelivery::class)->oldest('attempted_at')->oldest('id');
+    }
+
+    public function fileVersions(): HasMany
+    {
+        return $this->hasMany(FiscalDocumentFileVersion::class)->latest('version');
+    }
+
+    public function corrections(): HasMany
+    {
+        return $this->hasMany(FiscalDocumentCorrection::class)->latest('id');
     }
 
     protected function casts(): array

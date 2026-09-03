@@ -586,7 +586,7 @@
         <section class="admin-card p-3 p-lg-4" aria-labelledby="admin-order-documents-title">
             <h2 class="h5 fw-black mb-3" id="admin-order-documents-title">Documentos fiscales</h2>
             @if($detail['documents'] === [])
-                <p class="small text-muted mb-0">Todavia no se registro un comprobante para este pedido.</p>
+                <p class="small text-muted mb-0">Comprobante pendiente de emision.</p>
             @else
                 <div class="admin-order-record-list">
                     @foreach($detail['documents'] as $document)
@@ -617,15 +617,99 @@
                                     <dd>{{ $document['registrar'] }}</dd>
                                 </div>
                             </dl>
+                            <a class="btn btn-sm btn-outline-primary mt-2" href="{{ $document['download_url'] }}">
+                                <i class="bi bi-download me-1" aria-hidden="true"></i>Descargar PDF
+                            </a>
+                            @if($document['can_send'])
+                                <form class="d-inline" method="POST" action="{{ route('admin.orders.fiscal-documents.send', [$order->code, $document['id']]) }}" data-admin-order-action-form>
+                                    @csrf
+                                    <button class="btn btn-sm btn-primary mt-2" type="submit">
+                                        <span data-submit-label><i class="bi bi-send me-1" aria-hidden="true"></i>Enviar comprobante</span>
+                                        <span class="d-none" data-submit-loading><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Programando</span>
+                                    </button>
+                                </form>
+                            @endif
+                            @if($document['latest_delivery'])
+                                <p class="small text-muted mt-2 mb-0">
+                                    <strong>Ultimo envio por correo:</strong> {{ $document['latest_delivery']['status'] }}
+                                    @if($document['latest_delivery']['attempted_at'])
+                                        ({{ $document['latest_delivery']['attempted_at'] }})
+                                    @endif
+                                </p>
+                                @if($document['latest_delivery']['error'])
+                                    <p class="small text-danger mb-0"><strong>Error:</strong> {{ $document['latest_delivery']['error'] }}</p>
+                                @endif
+                            @endif
+                            @if($document['payment_date_mismatch'])
+                                <p class="small text-warning-emphasis mt-2 mb-0">
+                                    <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+                                    La fecha fiscal difiere de la confirmacion del pago. Revisa la incidencia con contabilidad.
+                                </p>
+                            @endif
                             @if($document['parent_reference'])
                                 <p class="small mb-0"><strong>Relacionado con:</strong> {{ $document['parent_reference'] }}</p>
                             @endif
                             @if($document['annulment_reason'])
                                 <p class="small text-danger mb-0"><strong>Anulacion:</strong> {{ $document['annulment_reason'] }}</p>
                             @endif
+                            @if($document['file_versions'] !== [] || $document['corrections'] !== [])
+                                <details class="mt-3">
+                                    <summary class="small fw-semibold">Historial administrativo</summary>
+                                    <div class="mt-2 small border-start border-3 ps-3">
+                                        @foreach($document['file_versions'] as $version)
+                                            <div class="mb-2">
+                                                <strong>Archivo anterior, versión {{ $version['version'] }}.</strong>
+                                                {{ $version['reason'] }}
+                                                <span class="text-muted">Registrado por {{ $version['actor'] }} el {{ $version['recorded_at'] }}.</span>
+                                            </div>
+                                        @endforeach
+                                        @foreach($document['corrections'] as $correction)
+                                            <div class="mb-2">
+                                                <strong>Registro corregido.</strong>
+                                                Serie {{ $correction['before']['series'] }} → {{ $correction['after']['series'] }},
+                                                correlativo {{ $correction['before']['correlative'] }} → {{ $correction['after']['correlative'] }},
+                                                fecha {{ $correction['before']['issued_at'] }} → {{ $correction['after']['issued_at'] }}.
+                                                {{ $correction['reason'] }}
+                                                <span class="text-muted">Registrado por {{ $correction['actor'] }} el {{ $correction['recorded_at'] }}.</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </details>
+                            @endif
+                            <x-admin.fiscal-document-actions :document="$document" :order="$order" />
                         </article>
                     @endforeach
                 </div>
+            @endif
+            @if($detail['fiscal_registration']['can_register'])
+                <form class="border-top mt-3 pt-3" method="POST" action="{{ route('admin.orders.fiscal-documents.store', $order->code) }}" enctype="multipart/form-data">
+                    @csrf
+                    <h3 class="h6 fw-black">Registrar comprobante emitido en SUNAT</h3>
+                    <p class="small text-muted">Tipo solicitado: <strong>{{ $detail['fiscal_registration']['type'] }}</strong>. Sube el PDF oficial; no se genera ni corrige desde la tienda.</p>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label" for="fiscal-series">Serie</label>
+                            <input class="form-control @error('series') is-invalid @enderror" id="fiscal-series" name="series" maxlength="10" value="{{ old('series') }}" required>
+                            @error('series')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="fiscal-correlative">Correlativo</label>
+                            <input class="form-control @error('correlative') is-invalid @enderror" id="fiscal-correlative" name="correlative" maxlength="20" value="{{ old('correlative') }}" required>
+                            @error('correlative')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="fiscal-issued-at">Fecha de emision</label>
+                            <input class="form-control @error('issued_at') is-invalid @enderror" id="fiscal-issued-at" name="issued_at" type="date" max="{{ now()->toDateString() }}" value="{{ old('issued_at') }}" required>
+                            @error('issued_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="fiscal-pdf">PDF oficial (maximo 10 MB)</label>
+                            <input class="form-control @error('pdf') is-invalid @enderror" id="fiscal-pdf" name="pdf" type="file" accept="application/pdf,.pdf" required>
+                            @error('pdf')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+                    <button class="btn btn-primary mt-3" type="submit"><i class="bi bi-file-earmark-arrow-up me-1" aria-hidden="true"></i>Registrar comprobante</button>
+                </form>
             @endif
         </section>
 

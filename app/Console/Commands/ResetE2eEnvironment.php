@@ -2,9 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\DeliveryMethod;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Enums\UserRole;
 use App\Models\Category;
 use App\Models\DeliveryDistrict;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\E2eSeeder;
@@ -99,6 +103,10 @@ class ResetE2eEnvironment extends Command
             throw new RuntimeException('La base configurada no coincide exactamente con la base E2E aprobada.');
         }
 
+        if (config('filesystems.disks.local.root') !== storage_path('app/e2e-private')) {
+            throw new RuntimeException('El disco local debe usar almacenamiento privado exclusivo de E2E.');
+        }
+
         $pdo = DB::connection()->getPdo();
 
         if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'mysql') {
@@ -132,12 +140,13 @@ class ResetE2eEnvironment extends Command
 
     private function assertSentinelData(): void
     {
-        $customerReady = User::query()
+        $customer = User::query()
             ->where('email', config('e2e.customer.email'))
             ->where('role', UserRole::Customer->value)
             ->whereNotNull('email_verified_at')
             ->whereNotNull('terms_accepted_at')
-            ->exists();
+            ->first();
+        $customerReady = $customer !== null;
 
         $adminReady = User::query()
             ->where('email', config('e2e.admin.email'))
@@ -149,8 +158,42 @@ class ResetE2eEnvironment extends Command
             && Product::query()->whereIn('sku', ['E2E-OMEGA-3', 'E2E-MAGNESIO'])->count() === 2;
 
         $deliveryReady = DeliveryDistrict::query()->where('ubigeo', '150131')->where('is_active', true)->exists();
+        $orderFixturesReady = $customer !== null
+            && Order::query()
+                ->where('user_id', $customer->id)
+                ->where('delivery_method', DeliveryMethod::HomeDelivery->value)
+                ->where('payment_status', PaymentStatus::Paid->value)
+                ->where('shipping_fee_cents', 1200)
+                ->exists()
+            && Order::query()
+                ->where('user_id', $customer->id)
+                ->where('delivery_method', DeliveryMethod::HomeDelivery->value)
+                ->where('payment_status', PaymentStatus::Paid->value)
+                ->where('products_subtotal_cents', 14_970)
+                ->where('shipping_fee_cents', 0)
+                ->exists()
+            && Order::query()
+                ->where('user_id', $customer->id)
+                ->where('delivery_method', DeliveryMethod::Pickup->value)
+                ->where('payment_status', PaymentStatus::Paid->value)
+                ->exists()
+            && Order::query()
+                ->where('user_id', $customer->id)
+                ->where('order_status', OrderStatus::PendingPayment->value)
+                ->where('payment_status', PaymentStatus::Pending->value)
+                ->where('pending_payment_owner_id', $customer->id)
+                ->where('reservation_expires_at', '>', now()->addMinutes(90))
+                ->exists()
+            && Order::query()
+                ->where('user_id', $customer->id)
+                ->where('customer_name', E2eSeeder::FISCAL_FIXTURE_CUSTOMER_NAME)
+                ->where('payment_status', PaymentStatus::Paid->value)
+                ->whereHas('fiscalDocuments', fn ($query) => $query
+                    ->where('series', 'B001')
+                    ->where('correlative', '90000002'))
+                ->exists();
 
-        if (! $customerReady || ! $adminReady || ! $catalogReady || ! $deliveryReady) {
+        if (! $customerReady || ! $adminReady || ! $catalogReady || ! $deliveryReady || ! $orderFixturesReady) {
             throw new RuntimeException('La comprobacion de datos centinela E2E fallo.');
         }
     }

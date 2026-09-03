@@ -27,3 +27,16 @@ Cada entrada debe incluir:
   el flujo protegido documentado y la configuracion de cada capa permanece
   aislada.
 - **Estado:** adoptada y validada.
+
+## D-002: Destinos de autenticacion separados por rol
+
+- **Contexto:** customer y admin comparten el guard de sesion `web`, pero sus
+  areas privadas tienen autorizacion distinta.
+- **Decision:** el login de cliente conserva el destino solicitado solo cuando
+  no pertenece a `/admin`; un destino administrativo se descarta y el cliente
+  vuelve a su perfil.
+- **Motivo:** evitar que una autenticacion correcta de cliente termine en un
+  `403` predecible del middleware administrativo, sin relajar dicha proteccion.
+- **Consecuencias:** un cliente autenticado que visite directamente `/admin`
+  sigue recibiendo `403`; solo se corrige la redireccion posterior al login.
+- **Estado:** adoptada y validada con pruebas HTTP.

@@ -307,6 +307,55 @@ class FiscalDocumentTest extends TestCase
         $this->assertNull($document->annulled_at);
     }
 
+    public function test_combined_file_and_registration_correction_keeps_both_audit_histories(): void
+    {
+        $document = FiscalDocument::factory()->create([
+            'series' => 'B001',
+            'correlative' => '00000011',
+            'issued_at' => CarbonImmutable::parse('2026-08-01'),
+            'pdf_path' => 'fiscal/original.pdf',
+        ]);
+        $admin = User::factory()->admin()->create();
+
+        $this->fiscal()->correct($document, 'fiscal/correct.pdf', [
+            'series' => 'B001',
+            'correlative' => '00000012',
+            'issued_at' => CarbonImmutable::parse('2026-08-02'),
+        ], 'PDF y correlativo transcritos incorrectamente', $admin);
+
+        $document->refresh();
+        $this->assertSame('fiscal/correct.pdf', $document->pdf_path);
+        $this->assertSame('00000012', $document->correlative);
+        $this->assertSame('2026-08-02', $document->issued_at->toDateString());
+        $this->assertDatabaseHas('fiscal_document_file_versions', ['fiscal_document_id' => $document->id, 'version' => 1, 'pdf_path' => 'fiscal/original.pdf']);
+        $this->assertDatabaseHas('fiscal_document_corrections', ['fiscal_document_id' => $document->id, 'reason' => 'PDF y correlativo transcritos incorrectamente']);
+
+        $fileVersion = $document->fileVersions()->sole();
+        $correction = $document->corrections()->sole();
+
+        $this->assertLogicException(fn () => $fileVersion->update(['reason' => 'No permitido']));
+        $this->assertLogicException(fn () => $fileVersion->delete());
+        $this->assertLogicException(fn () => $correction->update(['reason' => 'No permitido']));
+        $this->assertLogicException(fn () => $correction->delete());
+    }
+
+    public function test_annulled_sale_document_accepts_one_replacement_and_keeps_a_linear_chain(): void
+    {
+        $order = Order::factory()->paid()->create();
+        $original = $this->fiscal()->registerSaleDocument($order, FiscalDocumentType::Receipt, 'B001', '00000031', now(), 'fiscal/original.pdf');
+        $this->fiscal()->annul($original, 'Anulado externamente');
+
+        $replacement = $this->fiscal()->registerReplacement($original, 'B001', '00000032', now(), 'fiscal/replacement.pdf');
+
+        $this->assertSame(FiscalDocumentType::Receipt, $replacement->type);
+        $this->assertTrue($replacement->parentDocument->is($original));
+        $this->assertNull($replacement->sale_document_slot);
+        $this->assertFiscalException(
+            fn () => $this->fiscal()->registerReplacement($original, 'B001', '00000033', now(), 'fiscal/second.pdf'),
+            'reemplazo vigente',
+        );
+    }
+
     public function test_delivery_attempts_keep_recipient_and_actor_snapshots_and_are_immutable(): void
     {
         $order = Order::factory()->paid()->create([

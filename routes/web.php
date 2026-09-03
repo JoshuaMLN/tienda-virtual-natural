@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DeliveryAttemptController as AdminDeliveryAttemptController;
+use App\Http\Controllers\Admin\FiscalDocumentController as AdminFiscalDocumentController;
 use App\Http\Controllers\Admin\LegalDocumentController as AdminLegalDocumentController;
 use App\Http\Controllers\Admin\LegalSettingsController as AdminLegalSettingsController;
 use App\Http\Controllers\Admin\NonWorkingDayController as AdminNonWorkingDayController;
@@ -262,6 +263,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('orders.mark-ready-pickup');
         Route::post('/pedidos/{order:code}/intentos-entrega', [AdminDeliveryAttemptController::class, 'store'])
             ->name('orders.delivery-attempts.store');
+        Route::post('/pedidos/{order:code}/comprobantes', [AdminFiscalDocumentController::class, 'store'])
+            ->name('orders.fiscal-documents.store');
+        Route::get('/pedidos/{order:code}/comprobantes/{document}/descargar', [AdminFiscalDocumentController::class, 'download'])
+            ->whereNumber('document')
+            ->name('orders.fiscal-documents.download');
+        Route::post('/pedidos/{order:code}/comprobantes/{document}/enviar', [AdminFiscalDocumentController::class, 'send'])
+            ->whereNumber('document')
+            ->name('orders.fiscal-documents.send');
+        Route::patch('/pedidos/{order:code}/comprobantes/{document}/corregir', [AdminFiscalDocumentController::class, 'correct'])->whereNumber('document')->name('orders.fiscal-documents.correct');
+        Route::patch('/pedidos/{order:code}/comprobantes/{document}/anular', [AdminFiscalDocumentController::class, 'annul'])->whereNumber('document')->name('orders.fiscal-documents.annul');
+        Route::post('/pedidos/{order:code}/comprobantes/{document}/relacionados', [AdminFiscalDocumentController::class, 'storeRelated'])->whereNumber('document')->name('orders.fiscal-documents.related.store');
+        Route::post('/pedidos/{order:code}/comprobantes/{document}/reemplazo', [AdminFiscalDocumentController::class, 'storeReplacement'])->whereNumber('document')->name('orders.fiscal-documents.replacement.store');
         Route::patch('/pedidos/{order:code}/confirmar-recojo', [AdminOrderOperationController::class, 'confirmPickup'])
             ->name('orders.confirm-pickup');
         Route::patch('/pedidos/{order:code}/cancelar', [AdminOrderOperationController::class, 'cancel'])

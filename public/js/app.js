@@ -1877,3 +1877,9 @@ document.querySelectorAll('[data-image-cropper]').forEach(function (cropper) {
         setPlaceholderVisible(true);
     }
 });
+
+document.querySelectorAll('[data-modal-auto-open]').forEach(function (modalElement) {
+    if (window.bootstrap) {
+        window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
+    }
+});

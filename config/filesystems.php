@@ -32,7 +32,9 @@ return [
 
         'local' => [
             'driver' => 'local',
-            'root' => storage_path('app/private'),
+            'root' => env('APP_ENV') === 'e2e'
+                ? storage_path('app/e2e-private')
+                : storage_path('app/private'),
             'serve' => true,
             'throw' => false,
             'report' => false,

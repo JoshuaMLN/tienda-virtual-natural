@@ -82,6 +82,9 @@ class OrderController extends Controller
             'fiscalDocuments' => fn ($query) => $query
                 ->with([
                     'parentDocument:id,series,correlative',
+                    'relatedDocuments:id,parent_document_id,type,status,sale_document_slot',
+                    'fileVersions',
+                    'corrections',
                     'deliveries' => fn ($query) => $query
                         ->oldest('attempted_at')
                         ->oldest('id'),

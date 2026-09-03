@@ -737,8 +737,18 @@ Criterio de salida:
 
 ### Etapa 7.5: Registro del comprobante principal
 
+Estado: Implementada y validada localmente.
+
+Reglas cerradas:
+- El comprobante se emite manualmente fuera de VitaNatural en SUNAT; esta etapa solo registra su PDF oficial y no integra PSE, API fiscal ni credenciales.
+- El PDF privado es obligatorio y tiene un limite de 10 MB. No se registra XML en esta etapa.
+- Un pedido pagado sin documento muestra `Comprobante pendiente de emision`; no existe un documento fiscal persistido en estado pendiente o rechazado.
+- Al registrar el PDF, el comprobante nace como `Emitido`. Su fecha, serie y correlativo son los datos oficiales ya emitidos por SUNAT e inmutables en VitaNatural.
+- La fecha no puede ser futura. Puede diferir de la confirmacion del pago: el documento se registra igual y el panel muestra una alerta administrativa sin alterar el hecho fiscal.
+- La correccion, anulacion y notas corresponden a la Etapa 7.6; el envio por correo, a la Etapa 7.7.
+
 - Mostrar el tipo solicitado sin permitir cambiarlo y habilitar el registro solo para pedidos pagados.
-- Solicitar serie, correlativo, fecha de emision y PDF oficial; permitir XML opcional.
+- Solicitar serie, correlativo, fecha de emision y PDF oficial.
 - Validar archivos, tamano, fecha, almacenamiento privado y unicidad fiscal.
 - No calcular ni sugerir el siguiente correlativo; copiar el asignado por SUNAT SEE-SOL.
 - Mantener tipo, serie y correlativo como identidad inmutable.
@@ -750,19 +760,56 @@ Criterio de salida:
 Criterio de salida:
 - Una boleta o factura emitida externamente puede registrarse y consultarse sin exponer sus archivos ni inventar numeracion.
 
+Resultado tecnico:
+- El administrador registra el PDF oficial privado de la boleta o factura solicitada, solo tras confirmar el pago; serie, correlativo, fecha y registrador quedan inmutables en el documento emitido.
+- El panel muestra el comprobante pendiente de emision hasta registrarlo, bloquea el tipo fiscal al solicitado y advierte —sin bloquear— si su fecha difiere de la confirmacion de pago.
+- Las descargas administrativas reutilizan la proteccion privada y no revelan documentos que pertenezcan a otro pedido.
+- Pruebas HTTP y de dominio focalizadas: 39 pruebas, 298 aserciones, PASS.
+
 ### Etapa 7.6: Correcciones, notas y anulacion fiscal
 
-- Versionar cada correccion de PDF o XML, exigir motivo y conservar el archivo anterior de forma privada.
-- Impedir que una correccion de archivo cambie tipo, serie o correlativo.
-- Registrar notas de credito y debito relacionadas con su propia identidad y archivos.
-- Permitir la anulacion solo como reflejo de una operacion ya realizada en SUNAT, con confirmacion, motivo y administrador.
-- Mantener visibles los documentos anulados y todas sus relaciones sin eliminaciones en cascada.
-- Probar versiones, notas relacionadas, anulacion, restricciones unicas, historial y acceso privado.
+Estado: Implementada y validada localmente.
+
+Reglas cerradas:
+- VitaNatural no emite, anula ni comunica comprobantes a SUNAT. La empresa realiza la operacion fiscal aplicable fuera de la tienda mediante SUNAT, SEE-SOL, PSE u OSE; el panel solo registra el resultado ya realizado.
+- Tipo, serie, correlativo y fecha de emision son la identidad fiscal oficial. No existe una edicion libre ni una sobrescritura silenciosa de esos datos.
+- Si solo se cargo un PDF equivocado, el administrador usa `Corregir comprobante`: adjunta el PDF correcto y un motivo; el archivo anterior queda privado, versionado y auditable. El cliente solo descarga la version vigente.
+- Si hubo un error de transcripcion en VitaNatural, pero el comprobante oficial ya emitido es correcto, el administrador usa `Corregir comprobante`: indica los valores correctos y un motivo, y se conserva el antes, despues, fecha y responsable. No se anula ni se crea un documento en SUNAT por ese caso.
+- Si ambos errores coexisten, el administrador puede corregir el PDF y los datos registrados en una unica operacion atomica, con el mismo motivo y ambos historiales privados. Si la correccion no se completa, no se guarda ningun cambio parcial.
+- Si el comprobante emitido externamente es incorrecto, no se corrige desde VitaNatural. La empresa resuelve primero el tratamiento aplicable fuera de la tienda con su asesoria contable; despues el administrador refleja la anulacion, nota relacionada o comprobante oficial de reemplazo.
+- Una anulacion se registra con confirmacion, motivo, fecha y administrador. El documento original nunca se elimina y permanece visible como `Anulado` en el historial del cliente.
+- Las notas de credito y debito son documentos propios relacionados con el comprobante afectado: conservan identidad y PDF oficiales independientes.
+- Un reemplazo es un comprobante nuevo emitido externamente. VitaNatural lo vincula con el documento anulado sin reutilizar numeracion ni alterar el original. La cadena es lineal: un documento anulado admite un unico reemplazo vigente; si este tambien se anula, puede registrar su propio reemplazo.
+- El flujo manual conserva solo PDF privado. XML queda fuera de alcance hasta definir una integracion fiscal real.
+- La etapa no envia correos automaticamente; el envio manual y auditado del PDF vigente se implementa en la Etapa 7.7.
+
+- Implementar versionado privado de archivos y correcciones auditables de registro.
+- Registrar notas de credito y debito, anulaciones y reemplazos relacionados sin eliminaciones en cascada.
+- Probar versiones, correcciones de registro, notas relacionadas, anulacion, restricciones unicas, historial y acceso privado.
 
 Criterio de salida:
 - Los errores de carga y cambios fiscales se corrigen con trazabilidad completa y sin reescribir la historia.
 
+Resultado tecnico:
+- El historial de archivos anteriores y correcciones de registro es inmutable;
+  conserva motivo, responsable, fecha y valores antes/despues, y solo se
+  muestra al administrador.
+- Las correcciones se permiten exclusivamente sobre comprobantes emitidos. La
+  misma accion puede corregir archivo, registro o ambos de forma atomica; la
+  anulacion conserva el original y su motivo; notas y reemplazos son documentos
+  relacionados con PDF privado propio. Un reemplazo vigente impide un segundo
+  reemplazo sobre el mismo documento anulado.
+- Las rutas administrativas validan rol, archivo, fecha, pertenencia del pedido
+  y limpieza del archivo cuando la operacion fiscal es rechazada.
+- El entorno E2E usa almacenamiento privado independiente y un pedido fiscal
+  determinista. Playwright valida el flujo administrativo completo y que el
+  customer solo ve y descarga el PDF vigente.
+- Validacion local: PHPUnit completo 658 pruebas / 5145 aserciones, Playwright
+  7/7 y reset E2E protegido, PASS.
+
 ### Etapa 7.7: Envio fiscal e integracion de la fase
+
+Estado: Implementada y validada localmente.
 
 - Habilitar `Enviar comprobante` solo para documentos emitidos con PDF vigente.
 - Enviar manualmente por cola y exclusivamente al correo fiscal snapshot del pedido.
@@ -775,6 +822,27 @@ Criterio de salida:
 
 Criterio de salida:
 - La operacion administrativa y fiscal queda integrada, auditable y preparada para recibir confirmaciones reales de Culqi.
+
+Resultado tecnico:
+- El administrador solo puede programar el envio de un documento `Emitido` cuyo
+  PDF privado vigente exista. El trabajo de cola vuelve a validar ambos datos y
+  se bloquea por documento mientras se procesa, por lo que un doble clic no
+  genera envios simultaneos; una vez terminado, el reenvio sigue siendo una
+  accion intencional permitida.
+- El correo adjunta exclusivamente el PDF vigente y usa el correo fiscal
+  congelado en el pedido. Cada resultado `Enviado` o `Fallido` conserva fecha,
+  destinatario y snapshot del administrador sin alterar el estado legal del
+  comprobante.
+- El detalle administrativo separa el ultimo estado de envio del estado fiscal
+  y mantiene el historial completo en Comunicaciones. La fixture fiscal E2E
+  valida el envio manual con cola sincronica y correo `array`, sin proveedor ni
+  credenciales reales.
+- Validacion local: PHPUnit completo 659 pruebas / 5150 aserciones, reset E2E
+  protegido y Playwright completo 10/10 (incluido el flujo fiscal administrativo
+  sin desborde horizontal en 1920×1080, 1366×768 y 390×844), build y cache de
+  vistas, PASS. Pint focal y global, PASS.
+- El recorrido UX con un pago real confirmado por Culqi y un comprobante cargado
+  en esa misma operacion sigue diferido al Sprint 7.
 
 ### Validaciones postpago diferidas y recuperadas
 

@@ -9,13 +9,30 @@ backend. Playwright valida los recorridos reales de navegador de bajo alcance.
 
 Resultados validados:
 
-- PHPUnit: **631 passed** / **4908 assertions**.
-- Playwright: **5 passed**.
+- PHPUnit: **659 passed** / **5150 assertions**.
+- Playwright: **10 passed** (incluye el recorrido fiscal administrativo y las
+  operaciones de pedidos pagados en domicilio y recojo, en
+  1920×1080, 1366×768 y 390×844).
 
-La suite E2E inicial cubre login real y estado de sesion para customer y admin,
-la home publica, el perfil del customer, la denegacion de customer hacia
-`/admin` y el dashboard administrativo. No sustituye las pruebas detalladas de
-PHPUnit ni amplía todavia los flujos de carrito, checkout, pedidos o CRUD.
+La suite E2E cubre login real y estado de sesion para customer y admin, la home
+publica, el perfil del customer, la denegacion de customer hacia `/admin`, el
+dashboard administrativo y un recorrido fiscal aislado: envio manual auditado,
+correccion, nota, anulacion y reemplazo como admin; consulta y descarga privada
+del PDF vigente como customer. Tambien cubre el ciclo de domicilio
+preparacion -> envio -> entrega, incidencias sin consumo y atribuibles al cliente
+hasta requerir otro pago de envio, y el ciclo de recojo listo -> recogido. No
+sustituye las pruebas detalladas de PHPUnit ni amplia todavia los flujos de
+carrito o checkout.
+
+En esos recorridos, la vista del customer conserva el rango aceptado de
+domicilio en 1366x768 al preparar y enviar, y en 390x844 sustituye la estimacion
+de recojo por su fecha limite solo cuando el pedido queda listo.
+
+Como comprobacion manual complementaria de la Fase 8 se revisaron checkout,
+listado y detalle de pedidos del cliente, y listado y detalle de pedidos del
+admin en 1920x1080, 1366x768 y 390x844. Los recorridos inspeccionados no
+presentaron desborde horizontal ni errores de consola. Esta verificacion no
+sustituye la integracion ni el cobro real de Culqi, que corresponde al Sprint 7.
 
 ## Aislamiento de datos
 
@@ -23,11 +40,13 @@ PHPUnit ni amplía todavia los flujos de carrito, checkout, pedidos o CRUD.
 | --- | --- |
 | Desarrollo normal | MySQL normal configurado en `.env` |
 | PHPUnit | SQLite `:memory:` |
-| Playwright | MySQL exclusiva `tienda_virtual_natural_e2e` |
+| Playwright | MySQL exclusiva `tienda_virtual_natural_e2e` y almacenamiento privado `storage/app/e2e-private` |
 
 Nunca ejecutes el reset E2E contra la base de desarrollo. El usuario MySQL de
 E2E debe tener privilegios exclusivamente sobre
 `tienda_virtual_natural_e2e`, sin acceso a la base normal.
+El entorno E2E tambien separa sus comprobantes privados del almacenamiento de
+desarrollo; las cargas de Playwright nunca usan `storage/app/private`.
 
 ## Preparacion inicial de Playwright
 
@@ -99,6 +118,29 @@ El comando adquiere un bloqueo MySQL, ejecuta `migrate:fresh` sobre la conexión
 `mysql`, llama exclusivamente a `E2eSeeder` y verifica datos centinela. No
 llama a `DatabaseSeeder`, no crea la base y no expone flags para saltar las
 guardas.
+
+## Fixtures E2E de pedidos
+
+Cada reset protegido crea cinco pedidos deterministas del customer E2E mediante
+los servicios reales de creacion, reserva y confirmacion de pago. No se crean
+mediante factories ni cambios directos de estado:
+
+| Escenario | Estado | Uso principal |
+| --- | --- | --- |
+| Domicilio con envio | Pagado, tarifa E2E | Fechas pospago, preparacion y envio |
+| Domicilio con envio gratis | Pagado, subtotal sobre el umbral | Total, desglose y umbral de envio gratis |
+| Recojo | Pagado, sin costo de entrega | Preparacion, disponibilidad y plazo de recojo |
+| Domicilio pendiente de pago | Reserva activa | Punto de partida para Culqi y pantallas pendientes |
+| Fiscal | Pagado, boleta con historial administrativo | Correccion, anulacion, nota y reemplazo en navegador |
+
+El reset repone esos escenarios antes de una auditoria o prueba de navegador.
+No dependas de los codigos internos de pedido: se generan por el dominio. Las
+acciones de una prueba pueden modificar los fixtures; ejecuta de nuevo el reset
+protegido para volver al estado inicial.
+
+El pedido pendiente conserva una reserva de al menos dos horas solo en E2E para
+que una auditoria amplia o una prueba posterior de Culqi no lo venza durante la
+ejecucion. No cambia el limite real de reservas configurado para la tienda.
 
 Para ejecutar la suite local completa:
 
