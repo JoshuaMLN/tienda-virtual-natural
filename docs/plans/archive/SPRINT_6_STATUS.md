@@ -2,7 +2,7 @@
 
 Fecha: 2026-07-24
 
-Estado: En progreso
+Estado: Completado (cierre tecnico local)
 
 ## Objetivo
 
@@ -587,7 +587,7 @@ Pendiente:
 
 ## Fase 7: Admin de pedidos y comprobantes manuales
 
-Estado: En progreso (Etapas 7.1 y 7.2 completadas)
+Estado: Completada (Etapas 7.1 a 7.7)
 
 Reglas cerradas:
 - Acciones contextuales en lugar de edicion libre de estados.
@@ -604,14 +604,14 @@ Reglas cerradas:
 - Identidad fiscal inmutable; correccion versionada de archivos, anulacion confirmada, notas relacionadas y estados legal y de correo separados.
 - Todos los administradores podran operar esta fase; los permisos por capacidad quedan en el Sprint 9.
 
-Planificado:
+Cobertura de etapas:
 - Etapa 7.1: bandeja, filtros y detalle administrativo de solo lectura. Completada.
 - Etapa 7.2: acciones contextuales, transiciones atomicas, auditoria y `refund_pending`. Completada.
-- Etapa 7.3: intentos y ciclos de entrega, bloqueo por nuevo pago y seguimiento de recojo. Implementada, pendiente de validacion manual.
-- Etapa 7.4: correos operativos, recordatorios, scheduler e idempotencia.
-- Etapa 7.5: registro y descarga privada de boleta o factura principal.
-- Etapa 7.6: correccion versionada de archivos, notas relacionadas y anulacion.
-- Etapa 7.7: envio fiscal auditado, integracion y cierre de la fase.
+- Etapa 7.3: intentos y ciclos de entrega, bloqueo por nuevo pago y seguimiento de recojo. Completada y validada.
+- Etapa 7.4: correos operativos, recordatorios, scheduler e idempotencia. Completada y validada localmente.
+- Etapa 7.5: registro y descarga privada de boleta o factura principal. Completada y validada.
+- Etapa 7.6: correccion versionada de archivos, notas relacionadas y anulacion. Completada y validada.
+- Etapa 7.7: envio fiscal auditado, integracion y cierre de la fase. Completada y validada.
 
 Completado en la Etapa 7.1:
 - `Admin\OrderController` y `ListAdminOrdersRequest` reemplazan las rutas y vistas estaticas.
@@ -678,9 +678,9 @@ Implementado en la Etapa 7.3:
 - Migracion `2026_08_04_000100_add_confirmed_to_orders_order_status` para normalizar pedidos historicos pagados que aun figuraban como `pending_payment`, liberando su ranura y conservando un evento tecnico de auditoria.
 - Suite focalizada aprobada con 69 pruebas y 602 aserciones; suite completa con 628 pruebas y 4889 aserciones.
 
-Pendiente:
-- Completar la validacion manual de la Etapa 7.3.
-- Implementar y validar las Etapas 7.4 a 7.7 en orden.
+Completado posteriormente:
+- Las validaciones manuales pendientes de las etapas 6.2, 7.2 y 7.3 se ejecutaron con pedidos pagados de demostracion en escritorio y celular.
+- Las etapas 7.4 a 7.7 incorporaron notificaciones operativas, registro y descarga privada de comprobantes, correcciones y anulaciones auditables, y envio fiscal manual auditado.
 
 ## Matriz de validaciones postpago
 
@@ -691,29 +691,32 @@ Validadas manualmente:
 - Etapa 6.3: acciones del cliente, modal, responsive y soporte para pedidos pagados.
 - Etapa 7.1: bandeja, detalle administrativo, estados terminales, historial y reservas agrupadas en escritorio y celular.
 
-Pendientes manuales:
-- Etapa 6.2, fechas: domicilio conserva el rango aceptado despues de preparar y enviar; recojo muestra primero una preparacion estimada y luego el plazo real al quedar listo; ambos recorridos deben validarse en escritorio y celular.
+Validadas posteriormente:
+- Etapa 6.2, fechas: domicilio conserva el rango aceptado despues de preparar y enviar; recojo muestra primero una preparacion estimada y luego el plazo real al quedar listo, en escritorio y celular.
 - Etapa 7.2, domicilio: acciones contextuales hasta `enviado`; recojo: preparacion, disponibilidad y confirmacion de recojo; cancelacion pagada: motivo, `refund_pending`, reposicion unica, detalle del cliente y correo.
 - Etapa 7.3, entrega: resultado exitoso, incidencias por las cuatro atribuciones, consumo selectivo, agotamiento de intentos, bloqueo, nuevo pago de envio, filtros, alertas, historial y privacidad del cliente.
 - Etapa 7.3, recojo: fecha limite desde la disponibilidad, filtros y alertas de recojos proximos o vencidos, y seguimiento manual sin cancelar ni descartar el pedido.
 
-Diferidas:
-- Segundo ciclo de entrega: requiere confirmar un nuevo pago de envio mediante Culqi en el Sprint 7.
-- Recorrido fiscal integral: requiere desarrollar Etapas 7.5 a 7.7; la validacion final con pago real y comprobante cargado es obligatoria antes de cerrar el Sprint 7.
+Diferidas al Sprint 7:
+- Segundo ciclo de entrega: requiere confirmar un nuevo pago de envio mediante Culqi.
+- Recorrido fiscal integral con un pago real confirmado por Culqi: la cobertura local usa pedidos pagados de demostracion; la confirmacion extremo a extremo sigue siendo criterio de cierre del Sprint 7.
 
 ## Fase 8: Integracion, pruebas y cierre
 
-Estado: Pendiente
+Estado: Completada localmente
 
-Planificado:
+Validado:
 - Suite funcional de seguridad admin, checkout, pedidos, reservas y comprobantes.
 - Validacion manual desktop y mobile.
 - Migraciones, rutas, vistas, Pint y build.
 - Documentacion de scheduler, colas y despliegue.
 - Actualizacion final de Graphify y documentos.
 
-Pendiente:
-- Implementacion completa de la fase.
+Resultado de cierre:
+- PHPUnit completo: 659 pruebas y 5150 aserciones, PASS.
+- Reset E2E protegido y Playwright: 10/10, PASS.
+- QA manual de checkout, pedidos de cliente y operaciones administrativas en 1920x1080, 1366x768 y 390x844: PASS, sin desborde horizontal ni errores de consola en los recorridos revisados.
+- Worker, scheduler, almacenamiento y servicios externos reales quedan como validacion operativa de preproduccion; no son una tarea local pendiente.
 
 ## Riesgos controlados
 
@@ -728,8 +731,8 @@ Pendiente:
 
 ## Bloqueos actuales
 
-- Ninguno para continuar con la Fase 7.
-- La validacion manual integral de sus comprobantes queda transferida como criterio obligatorio de cierre del Sprint 7.
+- Ninguno para cerrar el Sprint 6.
+- La confirmacion de pagos reales con Culqi y el recorrido fiscal integral sobre ese pago pertenecen al criterio de cierre del Sprint 7.
 
 ## Resultado esperado
 

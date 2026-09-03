@@ -100,9 +100,9 @@ Entregables:
 
 Objetivo: crear pedidos reales desde el carrito de un cliente autenticado.
 
-Estado: en progreso.
+Estado: completado (cierre tecnico local).
 
-Detalle: `plans/active/SPRINT_6_ROADMAP.md`.
+Detalle: [roadmap](plans/archive/SPRINT_6_ROADMAP.md) y [estado de cierre](plans/archive/SPRINT_6_STATUS.md).
 
 Entregables:
 - Autenticacion administrativa basica, rol de administrador y proteccion de todas las rutas `/admin`.

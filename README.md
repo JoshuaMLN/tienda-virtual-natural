@@ -4,6 +4,9 @@ VitaNatural es un ecommerce de productos naturales desarrollado como una
 aplicacion web Laravel. Incluye tienda publica, administracion, cuentas de
 clientes, carrito persistente y flujos de checkout y pedidos en evolucion.
 
+El Sprint 6 de checkout y pedidos esta completado y validado localmente. La
+confirmacion real de pagos con Culqi corresponde al Sprint 7.
+
 ## Stack principal
 
 - PHP 8.3 y Laravel 13.

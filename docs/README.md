@@ -11,6 +11,6 @@ segun el tema que necesites:
 - Fotografia actual del proyecto: [PROJECT_STATE.md](PROJECT_STATE.md).
 - Despliegue y operaciones: [DEPLOYMENT.md](DEPLOYMENT.md).
 - Planificacion general: [SPRINTS.md](SPRINTS.md).
-- Planes abiertos: [roadmap del Sprint 6](plans/active/SPRINT_6_ROADMAP.md) y
-  [estado del Sprint 6](plans/active/SPRINT_6_STATUS.md).
-- Planificacion historica completada: `plans/archive/`.
+- Planes abiertos: `plans/active/`.
+- Planificacion historica completada: [roadmap del Sprint 6](plans/archive/SPRINT_6_ROADMAP.md),
+  [estado de cierre del Sprint 6](plans/archive/SPRINT_6_STATUS.md) y `plans/archive/`.
